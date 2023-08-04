@@ -1,1 +1,12 @@
+[package]
+name = "rust_backend"
+version = "0.1.0"
+edition = "2021"
 
+[lib]
+name = "rust_backend"
+crate_type = ["cdylib"]
+
+[dependencies]
+palette = {version = "0.7.2"}
+pyo3 = {version = "0.19.2", features = ["extension-module"]}
