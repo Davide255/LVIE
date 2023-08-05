@@ -17,12 +17,13 @@ fn rust_backend(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(suba, m)?)?;
     m.add_function(wrap_pyfunction!(read_buffer::read, m)?)?;
     m.add_function(wrap_pyfunction!(shift_hue, m)?)?;
+    m.add_function(wrap_pyfunction!(circle, m)?)?;
     Ok(())
 }
 
 #[pyfunction]
-fn shift_hue(buf: Vec<Vec<f32>>) -> Vec<Vec<u8>> {
-    let mut out: Vec<Vec<u8>> = Vec::new();
+fn shift_hue(buf: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+    let mut out: Vec<Vec<f32>> = Vec::new();
     for p in buf {
         let (r, g, b) = (p[0], p[1], p[2]);
         let mut pix: Oklch = Oklch::from_color(Srgb::<f32>::from_components((
@@ -34,14 +35,15 @@ fn shift_hue(buf: Vec<Vec<f32>>) -> Vec<Vec<u8>> {
         pix = Oklch::new(l, c, OklabHue::from_degrees(h.into_degrees() + 180.0));
         let pix_rgb: Rgb = Rgb::from_color(pix);
         let (r, g, b) = pix_rgb.into_components();
-        out.push(vec![(r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8]);
+        out.push(vec![r * 255.0, g * 255.0, b * 255.0]);
     }
     out
 }
 
-fn circle(buf: Vec<Vec<u8>>, width: usize, height: usize) -> Vec<Vec<u8>> {
+#[pyfunction]
+fn circle(buf: Vec<Vec<f32>>, width: usize, height: usize, radius: f32) -> Vec<Vec<f32>> {
     if buf.len() != width*height {panic!("The buffer has not the expected length")};
-    let mut out: Vec<Vec<u8>> = Vec::new();
+    let mut out: Vec<Vec<f32>> = Vec::new();
     let mut image: HashMap<(usize, usize), Srgb> = HashMap::new();
 
     let mut y: usize = 0;
@@ -58,8 +60,19 @@ fn circle(buf: Vec<Vec<u8>>, width: usize, height: usize) -> Vec<Vec<u8>> {
         }
     }
 
-    for ((x, y), color) in image {
-        let center = (width / 2 as usize, height / 2 as usize);
+    for ((x, y), mut color) in image {
+        let (c_x, c_y) = (width / 2 as usize, height / 2 as usize);
+        if (((x - c_x)*(x - c_x)) as f32) < radius && (((y - c_y)*(y - c_y)) as f32) < radius {
+            let (l, c, h) = Oklch::from_color(color).into_components();
+            color = Srgb::from_color(Oklch::from_components((
+                l,
+                c,
+                OklabHue::from_degrees(h.into_degrees() + 180.0),
+            )));
+        }
+
+        let (r, g, b) = color.into_components();
+        out.push(vec![r * 255.0, g*255.0, b*255.0]);
     }
 
     out 
