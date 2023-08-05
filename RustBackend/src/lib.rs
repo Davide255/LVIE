@@ -15,12 +15,12 @@ fn suba(a: usize, b: usize) -> PyResult<usize> {
 fn rust_backend(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(suba, m)?)?;
     m.add_function(wrap_pyfunction!(read_buffer::read, m)?)?;
-    m.add_function(wrap_pyfunction!(shift_chroma, m)?)?;
+    m.add_function(wrap_pyfunction!(shift_hue, m)?)?;
     Ok(())
 }
 
 #[pyfunction]
-fn shift_chroma(buf: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+fn shift_hue(buf: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     let mut out: Vec<Vec<u8>> = Vec::new();
     for p in buf {
         let (r, g, b) = (p[0], p[1], p[2]);
