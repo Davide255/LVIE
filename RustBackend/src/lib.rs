@@ -18,6 +18,7 @@ fn rust_backend(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_buffer::read, m)?)?;
     m.add_function(wrap_pyfunction!(shift_hue, m)?)?;
     m.add_function(wrap_pyfunction!(circle, m)?)?;
+    m.add_function(wrap_pyfunction!(read_write, m)?)?;
     Ok(())
 }
 
@@ -36,6 +37,15 @@ fn shift_hue(buf: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
         let pix_rgb: Rgb = Rgb::from_color(pix);
         let (r, g, b) = pix_rgb.into_components();
         out.push(vec![r * 255.0, g * 255.0, b * 255.0]);
+    }
+    out
+}
+
+#[pyfunction]
+fn read_write(buf: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+    let mut out: Vec<Vec<f32>> = Vec::new();
+    for p in buf {
+        out.push(p);
     }
     out
 }
