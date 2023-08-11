@@ -59,6 +59,7 @@ fn adjust_exposure(buffer: Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>> {
 
     let mut _added_value: f64;
 
+    // Clamps added_value in the [-2, +2] interval
     if !(-2.0 <= added_value && added_value <= 2.0) {
         _added_value = ((added_value / added_value.abs()) * 2.0).into();
     } else {
