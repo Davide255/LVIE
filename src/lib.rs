@@ -21,6 +21,12 @@ fn normalize_buffer(buffer: Vec<i32>) -> Vec<Vec<i32>> {
     return out_buffer;
 }
 
+
+/*
+TODO: choose the best color space for saturation (HSL, HSV, OkHSL, OkHSV, ecc)
+and choose an associated function
+(what's the difference between "saturate" and "saturate_fixed()"?)
+*/
 #[pyfunction]
 fn adjust_saturation(buffer: Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>> {
     let mut out_buffer: Vec<Vec<f64>> = Vec::new();
