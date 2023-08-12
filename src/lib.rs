@@ -125,6 +125,23 @@ pub fn adjust_contrast(buffer: &Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>
     return combine_grayscale_with_colored(&gray_buffer, &buffer);
 }
 
+pub fn crop_image(
+    buffer: &Vec<Vec<f64>>,
+    image_size: (i32, i32),
+    crop: (i32, i32, i32, i32),
+) -> Vec<Vec<f64>> {
+    let mut out_buffer: Vec<Vec<f64>> = Vec::new();
+
+    for x in crop.1..(image_size.1 - crop.3) {
+        let mut _s = buffer[(x * image_size.1 + crop.0) as usize
+            ..(x * image_size.1 + image_size.0 - crop.2) as usize]
+            .to_vec();
+        out_buffer.append(&mut _s);
+    }
+
+    out_buffer
+}
+
 pub fn find_edges_mask(
     buffer: &Vec<f64>,
     image_size: (i32, i32),
