@@ -45,6 +45,16 @@ fn py_find_edges_mask(buffer: Vec<f64>, image_size: (i32, i32), sigma: f64, size
     find_edges_mask(&buffer, image_size, sigma, size)
 }
 
+#[pyfunction]
+#[pyo3(name = "crop_image")]
+fn py_crop_image(
+    buffer: Vec<Vec<f64>>,
+    image_size: (i32, i32),
+    crop: (i32, i32, i32, i32),
+) -> Vec<Vec<f64>> {
+    crop_image(&buffer, image_size, crop)
+}
+
 #[pymodule]
 fn rustlib(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_adjust_saturation, m)?)?;
@@ -53,5 +63,6 @@ fn rustlib(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_convert_to_grayscale, m)?)?;
     m.add_function(wrap_pyfunction!(py_find_edges_mask, m)?)?;
     m.add_function(wrap_pyfunction!(py_combine_grayscale_with_colored, m)?)?;
+    m.add_function(wrap_pyfunction!(py_crop_image, m)?)?;
     Ok(())
 }
