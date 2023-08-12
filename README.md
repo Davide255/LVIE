@@ -1,5 +1,5 @@
 # PhotoEditor
-A light-weight open source photo editor writte in Rust
+A light-weight open source photo editor written in Rust
 
 ## Ambition
 We are currently developing a photo editor thanks to the power of rust language and the FLTK framework!
