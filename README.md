@@ -10,7 +10,7 @@ This is only an embrional phase of this project so it hasn't even the GUI, but t
 ### Color spaces
 Firstly this project use the rust palette library for color spaces management, meaning this photo editor can work with many color spaces!
 At the moment we're focusing on implementing convertions between:
-- [ ] RGB
+- [X] RGB
 - [ ] HSV
 - [ ] OKLAB
 - [ ] OKLCH
@@ -19,11 +19,13 @@ At the moment we're focusing on implementing convertions between:
 ### Image manipulation
 Image manipulation is the core of this project, it includes all the values you need to adjust while processing an image!
 
-This editor (in theory) can adjust:
-- *Exposition (EV)* by increasing or decreasing the luminance of the color prensent in the image
-- *Saturation* thanks to the HSV color space conversion
+This editor can adjust:
+- [X] *Exposition (EV)* by increasing or decreasing the luminance of the color prensent in the image
+- [X] *Saturation* thanks to the HSV color space conversion
+- [X] *Contrast* (in grayscale images at the monent) expanding the color histogram's range
+
 
 ### Image Filters
 Later in the developement will be added filters, first with useful basic filters such as:
-- *B&W Filter* to convert an image into gray scale
-- *Gaussian Blur* thanks to the formula for the gaussian blur interpolation
+- [X] *B&W Filter* to convert an image into gray scale
+- [X] *Gaussian Blur* thanks to the formula for the gaussian blur interpolation
