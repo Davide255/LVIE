@@ -1,9 +1,46 @@
 pub(crate) use palette::FromColor;
 use palette::{hsl::Hsl, IntoColor, Saturate, Srgb};
 use std::vec::Vec;
+use std::collections::HashMap;
 
-use crate::helpers::norm_range;
+use crate::helpers::{norm_range, CollectDataType};
 use crate::log_mask;
+
+
+pub fn collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
+
+    let mut outhash: HashMap<i32, i32> = HashMap::new();
+
+    for pixel in buffer{
+        let v: i32;
+
+        match data_type {
+            CollectDataType::Red => {
+                v = pixel[0] as i32;
+            },
+            CollectDataType::Green => {
+                v = pixel[1] as i32;
+            }
+            CollectDataType::Blue => {
+                v = pixel[2] as i32;
+            }
+            CollectDataType::Luminance => {
+                let (r, g, b) = (pixel[0] / 255.0, pixel[1] / 255.0, pixel[2] / 255.0);
+                v = (Hsl::from_color(Srgb::from_components((r as f32, g as f32, b as f32))).lightness * 255.0) as i32;
+            }
+        }
+        
+        if outhash.get(&v) == None {
+            outhash.insert(v,1);
+        } else {
+            let counter: i32 = *outhash.get(&v).unwrap() +1;
+            outhash.remove(&v);
+            outhash.insert(v, counter);
+        }
+    }
+
+    outhash
+}
 
 pub fn adjust_saturation(buffer: &Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>> {
     let added_value: f32 = norm_range(-0.5..=0.5, added_value as f64) as f32;

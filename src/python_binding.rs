@@ -1,10 +1,20 @@
 pub(crate) use pyo3::prelude::*;
 
+use std::collections::HashMap;
+use std::string::String;
+
 mod helpers;
 mod lib;
 mod log_mask;
 
 use lib::*;
+use helpers::{CollectDataType, normalize_buffer};
+
+#[pyfunction]
+#[pyo3(name="normalize_buffer")]
+fn py_normalize_buffer(buffer: Vec<i32>) -> Vec<Vec<i32>> {
+    normalize_buffer(&buffer)
+}
 
 #[pyfunction]
 #[pyo3(name = "adjust_saturation")]
@@ -55,6 +65,22 @@ fn py_crop_image(
     crop_image(&buffer, image_size, crop)
 }
 
+#[pyfunction]
+#[pyo3(name="collect_data")]
+fn py_collect_data(buffer: Vec<Vec<f64>>, data_type: String) -> HashMap<i32, i32> {
+    let d_type: CollectDataType;
+
+    match data_type.as_str() {
+        "Red" => d_type = CollectDataType::Red,
+        "Green" => d_type = CollectDataType::Green,
+        "Blue" => d_type = CollectDataType::Blue,
+        "Luminance" => d_type = CollectDataType::Luminance,
+        _ => panic!("Invalid data type!\nData types are: [\"Red\", \"Green\", \"Blue\", \"Luminance\"]!"),
+    }
+
+    collect_data(&buffer, d_type)
+}
+
 #[pymodule]
 fn rustlib(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_adjust_saturation, m)?)?;
@@ -64,5 +90,7 @@ fn rustlib(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_find_edges_mask, m)?)?;
     m.add_function(wrap_pyfunction!(py_combine_grayscale_with_colored, m)?)?;
     m.add_function(wrap_pyfunction!(py_crop_image, m)?)?;
+    m.add_function(wrap_pyfunction!(py_collect_data, m)?)?;
+    m.add_function(wrap_pyfunction!(py_normalize_buffer, m)?)?;
     Ok(())
 }

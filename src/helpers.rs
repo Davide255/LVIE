@@ -1,6 +1,14 @@
 pub(crate) use std::ops::RangeInclusive;
 
-enum ColorLuminanceType {
+
+pub enum CollectDataType {
+    Red,
+    Green,
+    Blue,
+    Luminance
+}
+
+pub enum ColorLuminanceType {
     HighLight,
     Light,
     Midtone,
@@ -9,7 +17,7 @@ enum ColorLuminanceType {
 
 /* Format a buffer of value in a buffer of pixel with this rule:
 Vec<f64>: [r, g, b, r, g, b, ...] -> Vec<Vec<f64>>: [[r, g, b],[r, g, b],...]*/
-pub fn normalize_buffer(buffer: Vec<i32>) -> Vec<Vec<i32>> {
+pub fn normalize_buffer(buffer: &Vec<i32>) -> Vec<Vec<i32>> {
     let mut out_buffer: Vec<Vec<i32>> = Vec::new();
 
     for x in 0..(buffer.len() / 4) {

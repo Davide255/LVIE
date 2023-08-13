@@ -33,7 +33,7 @@ pub fn create_log(sigma: f64, size: i32) -> Vec<Vec<f64>> {
     return helpers::vec_reshape(log_mask, (w, w));
 }
 
-pub fn convolve(buffer: Vec<f64>, image_size: (i32, i32), mask: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
+pub fn convolve(buffer: &Vec<f64>, image_size: (i32, i32), mask: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
     let width: i32 = image_size.0;
     let height: i32 = image_size.1;
 
@@ -56,7 +56,7 @@ pub fn convolve(buffer: Vec<f64>, image_size: (i32, i32), mask: Vec<Vec<f64>>) -
     return res_image;
 }
 
-pub fn z_c_test(l_o_g_image: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
+pub fn z_c_test(l_o_g_image: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
     let mut zc_image: Vec<Vec<f64>> =
         helpers::create_zeros_buffer((l_o_g_image.len() as i32, l_o_g_image[0].len() as i32));
 
