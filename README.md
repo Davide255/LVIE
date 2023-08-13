@@ -1,4 +1,4 @@
-# LVIE - Light and Versatile Image Editr
+# LVIE - Light and Versatile Image Editor
 A light-weight open source photo editor written in Rust
 
 ## Ambition
