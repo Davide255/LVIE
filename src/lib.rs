@@ -1,11 +1,45 @@
 pub(crate) use palette::FromColor;
-use palette::{hsl::Hsl, IntoColor, Saturate, Srgb};
+use palette::convert::FromColorUnclamped;
+use palette::{Hsl, Hsv, Oklab, Oklch, IntoColor, Saturate, Srgb};
 use std::vec::Vec;
 use std::collections::HashMap;
 
-use crate::helpers::{norm_range, CollectDataType};
+use crate::helpers::{norm_range, CollectDataType, BufferFormat};
 use crate::log_mask;
 
+pub struct RGBImageBuffer {
+    buffer: Vec<Srgb>
+}
+
+pub struct HSVImageBuffer {
+    buffer: Vec<Hsv>
+}
+
+pub struct HSLImageBuffer {
+    buffer: Vec<Hsl>
+}
+
+pub struct OKLABImageBuffer {
+    buffer: Vec<Oklab>
+}
+
+pub struct OKLCHImageBuffer {
+    buffer: Vec<Oklch>
+}
+
+pub trait ConvertBuffer<FROM, TO>
+where
+    FROM: FromColorUnclamped<FROM>+ IntoColor<TO> + Copy,
+    TO: FromColorUnclamped<FROM> + FromColor<TO>
+{
+    fn convert(&self, buffer: &Vec<FROM>) -> Vec<TO>{
+        let mut out_buffer: Vec<TO> = Vec::new();
+        for c in buffer{ 
+            let color: TO = (*c).into_color();
+            out_buffer.push(color);}
+        out_buffer
+    }
+}
 
 pub fn collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
 
