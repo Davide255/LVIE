@@ -27,14 +27,17 @@ pub struct OKLCHImageBuffer {
     buffer: Vec<Oklch>
 }
 
-pub trait ConvertBuffer<FROM, TO>
-where
-    FROM: FromColorUnclamped<FROM>+ IntoColor<TO> + Copy,
-    TO: FromColorUnclamped<FROM> + FromColor<TO>
+pub struct Buffer<T: FromColorUnclamped<T>+ IntoColor<T> + Copy>
 {
-    fn convert(&self, buffer: &Vec<FROM>) -> Vec<TO>{
+    buffer: Vec<T>
+}
+
+impl Buffer{ 
+    fn convert<TO>(&self) -> Vec<TO> where    
+    TO: FromColorUnclamped<T> + FromColor<TO>
+    {
         let mut out_buffer: Vec<TO> = Vec::new();
-        for c in buffer{ 
+        for c in &self.buffer{ 
             let color: TO = (*c).into_color();
             out_buffer.push(color);}
         out_buffer
