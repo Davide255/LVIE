@@ -1,7 +1,8 @@
-mod helpers;
+use std::vec;
 
-use helpers::norm_range;
+use rust_backend::gui::gui;
+use fltk::{app, enums::FrameType, frame::Frame, image::{SvgImage, JpegImage}, prelude::*, window::Window};
 
 fn main() {
-    println!("{}", norm_range(1.0..=10.0, -3.0));
+    gui();
 }
