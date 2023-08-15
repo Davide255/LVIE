@@ -1,48 +1,87 @@
 pub(crate) use palette::FromColor;
 use palette::convert::FromColorUnclamped;
-use palette::{Hsl, Hsv, Oklab, Oklch, IntoColor, Saturate, Srgb};
+use palette::{Hsl, IntoColor, Saturate, Srgb, Hsv, Oklab, Oklch};
 use std::vec::Vec;
 use std::collections::HashMap;
 
-use crate::helpers::{norm_range, CollectDataType, BufferFormat};
+use crate::helpers::{norm_range, CollectDataType};
 use crate::log_mask;
-
-pub struct RGBImageBuffer {
-    buffer: Vec<Srgb>
-}
-
-pub struct HSVImageBuffer {
-    buffer: Vec<Hsv>
-}
-
-pub struct HSLImageBuffer {
-    buffer: Vec<Hsl>
-}
-
-pub struct OKLABImageBuffer {
-    buffer: Vec<Oklab>
-}
-
-pub struct OKLCHImageBuffer {
-    buffer: Vec<Oklch>
-}
 
 pub struct Buffer<T: FromColorUnclamped<T>+ IntoColor<T> + Copy>
 {
-    buffer: Vec<T>
+    pub buffer: Vec<T>
 }
 
-impl Buffer{ 
-    fn convert<TO>(&self) -> Vec<TO> where    
-    TO: FromColorUnclamped<T> + FromColor<TO>
+impl<T> Buffer<T>
+where T: FromColorUnclamped<T>+ IntoColor<T> + Copy{ 
+    pub fn convert_to_color<TO>(&self) -> Buffer<TO> where 
+    T: FromColorUnclamped<T>+ IntoColor<TO> + Copy, 
+    TO: FromColorUnclamped<TO> + FromColor<T> + FromColor<TO> + Copy
     {
         let mut out_buffer: Vec<TO> = Vec::new();
         for c in &self.buffer{ 
             let color: TO = (*c).into_color();
-            out_buffer.push(color);}
+            out_buffer.push(color);
+        }
+        Buffer{buffer: out_buffer}
+    }
+}
+
+impl Buffer<Srgb> {
+    pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
+        let mut out_buffer: Vec<Vec<f64>> = Vec::new();
+        for pixel in &self.buffer{
+            let (r,g,b) = pixel.into_components();
+            out_buffer.push(vec![(r*255.0) as f64, (g*255.0) as f64, (b*255.0) as f64])
+        }
         out_buffer
     }
 }
+
+impl Buffer<Hsv> {
+    pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
+        let mut out_buffer: Vec<Vec<f64>> = Vec::new();
+        for pixel in &self.buffer{
+            let (h,s,v) = pixel.into_components();
+            out_buffer.push(vec![h.into_degrees() as f64, s as f64, v as f64])
+        }
+        out_buffer
+    }
+}
+
+impl Buffer<Hsl> {
+    pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
+        let mut out_buffer: Vec<Vec<f64>> = Vec::new();
+        for pixel in &self.buffer{
+            let (h,s,l) = pixel.into_components();
+            out_buffer.push(vec![h.into_degrees() as f64, s as f64, l as f64])
+        }
+        out_buffer
+    }
+}
+
+impl Buffer<Oklab>{
+    pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
+        let mut out_buffer: Vec<Vec<f64>> = Vec::new();
+        for pixel in &self.buffer{
+            let (l,a,b) = pixel.into_components();
+            out_buffer.push(vec![l as f64, a as f64, b as f64])
+        }
+        out_buffer
+    }
+}
+
+impl Buffer<Oklch>{
+    pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
+        let mut out_buffer: Vec<Vec<f64>> = Vec::new();
+        for pixel in &self.buffer{
+            let (l,c,h) = pixel.into_components();
+            out_buffer.push(vec![l as f64, c as f64, h.into_degrees() as f64])
+        }
+        out_buffer
+    }
+}
+
 
 pub fn collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
 
