@@ -3,15 +3,16 @@ pub(crate) use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::string::String;
 
+mod buffer_struct;
 mod helpers;
 mod lib;
 mod log_mask;
 
+use helpers::{normalize_buffer, CollectDataType};
 use lib::*;
-use helpers::{CollectDataType, normalize_buffer};
 
 #[pyfunction]
-#[pyo3(name="normalize_buffer")]
+#[pyo3(name = "normalize_buffer")]
 fn py_normalize_buffer(buffer: Vec<i32>) -> Vec<Vec<i32>> {
     normalize_buffer(&buffer)
 }
@@ -66,7 +67,7 @@ fn py_crop_image(
 }
 
 #[pyfunction]
-#[pyo3(name="collect_data")]
+#[pyo3(name = "collect_data")]
 fn py_collect_data(buffer: Vec<Vec<f64>>, data_type: String) -> HashMap<i32, i32> {
     let d_type: CollectDataType;
 
@@ -75,7 +76,9 @@ fn py_collect_data(buffer: Vec<Vec<f64>>, data_type: String) -> HashMap<i32, i32
         "Green" => d_type = CollectDataType::Green,
         "Blue" => d_type = CollectDataType::Blue,
         "Luminance" => d_type = CollectDataType::Luminance,
-        _ => panic!("Invalid data type!\nData types are: [\"Red\", \"Green\", \"Blue\", \"Luminance\"]!"),
+        _ => panic!(
+            "Invalid data type!\nData types are: [\"Red\", \"Green\", \"Blue\", \"Luminance\"]!"
+        ),
     }
 
     collect_data(&buffer, d_type)

@@ -1,11 +1,11 @@
+use palette::{Hsl, Hsv, Oklab, Oklch, Srgb};
 pub(crate) use std::ops::RangeInclusive;
-use palette::{Srgb, Hsl, Hsv, Oklab, Oklch};
 
 pub enum CollectDataType {
     Red,
     Green,
     Blue,
-    Luminance
+    Luminance,
 }
 
 pub enum BufferFormat {
@@ -13,7 +13,7 @@ pub enum BufferFormat {
     Hsl,
     Hsv,
     Oklab,
-    Oklch
+    Oklch,
 }
 
 pub enum ColorLuminanceType {
