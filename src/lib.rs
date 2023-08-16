@@ -82,6 +82,21 @@ impl Buffer<Oklch>{
     }
 }
 
+impl<T, U> From<Buffer<T>> for Buffer<U>
+where
+    T: FromColorUnclamped<T> + IntoColor<T> + Copy,
+    U: FromColorUnclamped<U> + IntoColor<U> + Copy,
+{
+    fn from(buffer: Buffer<T>) -> Self {
+        let mut out_buffer: Vec<U> = Vec::new();
+        for pixel in buffer.buffer {
+            let color: U = pixel.into_color();
+            out_buffer.push(color);
+        }
+        Buffer { buffer: out_buffer }
+    }
+}
+
 
 pub fn collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
 
