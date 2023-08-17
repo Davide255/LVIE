@@ -22,7 +22,40 @@ use crate::log_mask;
 //    }
 //}
 
-pub fn collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
+pub fn collect_data(buffer: &Buffer<Srgb<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
+    let mut outhash: HashMap<i32, i32> = HashMap::new();
+
+    for pixel in buffer.iter() {
+        let v: i32;
+
+        match data_type {
+            CollectDataType::Red => {
+                v = pixel.red as i32;
+            }
+            CollectDataType::Green => {
+                v = pixel.green as i32;
+            }
+            CollectDataType::Blue => {
+                v = pixel.blue as i32;
+            }
+            CollectDataType::Luminance => {
+                v = (Hsl::from_color(pixel).lightness * 255.0) as i32;
+            }
+        }
+
+        if outhash.get(&v) == None {
+            outhash.insert(v, 1);
+        } else {
+            let counter: i32 = *outhash.get(&v).unwrap() + 1;
+            outhash.remove(&v);
+            outhash.insert(v, counter);
+        }
+    }
+
+    outhash
+}
+
+pub fn old_collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
     let mut outhash: HashMap<i32, i32> = HashMap::new();
 
     for pixel in buffer {

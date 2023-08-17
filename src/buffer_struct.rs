@@ -1,17 +1,32 @@
 use palette::convert::FromColorUnclamped;
 use palette::white_point::D65;
 use palette::FromColor;
-use palette::{Hsl, Hsv, IntoColor, Oklab, Oklch, Srgb, Xyz};
+use palette::IntoColor;
 use std::vec::Vec;
 
-pub struct Buffer<T = Srgb<f64>> {
+#[allow(dead_code)]
+type Hsl = palette::hsl::Hsl<palette::rgb::Rgb, f64>;
+#[allow(dead_code)]
+type Hsv = palette::hsv::Hsv<palette::rgb::Rgb, f64>;
+#[allow(dead_code)]
+type Oklab = palette::oklab::Oklab<f64>;
+#[allow(dead_code)]
+type Oklch = palette::oklch::Oklch<f64>;
+#[allow(dead_code)]
+type Rgb = palette::rgb::Rgb<palette::encoding::Srgb, f64>;
+#[allow(dead_code)]
+type Xyz = palette::xyz::Xyz<D65, f64>;
+
+#[derive(Clone)]
+pub struct Buffer<T = Rgb> {
     pub buffer: Vec<T>,
 }
 
 impl<T> Buffer<T>
 where
-    T: FromColorUnclamped<T> + IntoColor<T> + Copy,
+    T: FromColorUnclamped<T> + IntoColor<T> + Copy + Clone,
 {
+    #[allow(dead_code)]
     pub fn convert_to<TO>(&self) -> Buffer<TO>
     where
         T: FromColorUnclamped<T> + IntoColor<TO> + Copy,
@@ -24,9 +39,14 @@ where
         }
         Buffer { buffer: out_buffer }
     }
+
+    #[allow(dead_code)]
+    pub fn iter(&self) -> <Buffer<T> as IntoIterator>::IntoIter {
+        self.buffer.clone().into_iter()
+    }
 }
 
-impl Buffer<Srgb<f64>> {
+impl Buffer<Rgb> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
         for pixel in &self.buffer {
@@ -36,17 +56,17 @@ impl Buffer<Srgb<f64>> {
         out_buffer
     }
 
-    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Srgb<f64>> {
-        let mut out_buffer: Vec<Srgb<f64>> = Vec::new();
+    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Rgb> {
+        let mut out_buffer: Vec<Rgb> = Vec::new();
         for i in buffer {
-            out_buffer.push(Srgb::<f64>::from_components((i[0], i[1], i[2])));
+            out_buffer.push(Rgb::from_components((i[0], i[1], i[2])));
         }
 
         Buffer { buffer: out_buffer }
     }
 }
 
-impl Buffer<Hsv<palette::rgb::Rgb, f64>> {
+impl Buffer<Hsv> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
         for pixel in &self.buffer {
@@ -55,8 +75,8 @@ impl Buffer<Hsv<palette::rgb::Rgb, f64>> {
         }
         out_buffer
     }
-    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Hsv<Srgb, f64>> {
-        let mut out_buffer: Vec<Hsv<Srgb, f64>> = Vec::new();
+    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Hsv> {
+        let mut out_buffer: Vec<Hsv> = Vec::new();
         for i in buffer {
             out_buffer.push(Hsv::from_components((i[0], i[1], i[2])));
         }
@@ -65,7 +85,7 @@ impl Buffer<Hsv<palette::rgb::Rgb, f64>> {
     }
 }
 
-impl Buffer<Hsl<palette::rgb::Rgb, f64>> {
+impl Buffer<Hsl> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
         for pixel in &self.buffer {
@@ -75,8 +95,8 @@ impl Buffer<Hsl<palette::rgb::Rgb, f64>> {
         out_buffer
     }
 
-    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Hsl<palette::rgb::Rgb, f64>> {
-        let mut out_buffer: Vec<Hsl<palette::rgb::Rgb, f64>> = Vec::new();
+    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Hsl> {
+        let mut out_buffer: Vec<Hsl> = Vec::new();
         for i in buffer {
             out_buffer.push(Hsl::from_components((i[0], i[1], i[2])));
         }
@@ -85,7 +105,7 @@ impl Buffer<Hsl<palette::rgb::Rgb, f64>> {
     }
 }
 
-impl Buffer<Oklab<f64>> {
+impl Buffer<Oklab> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
         for pixel in &self.buffer {
@@ -95,8 +115,8 @@ impl Buffer<Oklab<f64>> {
         out_buffer
     }
 
-    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Oklab<f64>> {
-        let mut out_buffer: Vec<Oklab<f64>> = Vec::new();
+    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Oklab> {
+        let mut out_buffer: Vec<Oklab> = Vec::new();
         for i in buffer {
             out_buffer.push(Oklab::from_components((i[0], i[1], i[2])));
         }
@@ -105,7 +125,7 @@ impl Buffer<Oklab<f64>> {
     }
 }
 
-impl Buffer<Oklch<f64>> {
+impl Buffer<Oklch> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
         for pixel in &self.buffer {
@@ -115,8 +135,8 @@ impl Buffer<Oklch<f64>> {
         out_buffer
     }
 
-    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Oklch<f64>> {
-        let mut out_buffer: Vec<Oklch<f64>> = Vec::new();
+    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Oklch> {
+        let mut out_buffer: Vec<Oklch> = Vec::new();
         for i in buffer {
             out_buffer.push(Oklch::from_components((i[0], i[1], i[2])));
         }
@@ -125,7 +145,7 @@ impl Buffer<Oklch<f64>> {
     }
 }
 
-impl Buffer<Xyz<D65, f64>> {
+impl Buffer<Xyz> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
         for pixel in &self.buffer {
@@ -135,12 +155,25 @@ impl Buffer<Xyz<D65, f64>> {
         out_buffer
     }
 
-    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Xyz<D65, f64>> {
-        let mut out_buffer: Vec<Xyz<D65, f64>> = Vec::new();
+    pub fn from_components(buffer: &Vec<Vec<f64>>) -> Buffer<Xyz> {
+        let mut out_buffer: Vec<Xyz> = Vec::new();
         for i in buffer {
             out_buffer.push(Xyz::from_components((i[0], i[1], i[2])));
         }
 
         Buffer { buffer: out_buffer }
+    }
+}
+
+impl<T> IntoIterator for Buffer<T>
+where
+    T: FromColorUnclamped<T> + IntoColor<T> + Copy,
+{
+    type Item = T;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.buffer.into_iter()
     }
 }

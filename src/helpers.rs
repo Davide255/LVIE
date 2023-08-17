@@ -1,4 +1,3 @@
-use palette::{Hsl, Hsv, Oklab, Oklch, Srgb};
 pub(crate) use std::ops::RangeInclusive;
 
 pub enum CollectDataType {

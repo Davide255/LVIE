@@ -81,7 +81,7 @@ fn py_collect_data(buffer: Vec<Vec<f64>>, data_type: String) -> HashMap<i32, i32
         ),
     }
 
-    collect_data(&buffer, d_type)
+    old_collect_data(&buffer, d_type)
 }
 
 #[pymodule]
