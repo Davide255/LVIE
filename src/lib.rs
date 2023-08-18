@@ -22,7 +22,7 @@ use crate::log_mask;
 //    }
 //}
 
-pub fn collect_data(buffer: &Buffer<Srgb<f64>>, data_type: CollectDataType) -> HashMap<i32, i32> {
+pub fn collect_data(buffer: &Buffer<Srgb>, data_type: CollectDataType) -> HashMap<i32, i32> {
     let mut outhash: HashMap<i32, i32> = HashMap::new();
 
     for pixel in buffer.iter() {
@@ -91,7 +91,20 @@ pub fn old_collect_data(buffer: &Vec<Vec<f64>>, data_type: CollectDataType) -> H
     outhash
 }
 
-pub fn adjust_saturation(buffer: &Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>> {
+pub fn adjust_saturation(buffer: &Buffer, added_value: f32) -> Buffer {
+    let added_value: f32 = norm_range(-0.5..=0.5, added_value as f64) as f32;
+    let mut out_buffer: Buffer<Srgb> = buffer.clone();
+
+    for x in 0..buffer.len() {
+        let color: Hsl = Hsl::from_color(buffer[x]);
+        let out_color: Srgb = color.saturate(added_value).into_color();
+        out_buffer.update(x, out_color);
+    }
+
+    return out_buffer;
+}
+
+pub fn old_adjust_saturation(buffer: &Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>> {
     let added_value: f32 = norm_range(-0.5..=0.5, added_value as f64) as f32;
     let mut out_buffer: Vec<Vec<f64>> = Vec::new();
 

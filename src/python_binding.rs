@@ -20,7 +20,7 @@ fn py_normalize_buffer(buffer: Vec<i32>) -> Vec<Vec<i32>> {
 #[pyfunction]
 #[pyo3(name = "adjust_saturation")]
 fn py_adjust_saturation(buffer: Vec<Vec<f64>>, added_value: f32) -> Vec<Vec<f64>> {
-    adjust_saturation(&buffer, added_value)
+    old_adjust_saturation(&buffer, added_value)
 }
 
 #[pyfunction]
