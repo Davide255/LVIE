@@ -45,15 +45,18 @@ where
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_pixel(&self, index: usize) -> &T {
         self.buffer.index(index)
     }
 
+    #[allow(dead_code)]
     pub fn update(&mut self, index: usize, pixel: T) {
         self.buffer.remove(index);
         self.buffer.insert(index, pixel);
     }
 
+    #[allow(dead_code)]
     pub fn from_rgb_f64_buffer(buffer: Vec<Vec<f64>>) -> Buffer {
         let mut out_buffer: Vec<Srgb> = Vec::new();
         for i in buffer {
