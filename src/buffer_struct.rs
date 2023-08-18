@@ -39,10 +39,15 @@ where
     }
 
     #[allow(dead_code)]
-    pub fn new(&self) -> Buffer<T> {
-        Buffer::<T> {
+    pub fn new(&self) -> mut Buffer<T> {
+        mut Buffer::<T> {
             buffer: Vec::<T>::new(),
         }
+    }
+    
+    #[allow(dead_code)]
+    pub fn as_mut(&self) -> mut Self{
+        mut Buffer::<T> {buffer: self.buffer}
     }
 
     #[allow(dead_code)]
