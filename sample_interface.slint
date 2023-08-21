@@ -1,0 +1,39 @@
+import { Button, VerticalBox , HorizontalBox, ScrollView, Slider, ListView} from "std-widgets.slint";
+export component AppWindow {
+    HorizontalBox {
+        alignment: start;
+        Image {
+            source: @image-url("https://picsum.photos/id/11/2500/166");
+            width: 300px;
+            height: 200px;
+        }
+        VerticalBox {
+            alignment: start;
+            Text { text: "Hello World"; horizontal-alignment: center;}
+            ListView {
+                height: 150px;
+                width: 100px;
+                for data in [
+                {text: "Button"},
+                {text:"ciao"},
+                {text: "Lorem"},
+                {text: "Ipsum"},
+                {text: "Dolor"},
+                {text: "Sit"},
+                {text: "Amet"},
+                {text: "Button"},
+                {text: "Button"},
+                {text: "Button"},
+                ] :
+                Rectangle {
+                    height: 50px;
+                    Button {
+                        text: data.text; 
+                        clicked => {
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
