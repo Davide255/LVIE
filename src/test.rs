@@ -2,12 +2,16 @@ use palette::{Srgb, Hsl};
 use std::vec::Vec;
 
 mod buffer_struct;
+mod buflib;
+mod helpers;
+
+use buflib::*;
 
 use buffer_struct::Buffer;
 
 use std::time::Instant;
 
-use image::{self, GenericImageView, Pixel};
+use image::{self, GenericImageView, Pixel, Rgb};
 
 fn main() {
 
@@ -23,12 +27,12 @@ fn main() {
 
     for i in img.pixels(){
         let rgb: Vec<u8> = i.2.channels().to_vec();
-        buff.push(vec![(rgb[0] / 255) as f64, (rgb[1] / 255) as f64, (rgb[2] / 255) as f64]);
+        buff.push(vec![rgb[0] as f64 / 255f64, rgb[1] as f64 / 255f64, rgb[2] as f64 / 255f64]);
     }
 
     println!("Buffer created (len: {})", buff.len());
 
-    let mut buffer: Buffer = Buffer::<Srgb>::from_f64_buffer(&buff);
+    let buffer: Buffer = Buffer::<Srgb>::from_f64_buffer(&buff, img.dimensions());
 
     let elapsed = now.elapsed();
 
@@ -36,8 +40,20 @@ fn main() {
 
     let now = Instant::now();
 
-    let new_buffer: Buffer<Hsl> = buffer.convert_to::<Hsl>();
+    let w_contrast = adjust_contrast(&buffer, 0.1);
+    let w_saturation = adjust_saturation(&w_contrast, 0.3);
+    let w_expo = adjust_exposure(&w_saturation, -0.3);
 
-    println!("Converted buffer to Hsl\n - Elapsed: {}", now.elapsed().as_secs())
+    let box_blur_mask: [[f32;3];3] = [
+        [1f32 / 9f32, 1f32 / 9f32, 1f32 / 9f32], 
+        [1f32 / 9f32, 1f32 / 9f32, 1f32 / 9f32], 
+        [1f32 / 9f32, 1f32 / 9f32, 1f32 / 9f32]
+    ];
+
+    let res = w_expo.apply_convolution_mask(box_blur_mask);
+
+    println!("Saturated buffer\n - Elapsed: {}", now.elapsed().as_secs());
+
+    res.save_jpeg_image("src\\out.jpeg", img.dimensions()).expect("Failed to save image")
 
 }
