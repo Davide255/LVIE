@@ -24,31 +24,33 @@ use crate::helpers::{norm_range, CollectDataType};
 
 pub fn collect_data(buffer: &Buffer<Srgb>, data_type: CollectDataType) -> HashMap<i32, i32> {
     let mut outhash: HashMap<i32, i32> = HashMap::new();
+    
+    for y in buffer.iter(){
+        for pixel in y {
+            let v: i32;
 
-    for pixel in buffer.iter() {
-        let v: i32;
+            match data_type {
+                CollectDataType::Red => {
+                    v = pixel.red as i32;
+                }
+                CollectDataType::Green => {
+                    v = pixel.green as i32;
+                }
+                CollectDataType::Blue => {
+                    v = pixel.blue as i32;
+                }
+                CollectDataType::Luminance => {
+                    v = (Hsl::from_color(pixel).lightness * 255.0) as i32;
+                }
+            }
 
-        match data_type {
-            CollectDataType::Red => {
-                v = pixel.red as i32;
+            if outhash.get(&v) == None {
+                outhash.insert(v, 1);
+            } else {
+                let counter: i32 = *outhash.get(&v).unwrap() + 1;
+                outhash.remove(&v);
+                outhash.insert(v, counter);
             }
-            CollectDataType::Green => {
-                v = pixel.green as i32;
-            }
-            CollectDataType::Blue => {
-                v = pixel.blue as i32;
-            }
-            CollectDataType::Luminance => {
-                v = (Hsl::from_color(pixel).lightness * 255.0) as i32;
-            }
-        }
-
-        if outhash.get(&v) == None {
-            outhash.insert(v, 1);
-        } else {
-            let counter: i32 = *outhash.get(&v).unwrap() + 1;
-            outhash.remove(&v);
-            outhash.insert(v, counter);
         }
     }
 
@@ -59,9 +61,11 @@ pub fn adjust_saturation(buffer: &Buffer, added_value: f32) -> Buffer {
     let added_value: f32 = norm_range(-0.5..=0.5, added_value as f64) as f32;
     let mut out_buffer: Buffer<Srgb> = Buffer::new(buffer.get_image_size());
 
-    for x in buffer.iter() {
-        let out_color: Srgb = Hsl::from_color(x).saturate(added_value).into_color();
-        out_buffer.append(out_color);
+    for y in buffer.iter() {
+        for x in y {
+            let out_color: Srgb = Hsl::from_color(x).saturate(added_value).into_color();
+            out_buffer.add_item(out_color);
+        }
     }
 
     return out_buffer;
@@ -80,14 +84,16 @@ pub fn adjust_exposure(buffer: &Buffer, added_value: f32) -> Buffer {
         _added_value = added_value.into();
     }
 
-    for pixel in buffer.iter() {
-        let new_pixel: Srgb = Srgb::new(
-            norm_range(0.0..=255.0, ((pixel.red as f64) * 2_f64.powf(_added_value.into())).into()) as f32,
-            norm_range(0.0..=255.0, ((pixel.green as f64) * 2_f64.powf(_added_value.into())).into()) as f32,
-            norm_range(0.0..=255.0, ((pixel.blue as f64) * 2_f64.powf(_added_value.into())).into()) as f32,
-        );
+    for y in buffer.iter() {
+        for pixel in y {
+            let new_pixel: Srgb = Srgb::new(
+                norm_range(0.0..=255.0, ((pixel.red as f64) * 2_f64.powf(_added_value.into())).into()) as f32,
+                norm_range(0.0..=255.0, ((pixel.green as f64) * 2_f64.powf(_added_value.into())).into()) as f32,
+                norm_range(0.0..=255.0, ((pixel.blue as f64) * 2_f64.powf(_added_value.into())).into()) as f32,
+            );
 
-        out_buffer.append(new_pixel)
+            out_buffer.add_item(new_pixel)
+        }
     }
 
     return out_buffer;
@@ -102,19 +108,7 @@ pub fn combine_grayscale_with_colored(
     gray_scale_buffer: &Vec<f32>,
     buffer: &Buffer,
 ) -> Buffer {
-    let _buffer: Buffer<Hsl> = buffer.convert_to::<Hsl>();
-    let mut out_buffer: Buffer<Hsl> = Buffer::<Hsl>::new(buffer.get_image_size());
-
-    for i in 0..gray_scale_buffer.len() {
-        let hsl_color: Hsl = Hsl::new(
-            _buffer[i].hue,
-            _buffer[i].saturation,
-            gray_scale_buffer[i]
-        );
-        out_buffer.append(hsl_color);
-    }
-
-    out_buffer.convert_to::<Srgb>()
+    buffer.combine_grayscale_with_colored(gray_scale_buffer)
 }
 
 pub fn adjust_contrast(buffer: &Buffer, added_value: f32) -> Buffer {
@@ -134,20 +128,20 @@ pub fn adjust_contrast(buffer: &Buffer, added_value: f32) -> Buffer {
     return combine_grayscale_with_colored(&gray_buffer, &buffer);
 }
 
-pub fn crop_image(
-    buffer: &Buffer,
-    image_size: (i32, i32),
-    crop: (i32, i32, i32, i32),
-) -> Buffer {
-    let mut out_buffer: Vec<Srgb> = Vec::new();
-
-    for x in crop.1..(image_size.1 - crop.3) {
-        let mut _s = buffer[(x * image_size.1 + crop.0) as usize
-            ..(x * image_size.1 + image_size.0 - crop.2) as usize]
-            .to_vec();
-        out_buffer.append(&mut _s);
-    }
-
-    Buffer::load(out_buffer, buffer.get_image_size())
-}
+//pub fn crop_image(
+//    buffer: &Buffer,
+//    image_size: (i32, i32),
+//    crop: (i32, i32, i32, i32),
+//) -> Buffer {
+//    let mut out_buffer: Vec<Srgb> = Vec::new();
+//
+//    for x in crop.1..(image_size.1 - crop.3) {
+//        let mut _s = buffer[(x * image_size.1 + crop.0) as usize
+//            ..(x * image_size.1 + image_size.0 - crop.2) as usize]
+//            .to_vec();
+//        out_buffer.push(&mut _s);
+//    }
+//
+//    Buffer::load(out_buffer, buffer.get_image_size())
+//}
 

@@ -8,7 +8,7 @@ use std::slice::SliceIndex;
 
 #[derive(Clone)]
 pub struct Buffer<T = Srgb> {
-    _buffer: Vec<Vec<T>>,
+    _buffer: Vec<T>,
     image_size: (u32, u32),
 }
 
@@ -22,20 +22,19 @@ where
         T: FromColorUnclamped<T> + IntoColor<TO> + Copy,
         TO: FromColorUnclamped<TO> + FromColor<T> + FromColor<TO> + Copy,
     {
-        let mut out_buffer: Vec<Vec<TO>> = Vec::new();
-        for y in &self._buffer {
-            let mut row: Vec<TO> = Vec::new();
-            for c in y {
-                let color: TO = (*c).into_color();
-                row.push(color);
-            }
-            out_buffer.push(row);
+        let mut out_buffer: Vec<TO> = Vec::new();
+        for c in &self._buffer {
+            let color: TO = (*c).into_color();
+            out_buffer.push(color);
         }
-        Buffer::<TO>::load(out_buffer, self.image_size)
+        Buffer { 
+            _buffer: out_buffer,
+            image_size: self.image_size
+        }
     }
 
     #[allow(dead_code)]
-    pub fn iter(&self) -> std::vec::IntoIter<Vec<T>> {
+    pub fn iter(&self)  -> <Buffer<T> as IntoIterator>::IntoIter {
         self._buffer.clone().into_iter()
     }
 
@@ -47,74 +46,58 @@ where
     #[allow(dead_code)]
     pub fn new(image_size: (u32, u32)) -> Buffer<T> {
         Buffer::<T> {
-            _buffer: Vec::<Vec<T>>::new(),
+            _buffer: Vec::<T>::new(),
             image_size
         }
     }
-
+    
     #[allow(dead_code)]
-    pub fn get_pixel(&self, x: u32, y: u32) -> &T {
-        &self._buffer[y as usize][x as usize]
+    pub fn as_mut(&self) -> Self{
+        self.clone()
     }
 
     #[allow(dead_code)]
-    pub fn update(&mut self, x: u32, y: u32, pixel: T) {
-        self._buffer[y as usize].remove(x as usize);
-        self._buffer[y as usize].insert(x as usize, pixel);
+    pub fn get_pixel(&self, index: usize) -> &T {
+        self._buffer.index(index)
     }
 
     #[allow(dead_code)]
-    pub fn add_row(&mut self, row: Vec<T>){
-        if self._buffer.len() < self.image_size.1 as usize {
-            self._buffer.push(row);
-        } else {
-            panic!("Buffer is full! Consider increasing the image size")
+    pub fn update(&mut self, index: usize, pixel: T) {
+        self._buffer.remove(index);
+        self._buffer.insert(index, pixel);
+    }
+
+    #[allow(dead_code)]
+    pub fn append(&mut self, value: T){
+        self._buffer.push(value);
+    }
+
+    #[allow(dead_code)]
+    pub fn from_rgb_f64_buffer(buffer: Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer {
+        let mut out_buffer: Vec<Srgb> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Srgb::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
         }
+
+        Buffer { _buffer: out_buffer, image_size }
     }
 
     #[allow(dead_code)]
-    pub fn add_item_to_row(&mut self, row_number: usize, item: T) {
-        if self._buffer[row_number].len() < self.image_size.0 as usize {
-            self._buffer[row_number].push(item);
-        } else {
-            panic!("Buffer is full! Consider increasing the image size")
-        }
-    }
-
-    pub fn add_item(&mut self, item: T) {
-        if self._buffer[self.last_row_number()].len() == self.image_size.0 as usize {
-            self.add_row(Vec::new());
-            self.add_item_to_row(self.last_row_number(), item);
-        } else { self.add_item_to_row(self.last_row_number(), item); }
-    }
-
-    #[allow(dead_code)]
-    pub fn load(buffer: Vec<Vec<T>>, image_size: (u32, u32)) -> Buffer::<T> {
+    pub fn load(buffer: Vec<T>, image_size: (u32, u32)) -> Buffer::<T> {
         Buffer::<T> { _buffer: buffer, image_size }
     }
 
     #[allow(dead_code)]
-    pub fn load_from_pixels(buffer: Vec<T>, image_size: (u32, u32)) -> Buffer::<T> {
-        let mut new_buffer: Vec<Vec<T>> = Vec::new();
-
-        if buffer.len() != (image_size.0*image_size.1) as usize {
-            panic!("Sizes are not matching")
-        }
-
-        for y in 0..image_size.1 {
-            new_buffer.push(buffer[(y*image_size.1)as usize..(y*image_size.1+image_size.0) as usize].to_vec());
-        }
-
-        Buffer::<T> { _buffer: new_buffer, image_size }
-    }
-
-    #[allow(dead_code)]
-    pub fn as_vec(&self) -> &Vec<Vec<T>> {
+    pub fn as_vec(&self) -> &Vec<T> {
         &self._buffer
     }
 
     #[allow(dead_code)]
-    pub fn as_vec_mut(&mut self) -> &mut Vec<Vec<T>> {
+    pub fn as_vec_mut(&mut self) -> &mut Vec<T> {
         &mut self._buffer
     }
 
@@ -126,14 +109,16 @@ where
     pub fn get_area(&self, pos: (u32, u32), size: (u32, u32)) -> Buffer<T> {
         let mut out_buf: Buffer<T> = Buffer::<T>::new(size);
         for y in pos.1..pos.1+size.1{
-            out_buf.add_row(self[y as usize][(pos.0) as usize..(pos.0+size.0) as usize].to_vec());
+            for x in self[(y*self.image_size.1 + pos.0) as usize..(y*self.image_size.1 + size.0 + pos.0) as usize].to_vec(){
+                out_buf.append(x);
+            }
         }
 
         out_buf
     }
 
-    pub fn last_row_number(&self) -> usize {
-        self._buffer.len()-1
+    pub fn get_pixel_from_coordinates(&self, x:u32, y:u32) -> &T {
+        &self[(y*self.image_size.1+x) as usize]
     }
 
 }
@@ -141,36 +126,15 @@ where
 impl Buffer<Srgb> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
-        for y in &self._buffer{
-            for pixel in y {
-                let (r, g, b) = pixel.into_components();
-                out_buffer.push(vec![
-                    (r * 255.0).into(),
-                    (g * 255.0).into(),
-                    (b * 255.0).into(),
-                ])
-            }
+        for pixel in &self._buffer {
+            let (r, g, b) = pixel.into_components();
+            out_buffer.push(vec![
+                (r * 255.0).into(),
+                (g * 255.0).into(),
+                (b * 255.0).into(),
+            ])
         }
         out_buffer
-    }
-
-    #[allow(dead_code)]
-    pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer {
-        let mut out_buffer: Vec<Vec<Srgb>> = Vec::new();
-        for y in 0..image_size.1 {
-            let mut row: Vec<Srgb> = Vec::new();
-            for x in 0..image_size.0 {
-                let i: &Vec<f64>  = &buffer[(y*image_size.1+x) as usize];
-                row.push(Srgb::from_components((
-                    i[0] as f32,
-                    i[1] as f32,
-                    i[2] as f32,
-                )));
-            }
-            out_buffer.push(row);
-        }
-
-        Buffer { _buffer: out_buffer, image_size }
     }
 
     pub fn combine_grayscale_with_colored(
@@ -179,14 +143,14 @@ impl Buffer<Srgb> {
     ) -> Buffer {
         let _buffer: Buffer<Hsl> = self.convert_to::<Hsl>();
         let mut out_buffer: Buffer<Hsl> = Buffer::<Hsl>::new(self.get_image_size());
-        
+    
         for i in 0..gray_scale_buffer.len() {
             let hsl_color: Hsl = Hsl::new(
-                _buffer[(self.image_size.0 as usize)/i][i-(self.image_size.0 as usize*(self.image_size.0 as usize/i))].hue,
-                _buffer[(self.image_size.0 as usize)/i][i-(self.image_size.0 as usize*(self.image_size.0 as usize/i))].saturation,
+                _buffer[i].hue,
+                _buffer[i].saturation,
                 gray_scale_buffer[i]
             );
-            out_buffer.add_item_to_row(self.last_row_number(), hsl_color);
+            out_buffer.append(hsl_color);
         }
     
         out_buffer.convert_to::<Srgb>()
@@ -195,19 +159,30 @@ impl Buffer<Srgb> {
     pub fn save_jpeg_image(&self, path: &str, im_size: (u32, u32)) -> Result<(), image::ImageError> {
         let mut out_buf: Vec<u8> = Vec::new();
 
-        for y in self.iter() {
-            for i in  y {
-                let comp = i.into_components();
-                out_buf.push((comp.0 * 255.0) as u8);
-                out_buf.push((comp.1 * 255.0) as u8);
-                out_buf.push((comp.2 * 255.0) as u8);
-            }
+        for i in self.iter() {
+            let comp = i.into_components();
+            out_buf.push((comp.0 * 255.0) as u8);
+            out_buf.push((comp.1 * 255.0) as u8);
+            out_buf.push((comp.2 * 255.0) as u8);
         }
 
         let width = im_size.0;
         let height = im_size.1;
 
         image::save_buffer_with_format(path, &out_buf.as_slice(), width, height, image::ColorType::Rgb8, image::ImageFormat::Jpeg)
+    }
+
+    pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Srgb> {
+        let mut out_buffer: Vec<Srgb> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Srgb::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
+        }
+
+        Buffer { _buffer: out_buffer, image_size }
     }
 
     pub fn apply_3x3_convolution_mask(&self, mask: [[f32; 3]; 3]) -> Buffer {
@@ -346,39 +321,20 @@ impl Buffer<Srgb> {
     fn _add_padding(&self, padding: (u32, u32, u32, u32)) -> Buffer {
         let (sx, top,dx, bottom) = padding;
 
-        let mut _buf_v: Vec<Vec<Srgb>> = Vec::new();
-
-        let black = || Srgb::new(0.0, 0.0, 0.0);
+        let mut _buf_v: Vec<Srgb> = Vec::new();
 
         if top > 0 {
-            for _ in 0..top { 
-                let mut row: Vec<Srgb> = Vec::new();
-                for x in 0..(self.image_size.0 + sx+dx) {
-                    row.push(black());
-                }
-                _buf_v.push(row);
-            }
+            for _ in 0..top*(self.image_size.0 + sx + dx) { _buf_v.push(Srgb::new(0.0, 0.0, 0.0)); }
         }
 
-        for y in &self._buffer {
-            let mut row: Vec<Srgb> = Vec::new();
-            if sx > 0 { for _ in 0..sx { row.push(black()); } }
-
-            for x in y { row.push(*x); }
-
-            if dx > 0 { for _ in 0..dx { row.push(black()); } }
-
-            _buf_v.push(row);
+        for y in 0..self.image_size.1 {
+            if sx > 0 { for _ in 0..sx { _buf_v.push(Srgb::new(0.0, 0.0, 0.0)); }}
+            for x in 0..self.image_size.0 { _buf_v.push(self[(y*self.image_size.0 + x) as usize]); }
+            if dx > 0 { for _ in 0..dx { _buf_v.push(Srgb::new(0.0, 0.0, 0.0)); }}
         }
 
         if bottom > 0 {
-            for _ in 0..bottom { 
-                let mut row: Vec<Srgb> = Vec::new();
-                for x in 0..(self.image_size.0 + sx+dx) {
-                    row.push(black());
-                }
-                _buf_v.push(row);
-            }
+            for _ in 0..bottom*(self.image_size.0 + sx + dx) { _buf_v.push(Srgb::new(0.0, 0.0, 0.0)); }
         }
 
         Buffer::load(_buf_v, (self.image_size.0 + sx + dx, self.image_size.1 + top + bottom))
@@ -389,69 +345,53 @@ impl Buffer<Srgb> {
 impl Buffer<Hsv> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
-        for y in &self._buffer {
-            for pixel in y {
-                let (h, s, v) = pixel.into_components();
-                out_buffer.push(vec![h.into_degrees() as f64, s as f64, v as f64])
-            }
+        for pixel in &self._buffer {
+            let (h, s, v) = pixel.into_components();
+            out_buffer.push(vec![h.into_degrees() as f64, s as f64, v as f64])
         }
         out_buffer
     }
-
-    pub fn from_f64_buffer(buffer: Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Hsv> {
-        let mut out_buffer: Vec<Vec<Hsv>> = Vec::new();
-        for y in 0..image_size.1 {
-            let mut row: Vec<Hsv> = Vec::new();
-            for x in 0..image_size.0 {
-                let i: &Vec<f64>  = &buffer[(y*image_size.1+x) as usize];
-                row.push(Hsv::from_components((
-                    i[0] as f32,
-                    i[1] as f32,
-                    i[2] as f32,
-                )));
-            }
-            out_buffer.push(row);
+    pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Hsv> {
+        let mut out_buffer: Vec<Hsv> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Hsv::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
         }
-        Buffer::<Hsv> { _buffer: out_buffer, image_size }
-    }
 
+        Buffer { _buffer: out_buffer, image_size }
+    }
 }
 
 impl Buffer<Hsl> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
-        for y in &self._buffer {
-            for pixel in y {
-                let (h, s, v) = pixel.into_components();
-                out_buffer.push(vec![h.into_degrees() as f64, s as f64, v as f64])
-            }
+        for pixel in &self._buffer {
+            let (h, s, l) = pixel.into_components();
+            out_buffer.push(vec![h.into_degrees() as f64, s as f64, l as f64])
         }
         out_buffer
     }
 
-    pub fn from_f64_buffer(buffer: Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Hsl> {
-        let mut out_buffer: Vec<Vec<Hsl>> = Vec::new();
-        for y in 0..image_size.1 {
-            let mut row: Vec<Hsl> = Vec::new();
-            for x in 0..image_size.0 {
-                let i: &Vec<f64> = &buffer[(y*image_size.1+x) as usize];
-                row.push(Hsl::from_components((
-                    i[0] as f32,
-                    i[1] as f32,
-                    i[2] as f32,
-                )));
-            }
-            out_buffer.push(row);
+    pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>,image_size: (u32, u32)) -> Buffer<Hsl> {
+        let mut out_buffer: Vec<Hsl> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Hsl::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
         }
-        Buffer::<Hsl> { _buffer: out_buffer, image_size }
+
+        Buffer { _buffer: out_buffer, image_size }
     }
 
     pub fn collect_luma(&self) -> Vec<f32> {
         let mut out_buffer: Vec<f32> = Vec::new();
-        for y in &self._buffer{
-            for x in y{
-                out_buffer.push(x.lightness);
-            }
+        for i in self._buffer.iter(){
+            out_buffer.push(i.lightness);
         }
         out_buffer
     }
@@ -460,28 +400,21 @@ impl Buffer<Hsl> {
 impl Buffer<Oklab> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
-        for y in &self._buffer {
-            for pixel in y {
-                let (l, a, b) = pixel.into_components();
-                out_buffer.push(vec![l as f64, a as f64, b as f64])
-            }
+        for pixel in &self._buffer {
+            let (l, a, b) = pixel.into_components();
+            out_buffer.push(vec![l as f64, a as f64, b as f64])
         }
         out_buffer
     }
 
     pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Oklab> {
-        let mut out_buffer: Vec<Vec<Oklab>> = Vec::new();
-        for y in 0..image_size.1 {
-            let mut row: Vec<Oklab> = Vec::new();
-            for x in 0..image_size.0 {
-                let i: &Vec<f64> = &buffer[(y*image_size.1+x) as usize];
-                row.push(Oklab::from_components((
-                    i[0] as f32,
-                    i[1] as f32,
-                    i[2] as f32,
-                )));
-            }
-            out_buffer.push(row);
+        let mut out_buffer: Vec<Oklab> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Oklab::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
         }
 
         Buffer { _buffer: out_buffer, image_size }
@@ -491,29 +424,21 @@ impl Buffer<Oklab> {
 impl Buffer<Oklch> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
-        for y in &self._buffer {
-            for pixel in y {
-                let (l, c, h) = pixel.into_components();
-                out_buffer.push(vec![l as f64, c as f64, h.into_degrees() as f64])
-            }
+        for pixel in &self._buffer {
+            let (l, c, h) = pixel.into_components();
+            out_buffer.push(vec![l as f64, c as f64, h.into_degrees() as f64])
         }
         out_buffer
     }
 
     pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Oklch> {
-        let mut out_buffer: Vec<Vec<Oklch>> = Vec::new();
-
-        for y in 0..image_size.1 {
-            let mut row: Vec<Oklch> = Vec::new();
-            for x in 0..image_size.0 {
-                let i: &Vec<f64> = &buffer[(y*image_size.1+x) as usize];
-                row.push(Oklch::from_components((
-                    i[0] as f32,
-                    i[1] as f32,
-                    i[2] as f32,
-                )));
-            }
-            out_buffer.push(row);
+        let mut out_buffer: Vec<Oklch> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Oklch::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
         }
 
         Buffer { _buffer: out_buffer, image_size }
@@ -523,29 +448,21 @@ impl Buffer<Oklch> {
 impl Buffer<Xyz> {
     pub fn convert_to_f64(&self) -> Vec<Vec<f64>> {
         let mut out_buffer: Vec<Vec<f64>> = Vec::new();
-        for y in &self._buffer {
-            for pixel in y {
-                let (x, y, z) = pixel.into_components();
-                out_buffer.push(vec![x as f64, y as f64, z as f64])
-            }
+        for pixel in &self._buffer {
+            let (x, y, z) = pixel.into_components();
+            out_buffer.push(vec![x as f64, y as f64, z as f64])
         }
         out_buffer
     }
 
     pub fn from_f64_buffer(buffer: &Vec<Vec<f64>>, image_size: (u32, u32)) -> Buffer<Xyz> {
-        let mut out_buffer: Vec<Vec<Xyz>> = Vec::new();
-
-        for y in 0..image_size.1 {
-            let mut row: Vec<Xyz> = Vec::new();
-            for x in 0..image_size.0 {
-                let i: &Vec<f64> = &buffer[(y*image_size.1+x) as usize];
-                row.push(Xyz::from_components((
-                    i[0] as f32,
-                    i[1] as f32,
-                    i[2] as f32,
-                )));
-            }
-            out_buffer.push(row);
+        let mut out_buffer: Vec<Xyz> = Vec::new();
+        for i in buffer {
+            out_buffer.push(Xyz::from_components((
+                i[0] as f32,
+                i[1] as f32,
+                i[2] as f32,
+            )));
         }
 
         Buffer { _buffer: out_buffer, image_size }
@@ -556,7 +473,7 @@ impl<T> IntoIterator for Buffer<T>
 where
     T: FromColorUnclamped<T> + IntoColor<T> + Copy,
 {
-    type Item = Vec<T>;
+    type Item = T;
 
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
@@ -565,14 +482,14 @@ where
     }
 }
 
-impl<T, I: SliceIndex<[Vec<T>]>> Index<I> for Buffer<T> {
+impl<T, I: SliceIndex<[T]>> Index<I> for Buffer<T> {
     type Output = I::Output;
     fn index(&self, index: I) -> &Self::Output {
         Index::index(&self._buffer, index)
     }
 }
 
-impl<T, I: SliceIndex<[Vec<T>]>> IndexMut<I> for Buffer<T> {
+impl<T, I: SliceIndex<[T]>> IndexMut<I> for Buffer<T> {
     fn index_mut(&mut self, index: I) -> &mut I::Output {
         IndexMut::index_mut(&mut self._buffer, index)
     }
