@@ -1,15 +1,20 @@
 [package]
-name = "rust_backend"
+name = "rustlib_test"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-name = "rust_backend"
-crate_type = ["cdylib", "rlib"]
+#[lib]
+#name = "rustlib"
+#path = "src/python_binding.rs"
+#crate-type = ["cdylib"]
+
+[[bin]]
+name = "rustlib_test"
+path = "src\\test.rs"
 
 [dependencies]
+palette = {version = "0.7.2"}
+image = "0.24.7"
+num = "0.4.1"
 fltk = "^1.4"
-
-palette = "0.7.2"
-image = "0.24.6"
 pyo3 = {version = "0.19.2", features = ["extension-module"]}
