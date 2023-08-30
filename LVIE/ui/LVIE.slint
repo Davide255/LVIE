@@ -1,0 +1,39 @@
+import { VerticalBox, Button } from "std-widgets.slint";
+
+export global Logic {
+}
+
+export component HelloWorld inherits Window {
+
+    title: "Hello world!";
+
+    preferred-width: 1000px;
+    preferred-height: 600px;
+
+    background: black;
+
+    in-out property <string> ltext: "Waiting";
+
+    callback rust_init();
+
+    in-out property <image> image;
+
+    Image {
+        source: image;
+        width: root.width;
+        height: root.height;
+        image-fit: ImageFit.contain;
+    }
+
+    /*VerticalBox {
+        txt := Text {
+            text: root.ltext;
+        }
+        btn := Button {
+            text: "Press me!";
+            clicked => {
+                
+            }
+        }
+    }*/
+}
