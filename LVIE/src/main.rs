@@ -13,7 +13,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let Window_weak = Window.as_weak();
 
-    let img = image::open("D:\\PhotoEditorRust\\rustlib\\src\\original.jpg")
+    let img = image::open("..\\..\\original.jpg")
         .expect("Failed to open the image");
 
     let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
