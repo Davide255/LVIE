@@ -23,7 +23,7 @@ This editor can adjust:
 - [X] *Exposition (EV)* by increasing or decreasing the luminance of the color prensent in the image
 - [X] *Saturation* thanks to the HSV color space conversion
 - [X] *Contrast* (in grayscale images at the monent) expanding the color histogram's range
-- [ ] *Whit balance* (we don't know how to implement it yet)
+- [ ] *White balance* (we don't know how to implement it yet)
 
 
 ### Image Filters
@@ -31,7 +31,7 @@ Later in the developement will be added filters, first with useful basic filters
 - [X] *B&W Filter* to convert an image into gray scale
 - [X] *Gaussian Blur* thanks to the formula for the gaussian blur interpolation
 - [ ] *Sharpening* via Laplacian over Gaussian convolution filter
-- [ ] *_Local_ contrast*
+- [ ] *Local contrast*
 - [ ] *Wavelets denoise* (it would be cool to adjust different channels independently too)
 - [ ] *Curves* for exposition, hue, color grading ecc
 - [ ] *Graduated filters* of various shapes
