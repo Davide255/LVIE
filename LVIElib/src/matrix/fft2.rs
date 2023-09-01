@@ -10,10 +10,12 @@ impl Matrix<Complex<f32>> {
         let mut content: Vec<Complex<f32>> = vec![Complex::default(); matrix.content.len()];
         transpose(&matrix.content, &mut content, self.width, self.height);
         matrix.update_content(content).unwrap();
+        (matrix.width, matrix.height) = (matrix.height(), matrix.width());
         matrix = matrix.rows_fft(direction);
 
         let mut content: Vec<Complex<f32>> = vec![Complex::default(); matrix.content.len()];
         transpose(&matrix.content, &mut content, self.height, self.width);
+        (matrix.width, matrix.height) = (matrix.height(), matrix.width());
         content = match direction {
             FftDirection::Forward => content,
             FftDirection::Inverse => content

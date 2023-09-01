@@ -49,6 +49,9 @@ impl<T: Clone> Matrix<T> {
         &self.content
     }
 
+    pub fn height(self: &Self) -> usize {self.height}
+    pub fn width(self: &Self) -> usize {self.width}
+
     pub fn check_size(self: &Self) -> bool {
         self.width * self.height == self.content.len()
     }

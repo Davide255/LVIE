@@ -1,5 +1,4 @@
 use rustfft::{num_complex::Complex, FftDirection};
-use transpose::transpose;
 
 use super::Matrix;
 
@@ -30,16 +29,11 @@ pub fn convolve(buf: &Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
 
     let mut f_kernel: Matrix<Complex<f32>> = kernel.clone().into();
     f_kernel = f_kernel.fft2d(FftDirection::Forward);
-    //(f_kernel.width, f_kernel.height) = (f_kernel.height, f_kernel.width);
-    //let mut k_transpose = vec![Complex::new(0.0, 0.0); f_kernel.width*f_kernel.height];
-    //transpose(f_kernel.get_content(), &mut k_transpose, f_kernel.width, f_kernel.height);
-    //f_kernel.update_content(k_transpose).unwrap();
 
-    println!("Matrix multiplication started");
-
-    let mut result = (f_buf*f_kernel).unwrap();
+    println!("Array multiplication started");
+    f_buf.update_content((0..f_buf.content.len()).map(|x| f_buf.content[x]*f_kernel.content[x]).collect()).unwrap();
     println!("Matrix multiplication ended");
-    result = result.fft2d(FftDirection::Inverse);
+    let result = f_buf.fft2d(FftDirection::Inverse);
     let content: Vec<u8> = result.content.iter().map(|x| x.re.round() as u8).collect();
 
     println!("Convolved one channel");
@@ -47,7 +41,7 @@ pub fn convolve(buf: &Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
     Matrix::new(content, buf.height, buf.width)
 }
 
-pub fn apply_convolution(buf: Matrix<u8>, kernel: &Matrix<f32>) -> Vec<u8> {
+pub fn apply_convolution(buf: Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
     let (mut r, mut g, mut b) = split3(buf);
     println!("Buffer splitted!");
 
@@ -66,5 +60,5 @@ pub fn apply_convolution(buf: Matrix<u8>, kernel: &Matrix<f32>) -> Vec<u8> {
 
     println!("{}", output.len());
 
-    output
+    Matrix::new(output, r.height, 3*r.width)
 }
