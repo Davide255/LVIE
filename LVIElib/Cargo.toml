@@ -1,7 +1,11 @@
 [package]
-name = "LVIElib"
-version = "0.0.1"
+name = "convolution"
+version = "0.1.0"
 edition = "2021"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
+rustfft = "6.1.0"
+transpose = "0.2.2"
 image = "0.24.7"
