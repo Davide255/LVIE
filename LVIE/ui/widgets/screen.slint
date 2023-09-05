@@ -1,11 +1,36 @@
-import { HorizontalBox } from "std-widgets.slint";
+import { HorizontalBox , VerticalBox} from "std-widgets.slint";
+import { Palette } from "..\\color\\palette.slint";
+
+global ScreenCallbacks {
+    
+}
+
 component Screen inherits HorizontalBox {
-    in-out property <image> image;
+    in-out property <image> image <=> img.source;
+
+    padding: 0;
+
+    left_area := VerticalBox {
+        width: root.width * 3%;
+        padding: 0;
+        Rectangle {
+            background: Palette.Dark.Dark-300;
+            border-radius: 7px;
+        }
+    }
 
     img := Image {
-        source: image;
         image-fit: ImageFit.contain;
+    }
+
+    right_area := VerticalBox {
+        width: root.width * 25%;
+        padding: 0;
+        Rectangle {
+            background: Palette.Dark.Dark-300;
+            border-radius: 7px;
+        }
     }
 }
 
-export { Screen }
+export { Screen, ScreenCallbacks }

@@ -8,7 +8,30 @@ use slint::{Image, Rgb8Pixel, SharedPixelBuffer, Weak};
 #[allow(unused_imports)]
 use std::{thread, time};
 
+use rfd::FileDialog;
+
 mod loading;
+
+fn read_image(path: &str) -> Image {
+    let img = image::open(path).expect("Failed to open the image");
+
+    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+        img.as_rgb8().unwrap(),
+        img.width(),
+        img.height(),
+    );
+
+    return Image::from_rgb8(pix_buf);
+}
+
+fn maximize_ui(ui: LVIE) {
+    ui.window()
+        .with_winit_window(|winit_window: &winit::window::Window| {
+            winit_window.set_maximized(true);
+            winit_window.set_title("LVIE");
+        })
+        .expect("Failed to use winit!");
+}
 
 #[allow(unreachable_code)]
 fn main() {
@@ -17,33 +40,31 @@ fn main() {
 
     let Window: LVIE = LVIE::new().unwrap();
 
-    let img = image::open("original.jpg").expect("Failed to open the image");
-
-    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
-        img.as_rgb8().unwrap(),
-        img.width(),
-        img.height(),
-    );
-
-    let slint_image = Image::from_rgb8(pix_buf);
-
-    Window.set_image(slint_image);
-
+    // CALLBACKS:
+    // open image:
+    let Window_weak = Window.as_weak();
     Window
         .global::<ToolbarCallbacks>()
-        .on_open_file_callback(|| {
-            println!("Called!");
+        .on_open_file_callback(move || {
+            let fd = FileDialog::new()
+                .add_filter("jpg", &["jpg", "jpeg", "png"])
+                .pick_file();
+            let binding = fd.unwrap();
+            Window_weak
+                .upgrade_in_event_loop(move |Window| {
+                    Window.set_image(read_image(binding.as_path().to_str().unwrap()))
+                })
+                .expect("Failed to call from event loop");
         });
 
-    let maximize_ui = |ui: LVIE| {
-        ui.window()
-            .with_winit_window(|winit_window: &winit::window::Window| {
-                winit_window.set_maximized(true);
-                winit_window.set_title("LVIE");
-            })
-            .expect("Failed to use winit!");
-    };
+    // close window:
+    Window
+        .global::<ToolbarCallbacks>()
+        .on_close_window_callback(|| {
+            slint::quit_event_loop().expect("Failed to stop the event loop");
+        });
 
+    // startup procedure
     let l_weak: Weak<LVIE> = Window.as_weak();
 
     thread::Builder::new()

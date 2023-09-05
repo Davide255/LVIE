@@ -9,6 +9,7 @@ slint = "1.1.0"
 image = "0.24.7"
 winit = "0.28.6"
 i-slint-backend-winit = "=1.1.0"
+rfd = "0.11.4"
 
 [build-dependencies]
 slint-build = "1.1.0"
