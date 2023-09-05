@@ -1,39 +1,34 @@
-import { VerticalBox, Button } from "std-widgets.slint";
+//standard widgets
+import { VerticalBox, Button , HorizontalBox } from "std-widgets.slint";
+//custom widget and theme colors
+import { Screen } from "widgets\\screen.slint";
+import { Palette } from "color\\palette.slint";
+import { Toolbar, ToolbarCallbacks } from "widgets\\toolbar.slint";
 
-export global Logic {
-}
+component LVIE inherits Window {
 
-export component HelloWorld inherits Window {
+    title: "LVIE";
 
-    title: "Hello world!";
+    background: Palette.Dark.Dark-100;
 
-    preferred-width: 1000px;
     preferred-height: 600px;
+    preferred-width: 1000px;
 
-    background: black;
-
-    in-out property <string> ltext: "Waiting";
-
-    callback rust_init();
-
-    in-out property <image> image;
-
-    Image {
-        source: image;
+    tb := Toolbar {
+        height: 40px;
         width: root.width;
-        height: root.height;
-        image-fit: ImageFit.contain;
+        x: 0px;
+        y: 0px;
     }
 
-    /*VerticalBox {
-        txt := Text {
-            text: root.ltext;
-        }
-        btn := Button {
-            text: "Press me!";
-            clicked => {
-                
-            }
-        }
-    }*/
+    in-out property <image> image <=> content.image;
+
+    content := Screen {
+        height: root.height - tb.height;
+        width: root.width;
+        x: 0px;
+        y: tb.height;
+    }
 }
+
+export { LVIE, ToolbarCallbacks }

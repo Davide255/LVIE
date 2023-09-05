@@ -1,0 +1,11 @@
+import { HorizontalBox } from "std-widgets.slint";
+component Screen inherits HorizontalBox {
+    in-out property <image> image;
+
+    img := Image {
+        source: image;
+        image-fit: ImageFit.contain;
+    }
+}
+
+export { Screen }

@@ -1,0 +1,59 @@
+import { HorizontalBox , ListView, ScrollView, VerticalBox} from "std-widgets.slint";
+import { Palette } from "..\\color\\palette.slint";
+import { MenuItem, PopupMenu } from "menu\\popup_menu.slint";
+
+global ToolbarCallbacks {
+    callback open_file_callback();
+}
+
+component ToolbarButton inherits Rectangle {
+    in-out property text <=> txt.text;
+    callback clicked <=> touch.clicked;
+
+    border-color: transparent;
+    background: Palette.Dark.Dark-300;
+    border-radius: 7px;
+
+    txt := Text{
+        x: (parent.width - self.width)/2;
+        y: (parent.height - self.height)/2;
+    }
+
+    touch := TouchArea{}
+}
+
+component Toolbar inherits Rectangle {
+    background: transparent;
+    height: 25px;
+
+    tb := HorizontalBox {
+        height: parent.height;
+        width: parent.width;
+        padding: 7px;
+
+        x: 0px;
+        y: 0px;
+        
+        file_popup := PopupMenu {
+            x: 0px;
+            y: tb.height;
+            MenuItem {
+                item-callback => { ToolbarCallbacks.open-file-callback(); }
+                text: "Open a file";
+            }
+            MenuItem {
+                text: "Close window";
+            }
+        }
+
+        ToolbarButton {
+            text: "Files";
+            width: 50px;
+            clicked => {
+                file-popup.show()
+            }
+        }
+    }
+}
+
+export { Toolbar, ToolbarCallbacks }

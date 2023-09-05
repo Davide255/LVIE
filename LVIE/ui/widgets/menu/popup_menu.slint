@@ -1,0 +1,49 @@
+import { VerticalBox, ScrollView } from "std-widgets.slint";
+import { Palette } from "..\\..\\color\\palette.slint";
+
+component MenuItem inherits VerticalBox {
+
+    callback item-callback();
+
+    in-out property <string> text <=> text_area.text;
+
+    padding: 0;
+    spacing: 1px;
+    Rectangle {
+        height: 20px;
+        border-color: transparent;
+        background: transparent;
+        padding: 10px;
+
+        text_area := Text {
+            font-size: 15px;
+            x: parent.padding;
+            y: parent.padding;
+        }
+
+        TouchArea {
+            clicked => { item-callback() }
+        }
+    }
+}
+
+component PopupMenu inherits PopupWindow {
+    width: 200px;
+
+    in-out property <color> background: Palette.Dark.Dark-300;
+
+    Rectangle {
+        height: parent.height;
+        width: parent.width;
+        background: parent.background;
+        border-radius: 7px;
+        VerticalBox {
+            spacing: 3px;
+            height: parent.height;
+            width: parent.width;
+            @children
+        }
+    }
+}
+
+export { PopupMenu, MenuItem }

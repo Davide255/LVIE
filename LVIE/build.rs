@@ -1,3 +1,3 @@
 fn main() {
-    slint_build::compile("ui/LVIE.slint").unwrap();
+    slint_build::compile("ui\\LVIE.slint").unwrap();
 }
