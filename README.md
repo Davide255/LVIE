@@ -2,7 +2,7 @@
 A light-weight open source photo editor written in Rust
 
 ## Ambition
-We are currently developing a photo editor thanks to the power of rust language and the FLTK framework!
+We are currently developing a photo editor thanks to the power of rust language and the slint ui framework!
 
 ## Features
 This is only an embrional phase of this project so it hasn't even the GUI, but this list is a list of features that will surely be implemented in this editor!
