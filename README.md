@@ -7,15 +7,6 @@ We are currently developing a photo editor thanks to the power of rust language 
 ## Features
 This is only an embrional phase of this project so it hasn't even the GUI, but this list is a list of features that will surely be implemented in this editor!
 
-### Color spaces
-Firstly this project use the rust palette library for color spaces management, meaning this photo editor can work with many color spaces!
-At the moment we're focusing on implementing convertions between:
-- [X] RGB
-- [ ] HSV
-- [ ] OKLAB
-- [ ] OKLCH
-- [ ] CIELAB
-
 ### Image manipulation
 Image manipulation is the core of this project, it includes all the values you need to adjust while processing an image!
 
