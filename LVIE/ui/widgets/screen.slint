@@ -1,8 +1,8 @@
-import { HorizontalBox , VerticalBox} from "std-widgets.slint";
+import { HorizontalBox , VerticalBox, Slider , Button } from "std-widgets.slint";
 import { Palette } from "..\\color\\palette.slint";
 
 global ScreenCallbacks {
-    
+    callback add-box-blur(int);
 }
 
 component Screen inherits HorizontalBox {
@@ -11,7 +11,7 @@ component Screen inherits HorizontalBox {
     padding: 0;
 
     left_area := VerticalBox {
-        width: root.width * 3%;
+        width: root.width * 25%;
         padding: 0;
         Rectangle {
             background: Palette.Dark.Dark-300;
@@ -29,6 +29,27 @@ component Screen inherits HorizontalBox {
         Rectangle {
             background: Palette.Dark.Dark-300;
             border-radius: 7px;
+            VerticalBox {
+                padding: 5px;
+                Text {
+                    text: "Blurring with sigma: \{round(sigma.value)}";
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: 35px;
+                }
+                sigma := Slider {
+                    width: parent.width - parent.padding;
+                    value: 3;
+                    maximum: 30;
+                    minimum: 2;
+                }
+                Button {
+                    text: "apply box blur";
+                    clicked => {
+                        ScreenCallbacks.add-box-blur(sigma.value);
+                    }
+                }
+            }
         }
     }
 }

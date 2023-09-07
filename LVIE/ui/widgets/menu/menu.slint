@@ -12,22 +12,23 @@ component Spacer inherits Rectangle {
 component MenuItem inherits VerticalBox {
     callback item-callback();
 
-    in-out property <string> text <=> text_area.text;
+    in-out property <string> text;
 
     padding: 0;
     spacing: 1px;
     Rectangle {
         height: 30px;
-        //border-color: Palette.Dark.Dark-100;
-        //border-width: 2px;
         background: transparent;
         padding: 3px;
 
-        text_area := Text {
-            font-size: 15px;
-            x: parent.padding;
-            y: parent.padding;
-        }
+        @children
+
+        if text != "" : text_area := Text {
+                font-size: 15px;
+                text: text;
+                x: parent.padding;
+                y: parent.padding;
+            }
 
         TouchArea {
             clicked => { item-callback() }
@@ -46,6 +47,8 @@ component PopupMenu inherits PopupWindow {
         width: parent.width;
         background: parent.background;
         border-radius: 7px;
+        border-color: black;
+        border-width: 1px;
         VerticalBox {
             spacing: 3px;
             height: parent.height;

@@ -1,11 +1,10 @@
 #![allow(non_snake_case)]
-use image;
-use image::imageops;
 
-struct LVIEImage {
-    image: image::DynamicImage,
-    color_space: image::ColorType,
-}
+pub mod matrix;
 
-impl LVIEImage {
-}
+pub type Matrix<T> = matrix::Matrix<T>;
+pub type Complex<T> = rustfft::num_complex::Complex<T>;
+
+use rustfft::FftDirection;
+
+pub type FFTDirection = FftDirection;

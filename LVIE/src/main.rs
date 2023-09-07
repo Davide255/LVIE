@@ -2,27 +2,18 @@
 slint::include_modules!();
 
 use i_slint_backend_winit::WinitWindowAccessor;
-use image;
 use slint::{Image, Rgb8Pixel, SharedPixelBuffer, Weak};
 
-#[allow(unused_imports)]
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use rfd::FileDialog;
 
+mod img_processing;
 mod loading;
 
-fn read_image(path: &str) -> Image {
-    let img = image::open(path).expect("Failed to open the image");
-
-    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
-        img.as_rgb8().unwrap(),
-        img.width(),
-        img.height(),
-    );
-
-    return Image::from_rgb8(pix_buf);
-}
+use crate::img_processing::Filters;
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
@@ -40,8 +31,11 @@ fn main() {
 
     let Window: LVIE = LVIE::new().unwrap();
 
+    let loaded_image = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
+
     // CALLBACKS:
     // open image:
+    let img_weak = Arc::clone(&loaded_image);
     let Window_weak = Window.as_weak();
     Window
         .global::<ToolbarCallbacks>()
@@ -50,9 +44,18 @@ fn main() {
                 .add_filter("jpg", &["jpg", "jpeg", "png"])
                 .pick_file();
             let binding = fd.unwrap();
+            let img =
+                image::open(binding.as_path().to_str().unwrap()).expect("Failed to open the image");
+            let mut _mt = img_weak.lock().expect("Cannot lock mutex");
+            *_mt = img.to_rgb8();
             Window_weak
                 .upgrade_in_event_loop(move |Window| {
-                    Window.set_image(read_image(binding.as_path().to_str().unwrap()))
+                    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+                        img.as_rgb8().unwrap(),
+                        img.width(),
+                        img.height(),
+                    );
+                    Window.set_image(Image::from_rgb8(pix_buf));
                 })
                 .expect("Failed to call from event loop");
         });
@@ -62,6 +65,26 @@ fn main() {
         .global::<ToolbarCallbacks>()
         .on_close_window_callback(|| {
             slint::quit_event_loop().expect("Failed to stop the event loop");
+        });
+
+    let img_weak = Arc::clone(&loaded_image);
+    let Window_weak = Window.as_weak();
+    Window
+        .global::<ScreenCallbacks>()
+        .on_add_box_blur(move |sigma: i32| {
+            let mut kernel = Filters::BoxBlur(sigma);
+            let processed =
+                img_processing::apply_filter(img_weak.lock().unwrap().deref().clone(), &mut kernel);
+            Window_weak
+                .upgrade_in_event_loop(move |Window: LVIE| {
+                    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+                        &processed,
+                        processed.width(),
+                        processed.height(),
+                    );
+                    Window.set_image(Image::from_rgb8(pix_buf));
+                })
+                .expect("Failed to call event loop");
         });
 
     // startup procedure

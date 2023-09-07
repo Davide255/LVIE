@@ -1,0 +1,10 @@
+import { Slider } from "std-widgets.slint";
+export component Example inherits Window {
+    width: 200px;
+    height: 25px;
+    Slider {
+        width: parent.width;
+        height: parent.height;
+        value: 42;
+    }
+}
