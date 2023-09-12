@@ -3,7 +3,7 @@ import { VerticalBox, Button , HorizontalBox } from "std-widgets.slint";
 //custom widget and theme colors
 import { Screen, ScreenCallbacks } from "widgets\\screen.slint";
 import { Palette } from "color\\palette.slint";
-import { Toolbar, ToolbarCallbacks } from "widgets\\toolbar.slint";
+import { Toolbar, ToolbarCallbacks, Spacer, AlertType } from "widgets\\toolbar.slint";
 
 component LVIE inherits Window {
 
@@ -11,16 +11,28 @@ component LVIE inherits Window {
 
     background: Palette.Dark.Dark-100;
 
-    preferred-height: 600px;
     preferred-width: 1000px;
+    preferred-height: 1000px / 16 * 9;
 
     padding: 0;
 
+    in-out property <AlertType> AlertBoxType: AlertType.Null;
+    in-out property <string> AlertText: "";
+
     tb := Toolbar {
+        AlertBoxType: AlertBoxType;
+        AlertText: AlertText;
         height: 40px;
         width: root.width;
         x: 0px;
         y: 0px;
+    }
+
+    Spacer {
+        bgcolor: Palette.Dark.Dark-200;
+        x: 10px;
+        y: tb.height;
+        width: root.width - 20px;
     }
 
     in-out property <image> image <=> content.image;
@@ -33,4 +45,4 @@ component LVIE inherits Window {
     }
 }
 
-export { LVIE, ToolbarCallbacks, ScreenCallbacks }
+export { LVIE, ToolbarCallbacks, ScreenCallbacks, AlertType }

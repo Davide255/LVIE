@@ -1,5 +1,5 @@
 use image::RgbImage;
-use LVIElib::matrix::convolution::apply_convolution;
+use LVIElib::matrix::convolution::multithreadded::apply_convolution;
 use LVIElib::Matrix;
 
 pub struct Filters {}
@@ -8,7 +8,7 @@ impl Filters {
     #[allow(dead_code)]
     pub fn GaussianBlur() {}
 
-    pub fn BoxBlur(sigma: i32) -> Matrix<f32> {
+    pub fn BoxBlur(sigma: u32) -> Matrix<f32> {
         let mut kernel: Vec<f32> = Vec::new();
         let avg: f32 = 1f32 / (sigma.pow(2) as f32);
         for _ in 0..sigma {
@@ -33,4 +33,15 @@ pub fn apply_filter(
     let convolved = apply_convolution(matrix, &kernel);
 
     image::RgbImage::from_raw(width, height, convolved.get_content().clone()).unwrap()
+}
+
+pub fn build_low_res_preview(img: RgbImage) -> RgbImage {
+    let resized: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> = image::imageops::resize(
+        &img,
+        img.width() / 3,
+        img.height() / 3,
+        image::imageops::Nearest,
+    );
+
+    resized
 }

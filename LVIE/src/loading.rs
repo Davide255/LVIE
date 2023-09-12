@@ -1,17 +1,13 @@
 slint::slint! {
-import "fonts\\SFProDisplayBlackItalic.otf";
-
 import { VerticalBox, Button } from "std-widgets.slint";
 
 export component Loading inherits Window {
-    //default-font-family: "SF Pro Display";
     callback close_window();
     in-out property <int> counter: 0;
     Text {
         font-size: 150px;
         text: "LVIE";
         color: @linear-gradient(90deg, #fc5c7d 0%, #6a82fb 100%);
-        //font-family: "SF Pro Display Black Italic";
     }
 }
 }

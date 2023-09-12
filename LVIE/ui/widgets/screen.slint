@@ -3,15 +3,16 @@ import { Palette } from "..\\color\\palette.slint";
 
 global ScreenCallbacks {
     callback add-box-blur(int);
+    callback set-Warning-Message(string);
 }
 
 component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
 
-    padding: 0;
+    spacing: 10px;
 
     left_area := VerticalBox {
-        width: root.width * 25%;
+        width: root.width * 20%;
         padding: 0;
         Rectangle {
             background: Palette.Dark.Dark-300;
@@ -24,7 +25,7 @@ component Screen inherits HorizontalBox {
     }
 
     right_area := VerticalBox {
-        width: root.width * 25%;
+        width: root.width * 20%;
         padding: 0;
         Rectangle {
             background: Palette.Dark.Dark-300;
@@ -35,7 +36,7 @@ component Screen inherits HorizontalBox {
                     text: "Blurring with sigma: \{round(sigma.value)}";
                     horizontal-alignment: center;
                     vertical-alignment: center;
-                    font-size: 35px;
+                    font-size: 30px;
                 }
                 sigma := Slider {
                     width: parent.width - parent.padding;
