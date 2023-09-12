@@ -34,12 +34,12 @@ impl<T: Clone> Matrix<T> {
     }
 
     pub fn update_content(self: &mut Self, content: Vec<T>) -> Result<(), MatrixError> {
-        if self.width*self.height == content.len() {
+        if self.width * self.height == content.len() {
             self.content = content;
             Ok(())
         } else {
             Err(MatrixError::DifferentContentSize(
-                self.width*self.height,
+                self.width * self.height,
                 content.len(),
             ))
         }
@@ -49,8 +49,12 @@ impl<T: Clone> Matrix<T> {
         &self.content
     }
 
-    pub fn height(self: &Self) -> usize {self.height}
-    pub fn width(self: &Self) -> usize {self.width}
+    pub fn height(self: &Self) -> usize {
+        self.height
+    }
+    pub fn width(self: &Self) -> usize {
+        self.width
+    }
 
     pub fn check_size(self: &Self) -> bool {
         self.width * self.height == self.content.len()
@@ -60,11 +64,11 @@ impl<T: Clone> Matrix<T> {
         if width < self.width || height < self.height {
             panic!("Matrix is too large");
         }
-        let mut content: Vec<T> = vec![element.clone(); width*height];
+        let mut content: Vec<T> = vec![element.clone(); width * height];
         for x in 0..width {
             for y in 0..height {
                 if x < self.width && y < self.height {
-                    content[width*y+x] = self.content[self.width*y+x].clone()
+                    content[width * y + x] = self.content[self.width * y + x].clone()
                 }
             }
         }
@@ -120,7 +124,10 @@ impl<Q: Copy, T: Add<Output = T> + Mul<Q, Output = T> + Sub<Output = T> + Copy> 
     fn mul(self, rhs: Matrix<Q>) -> Self::Output {
         let (height, width, content) = (self.height, self.width, self.content);
         if width != rhs.height {
-            return Err(MatrixError::IncompatibleShapes((self.height, self.width), (rhs.height, rhs.width)));
+            return Err(MatrixError::IncompatibleShapes(
+                (self.height, self.width),
+                (rhs.height, rhs.width),
+            ));
         }
 
         let mut result: Vec<T> = Vec::new();

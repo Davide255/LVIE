@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 use image;
 
-use crate::matrix::{convolution::apply_convolution, Matrix};
+use crate::matrix::{convolution::standard::apply_convolution, Matrix};
 
 mod matrix;
 
