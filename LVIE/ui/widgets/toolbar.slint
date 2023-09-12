@@ -1,6 +1,6 @@
 import { HorizontalBox , ListView, ScrollView, VerticalBox, CheckBox } from "std-widgets.slint";
-import { Palette } from "..\\color\\palette.slint";
-import { MenuItem, PopupMenu, Spacer } from "menu\\menu.slint";
+import { Palette } from "../color/palette.slint";
+import { MenuItem, PopupMenu, Spacer } from "menu/menu.slint";
 
 global ToolbarCallbacks {
     callback open_file_callback();
@@ -135,7 +135,6 @@ component Toolbar inherits Rectangle {
                 width: parent.width;
                 alignment: LayoutAlignment.end;
                 padding: 1px;
-                Rectangle {}
                 Image {
                     source: AlertBoxType == AlertType.Warning ? warning-icon : info-icon;
                     height: tb.height - 10px;

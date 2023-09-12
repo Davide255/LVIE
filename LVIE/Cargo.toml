@@ -10,7 +10,7 @@ image = "0.24.7"
 winit = "0.28.6"
 i-slint-backend-winit = "=1.1.0"
 rfd = "0.11.4"
-LVIElib = {path = "..\\LVIElib"}
+LVIElib = {path = "../LVIElib"}
 indexmap = "1.7.0"
 
 [build-dependencies]
