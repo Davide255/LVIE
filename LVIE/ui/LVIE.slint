@@ -12,12 +12,14 @@ component LVIE inherits Window {
     background: Palette.Dark.Dark-100;
 
     preferred-width: 1000px;
-    preferred-height: 1000px / 16 * 9;
+    preferred-height: self.preferred-width / 16 * 9;
 
     padding: 0;
 
     in-out property <AlertType> AlertBoxType: AlertType.Null;
     in-out property <string> AlertText: "";
+
+    in-out property <[string]> svg_path;
 
     tb := Toolbar {
         AlertBoxType: AlertBoxType;
@@ -38,6 +40,7 @@ component LVIE inherits Window {
     in-out property <image> image <=> content.image;
 
     content := Screen {
+        histogram: svg-path;
         height: root.height - tb.height;
         width: root.width;
         x: 0px;

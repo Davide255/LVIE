@@ -2,14 +2,17 @@
 slint::include_modules!();
 
 use i_slint_backend_winit::WinitWindowAccessor;
-use img_processing::build_low_res_preview;
-use slint::{Image, Rgb8Pixel, SharedPixelBuffer, Weak};
+use image::RgbImage;
+use img_processing::{build_low_res_preview, collect_histogram_data};
+use slint::{Image, Rgb8Pixel, SharedPixelBuffer, SharedString, Weak};
 
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use rfd::FileDialog;
+
+use itertools::Itertools;
 
 mod history;
 mod img_processing;
@@ -26,6 +29,40 @@ fn maximize_ui(ui: LVIE) {
         .expect("Failed to use winit!");
 }
 
+fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
+    let hist = collect_histogram_data(&buff);
+    let mut _v: Vec<SharedString> = Vec::new();
+    for cmp in hist {
+        let scale_factor: u32 = 1000;
+        let max_value: &u32 = &(cmp.values().max().unwrap() / scale_factor);
+
+        let mut s_out: String = String::from(format!("M 0 {}", max_value));
+
+        for k in cmp.keys().sorted() {
+            s_out.push_str(&format!(
+                " L {} {}",
+                {
+                    if k == &0u8 {
+                        0u32
+                    } else {
+                        ((*k as f32) * (*max_value as f32 / 255f32)).round() as u32
+                    }
+                },
+                max_value - (cmp.get(k).unwrap() / scale_factor)
+            ));
+        }
+
+        s_out.push_str(&format!(" L {max_value} {max_value} Z"));
+        _v.push(s_out.into());
+    }
+
+    [
+        _v.get(0).unwrap().clone(),
+        _v.get(1).unwrap().clone(),
+        _v.get(2).unwrap().clone(),
+    ]
+}
+
 #[allow(unreachable_code)]
 fn main() {
     const WINIT_BACKEND: bool = {
@@ -35,8 +72,6 @@ fn main() {
             false
         }
     };
-
-    println!("Using backend winit: {}", WINIT_BACKEND);
 
     if WINIT_BACKEND {
         slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new()))
@@ -73,6 +108,14 @@ fn main() {
                         img.width(),
                         img.height(),
                     );
+                    let ww = Window.as_weak();
+                    thread::spawn(move || {
+                        let path = _create_svg_path(&img.to_rgb8());
+                        ww.upgrade_in_event_loop(move |window| {
+                            window.set_svg_path(path.into());
+                        })
+                        .expect("Failed to run in event loop");
+                    });
                     Window.set_image(Image::from_rgb8(pix_buf));
                 })
                 .expect("Failed to call from event loop");
@@ -108,6 +151,14 @@ fn main() {
                     Window.set_image(Image::from_rgb8(pix_buf));
                     Window.set_AlertBoxType(AlertType::Warning);
                     Window.set_AlertText("Low Res preview".into());
+                    let ww = Window.as_weak();
+                    thread::spawn(move || {
+                        let path = _create_svg_path(&processed);
+                        ww.upgrade_in_event_loop(move |window| {
+                            window.set_svg_path(path.into());
+                        })
+                        .expect("Failed to run in event loop");
+                    });
                 })
                 .expect("Failed to call event loop");
 
@@ -126,6 +177,14 @@ fn main() {
                     );
                     Window.set_image(Image::from_rgb8(pix_buf));
                     Window.set_AlertBoxType(AlertType::Null);
+                    let ww = Window.as_weak();
+                    thread::spawn(move || {
+                        let path = _create_svg_path(&processed);
+                        ww.upgrade_in_event_loop(move |window| {
+                            window.set_svg_path(path.into());
+                        })
+                        .expect("Failed to run in event loop");
+                    });
                 })
                 .expect("Failed to call event loop");
             });

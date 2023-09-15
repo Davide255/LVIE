@@ -38,12 +38,15 @@ component Toolbar inherits Rectangle {
     in-out property <AlertType> AlertBoxType;
     in-out property <string> AlertText;
 
+    property <image> warning-icon: @image-url("../media/warning-icon.png");
+    property <image> info-icon: @image-url("../media/warning-icon.png");
+
     background: transparent;
     height: 25px;
 
     tb := HorizontalBox {
         height: parent.height;
-        width: parent.width - 300px;
+        width: parent.width;
         padding: 7px;
 
         x: 0px;
@@ -95,6 +98,10 @@ component Toolbar inherits Rectangle {
                     }
                 }
             }
+            MenuItem {
+                text: "Open an image";
+                item-callback => { ToolbarCallbacks.open-file-callback(); }
+            }
             /*MenuItem {
                 CheckBox {
                     x: parent.padding;
@@ -117,35 +124,30 @@ component Toolbar inherits Rectangle {
                 image-popup.show();
             }
         }
+
+        edit_menu := PopupMenu {
+            x: edit-button.x;
+            y: parent.height;
+            
+        }
         
         edit_button := ToolbarButton {
             text:"Edit";
         }
-    }
 
-    property <image> warning-icon: @image-url("../media/warning-icon.png");
-    property <image> info-icon: @image-url("../media/warning-icon.png");
-
-    if AlertBoxType != AlertType.Null: 
-        Rectangle {
-            width: 300px;
-            x: tb.width;
-            y: 0;
+        if AlertBoxType != AlertType.Null: 
             HorizontalBox {
-                width: parent.width;
                 alignment: LayoutAlignment.end;
-                padding: 1px;
-                Image {
-                    source: AlertBoxType == AlertType.Warning ? warning-icon : info-icon;
-                    height: tb.height - 10px;
-                }
-                Text {
+                padding: 4px;
+                
+                message := Text {
                     color: AlertBoxType == AlertType.Warning ? #f88127 : #0355f9;
                     text: AlertText;
                     vertical-alignment: center;
                 }
             }
-        }
+    }
+
 }
 
 export { Toolbar, ToolbarCallbacks, Spacer, AlertType }

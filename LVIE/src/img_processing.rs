@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use image::RgbImage;
 use LVIElib::matrix::convolution::multithreadded::apply_convolution;
 use LVIElib::Matrix;
@@ -44,4 +46,23 @@ pub fn build_low_res_preview(img: RgbImage) -> RgbImage {
     );
 
     resized
+}
+
+pub fn collect_histogram_data(img: &RgbImage) -> [HashMap<u8, u32>; 3] {
+    let mut r: HashMap<u8, u32> = HashMap::new();
+
+    for n in 0u8..=u8::MAX {
+        r.insert(n, 032);
+    }
+
+    let mut g = r.clone();
+    let mut b = r.clone();
+
+    for pixel in img.pixels() {
+        *r.get_mut(&pixel.0[0]).unwrap() += 1;
+        *g.get_mut(&pixel.0[1]).unwrap() += 1;
+        *b.get_mut(&pixel.0[2]).unwrap() += 1;
+    }
+
+    [r, g, b]
 }

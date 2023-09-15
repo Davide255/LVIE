@@ -1,0 +1,25 @@
+export component Prova inherits Window {
+    width: 300px;
+    height: 300px;
+    Path {
+        width: parent.width;
+        height: parent.height;
+        stroke: red;
+        stroke-width: 8px;
+        commands: "M 0 0 L 100 0";
+    }
+    Path {
+        width: parent.width;
+        height: parent.height;
+        stroke: green;
+        stroke-width: 4px;
+        commands: "M 0 4 L 100 4";
+    }
+    Path {
+        width: parent.width;
+        height: parent.height;
+        stroke: blue;
+        stroke-width: 2px;
+        commands: "M 0 8 L 100 8";
+    }
+}

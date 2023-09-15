@@ -1,4 +1,4 @@
-import { HorizontalBox , VerticalBox, Slider , Button } from "std-widgets.slint";
+import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox } from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
 
 global ScreenCallbacks {
@@ -8,16 +8,72 @@ global ScreenCallbacks {
 
 component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
-
+    in-out property <[string]> histogram: ["","",""];
+    property <[color]> h_color: [Colors.red, Colors.green, Colors.blue];
     spacing: 10px;
 
-    left_area := VerticalBox {
+    left_area := Rectangle {
+        background: Palette.Dark.Dark-300;
+        border-radius: 7px;
         width: root.width * 20%;
-        padding: 0;
-        Rectangle {
-            background: Palette.Dark.Dark-300;
-            border-radius: 7px;
-        }
+        /*ScrollView {
+            width: parent.width;
+            padding: 2px;
+            x: 0px;*/
+
+            VerticalBox {
+                //height: auto;
+                width: parent.width;
+                spacing: 5px;
+                padding: 2px;
+                alignment: start;
+                h_choice := ComboBox {
+                    model: ["R", "G", "B", "all"];
+                    current-index: 0;
+                    width: 100px;
+                    height: 30px;                 
+                }
+                if 0 <= h-choice.current-index && h-choice.current-index < 3:
+                Rectangle {
+                    width: parent.width - 30px;
+                    height: (root.height - 30px) / 3;
+                    //x: 5px;
+                    //y: 30px;
+                    background: transparent;
+                    border-radius: 7px;
+                    border-width: 2px;
+                    border-color: black;
+                    Path {
+                        width: parent.width - 5px;
+                        height: parent.height - 5px;
+                        commands: histogram[h-choice.current-index];
+                        stroke: h-color[h-choice.current-index];
+                        stroke-width: 1px;
+                        fill: self.stroke;
+                    }
+                }
+                if h-choice.current-index == 3: Rectangle {
+                    width: parent.width - 30px;
+                    height: (root.height - 30px) / 3;
+                    //x: 5px;
+                    //y: 30px;
+                    background: transparent;
+                    border-radius: 7px;
+                    border-width: 2px;
+                    border-color: black;
+                    for p in [0, 1, 2] :
+                    Path {
+                        width: parent.width - 5px;
+                        height: parent.height - 5px;
+                        commands: histogram[p];
+                        stroke: h-color[p].transparentize(0.3);
+                        stroke-width: 1px;
+                        fill: self.stroke;
+                    }
+                }
+            }
+            //viewport-height: (self.width - 10px) * 3;
+        //}
     }
 
     img := Image {
@@ -42,7 +98,7 @@ component Screen inherits HorizontalBox {
                     width: parent.width - parent.padding;
                     value: 3;
                     maximum: 30;
-                    minimum: 2;
+                    minimum: 3;
                 }
                 Button {
                     text: "apply box blur";
