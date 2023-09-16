@@ -23,6 +23,8 @@ impl Filters {
     }
 }
 
+fn convert_to_hsl() {}
+
 pub fn apply_filter(
     img: RgbImage,
     kernel: &mut Matrix<f32>,

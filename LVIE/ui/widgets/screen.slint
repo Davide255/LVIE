@@ -1,8 +1,9 @@
-import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox } from "std-widgets.slint";
+import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox , GridBox} from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
 
 global ScreenCallbacks {
     callback add-box-blur(int);
+    callback apply-filters();
     callback set-Warning-Message(string);
 }
 
@@ -86,24 +87,47 @@ component Screen inherits HorizontalBox {
         Rectangle {
             background: Palette.Dark.Dark-300;
             border-radius: 7px;
-            VerticalBox {
-                padding: 5px;
-                Text {
-                    text: "Blurring with sigma: \{round(sigma.value)}";
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    font-size: 30px;
+            GridBox {
+                Row {
+                    VerticalBox {
+                        padding: 5px;
+                        Text {
+                            text: "saturation: \{round(saturation.value)}";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 10px;
+                        }
+                        saturation := Slider {
+                            width: right-area.width - 10px;
+                            value: 3;
+                            maximum: 30;
+                            minimum: 3;
+                        }
+                    }
                 }
-                sigma := Slider {
-                    width: parent.width - parent.padding;
-                    value: 3;
-                    maximum: 30;
-                    minimum: 3;
+                Row {
+                    VerticalBox {
+                        padding: 5px;
+                        Text {
+                            text: "Box Blur: \{round(box_blur.value)}";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 10px;
+                        }
+                        box_blur := Slider {
+                            width: right-area.width - 10px;
+                            value: 3;
+                            maximum: 30;
+                            minimum: 3;
+                        }
+                    }
                 }
-                Button {
-                    text: "apply box blur";
-                    clicked => {
-                        ScreenCallbacks.add-box-blur(sigma.value);
+                Row {
+                    Button {
+                        text: "apply filters";
+                        clicked => {
+                            ScreenCallbacks.add-box-blur(box-blur.value);
+                        }
                     }
                 }
             }
