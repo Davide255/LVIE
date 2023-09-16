@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use image::RgbImage;
+use LVIElib::hsl::HslImage;
 use LVIElib::matrix::convolution::multithreadded::apply_convolution;
 use LVIElib::Matrix;
 
@@ -23,7 +24,10 @@ impl Filters {
     }
 }
 
-fn convert_to_hsl() {}
+fn convert_to_hsl(img: &RgbImage) -> HslImage {
+    let hsl_img = HslImage::new(img.width(), img.height());
+    HslImage::new(img.width(), img.height())
+}
 
 pub fn apply_filter(
     img: RgbImage,
