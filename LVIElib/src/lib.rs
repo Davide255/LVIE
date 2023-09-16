@@ -8,3 +8,5 @@ pub type Complex<T> = rustfft::num_complex::Complex<T>;
 use rustfft::FftDirection;
 
 pub type FFTDirection = FftDirection;
+
+pub mod hsl;
