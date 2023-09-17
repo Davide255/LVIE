@@ -34,12 +34,13 @@ mod tests {
         Ok(())
     }*/
 
+    use image::Rgb;
     use LVIElib::hsl::*;
 
     #[test]
-    fn test_hsl_converion() {
-        let c = rgbf32_to_hslf32(127.0, 177.0, 77.0).0;
-        assert_eq!([127, 177, 77], hslf32_to_rgb8(c[0], c[1], c[2]).0);
+    fn test_hsl_conversion() {
+        let rgb: Rgb<u8> = Rgb([255, 157, 44]);
+        assert_eq!(rgb, Rgb::from(Hsl::from(rgb)));
     }
 }
 
@@ -47,7 +48,8 @@ use image::Rgb;
 use LVIElib::hsl::*;
 
 fn main() {
-    let rgb: Rgb<u8> = Rgb([100, 100, 100]);
+    let rgb: Rgb<u8> = Rgb([93, 156, 174]);
     let hsl: Hsl = rgb.into();
-    println!("{:?}", hsl)
+    println!("{:?}", hsl);
+    println!("{:?}", Rgb::<u8>::from(hsl))
 }

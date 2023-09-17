@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use image::{ImageBuffer, Luma, LumaA, Pixel, Rgb, Rgba};
+use image::{ImageBuffer, Luma, LumaA, Pixel, Primitive, Rgb, Rgba};
 use num_traits::{Bounded, Num, NumCast, Zero};
-use std::ops::AddAssign;
+use std::{f32::consts::PI, ops::AddAssign};
 
 pub trait Enlargeable: Sized + Bounded + NumCast {
     type Larger: Copy + NumCast + Num + PartialOrd<Self::Larger> + Clone + Bounded + AddAssign;
@@ -187,18 +187,58 @@ impl Pixel for Hsl {
     }
 
     fn blend(&mut self, other: &Hsl) {
-        //Blend::blend(self, other)
+        //convert hsl to xyz to see it as a vector
+        let o_xyz: Vec<f32> = vec![
+            (other.0[0] / 180.0 * PI).cos() * other.0[1],
+            (other.0[0] / 180.0 * PI).sin() * other.0[1],
+            other.0[2],
+        ];
+
+        let s_xyz: Vec<f32> = vec![
+            (self.0[0] / 180.0 * PI).cos() * self.0[1],
+            (self.0[0] / 180.0 * PI).sin() * self.0[1],
+            self.0[2],
+        ];
+
+        //sum two vector and divide by the number of colors
+        let mut out_xyz: Vec<f32> = Vec::new();
+        for i in 0..3 {
+            out_xyz.push((o_xyz[i] + s_xyz[i]) / 2.0);
+        }
+
+        //convert back to hsl
+        self.0[0] = out_xyz[1].atan2(out_xyz[0]) * 180.0 / PI;
+        self.0[1] = (out_xyz[0].powf(2.0) + out_xyz[1].powf(2.0)).sqrt();
+        self.0[2] = out_xyz[2];
     }
 }
 
 fn rgb8_to_hslf32(r: u8, g: u8, b: u8) -> Hsl {
-    rgbf32_to_hslf32(r as f32, g as f32, b as f32)
+    let rgb: (f32, f32, f32) = (
+        NumCast::from(r).unwrap(),
+        NumCast::from(g).unwrap(),
+        NumCast::from(b).unwrap(),
+    );
+    rgbf32_to_hslf32(
+        rgb.0 / u8::MAX as f32,
+        rgb.1 / u8::MAX as f32,
+        rgb.2 / u8::MAX as f32,
+    )
 }
 fn rgb16_to_hslf32(r: u16, g: u16, b: u16) -> Hsl {
-    rgbf32_to_hslf32(r as f32, g as f32, b as f32)
+    let rgb: (f32, f32, f32) = (
+        NumCast::from(r).unwrap(),
+        NumCast::from(g).unwrap(),
+        NumCast::from(b).unwrap(),
+    );
+    rgbf32_to_hslf32(
+        rgb.0 / u16::MAX as f32,
+        rgb.1 / u16::MAX as f32,
+        rgb.2 / u16::MAX as f32,
+    )
 }
 
-fn _max(c: [f32; 3]) -> (f32, u8) {
+fn _max<T: Primitive>(c: [T; 3]) -> (T, u8) {
     if c[0] > c[1] && c[0] > c[2] {
         (c[0], 0)
     } else if c[1] > c[0] && c[1] > c[2] {
@@ -210,7 +250,7 @@ fn _max(c: [f32; 3]) -> (f32, u8) {
     }
 }
 
-fn _min(c: [f32; 3]) -> (f32, u8) {
+fn _min<T: Primitive>(c: [T; 3]) -> (T, u8) {
     if c[0] < c[1] && c[0] < c[2] {
         (c[0], 0)
     } else if c[1] < c[0] && c[1] < c[2] {
@@ -234,7 +274,7 @@ pub fn rgbf32_to_hslf32(r: f32, g: f32, b: f32) -> Hsl {
     let delta = cmax - cmin;
 
     if delta != 0f32 {
-        cmp[1] = -delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()) * 100f32;
+        cmp[1] = delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()) * 100f32;
 
         if cmaxindex == 0 {
             cmp[0] = ((g - b) / delta) % 6f32;
@@ -262,25 +302,26 @@ pub fn rgbf32_to_hslf32(r: f32, g: f32, b: f32) -> Hsl {
 pub fn hslf32_to_rgb8(h: f32, s: f32, l: f32) -> Rgb<u8> {
     let c = hslf32_to_rgbf32(h, s, l).0;
     Rgb::<u8>([
-        (c[0] * 255f32).round() as u8,
-        (c[1] * 255f32).round() as u8,
-        (c[2] * 255f32).round() as u8,
+        NumCast::from((c[0] * u8::MAX as f32).round()).unwrap(),
+        NumCast::from((c[1] * u8::MAX as f32).round()).unwrap(),
+        NumCast::from((c[2] * u8::MAX as f32).round()).unwrap(),
     ])
 }
 pub fn hslf32_to_rgb16(h: f32, s: f32, l: f32) -> Rgb<u16> {
     let c = hslf32_to_rgbf32(h, s, l).0;
     Rgb::<u16>([
-        (c[0] * u16::MAX as f32).round() as u16,
-        (c[1] * u16::MAX as f32).round() as u16,
-        (c[2] * u16::MAX as f32).round() as u16,
+        NumCast::from((c[0] * <f32 as NumCast>::from(u16::MAX).unwrap()).round()).unwrap(),
+        NumCast::from((c[1] * <f32 as NumCast>::from(u16::MAX).unwrap()).round()).unwrap(),
+        NumCast::from((c[2] * <f32 as NumCast>::from(u16::MAX).unwrap()).round()).unwrap(),
     ])
 }
 
 pub fn hslf32_to_rgbf32(h: f32, s: f32, l: f32) -> Rgb<f32> {
     let c = (s / 100f32) * (1f32 - (2f32 * l / 100f32 - 1f32).abs());
     let x = c * (1f32 - ((h / 60f32) % 2f32 - 1f32).abs());
-    let m = (l / 100f32) - c / 2f32;
+    let m = (l / 100f32) - (c / 2f32);
 
+    #[allow(unused_assignments)]
     let mut rgb: [f32; 3] = [0f32; 3];
 
     if 0.0 <= h && h < 60f32 {
@@ -299,6 +340,70 @@ pub fn hslf32_to_rgbf32(h: f32, s: f32, l: f32) -> Rgb<f32> {
         panic!("Hue is out of range!")
     }
     Rgb::<f32>([(rgb[0] + m), (rgb[1] + m), (rgb[2] + m)])
+}
+
+pub trait AsFloat {
+    fn as_float(&self) -> f32;
+}
+
+impl AsFloat for f32 {
+    fn as_float(&self) -> f32 {
+        return *self;
+    }
+}
+
+impl AsFloat for u8 {
+    fn as_float(&self) -> f32 {
+        return <f32 as NumCast>::from(*self).unwrap() / u8::MAX as f32;
+    }
+}
+
+impl AsFloat for u16 {
+    fn as_float(&self) -> f32 {
+        return <f32 as NumCast>::from(*self).unwrap() / u16::MAX as f32;
+    }
+}
+
+fn rgb_to_hsl<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Hsl {
+    let mut cmp: [f32; 3] = [Zero::zero(), Zero::zero(), Zero::zero()];
+
+    let c: [f32; 3] = [
+        rgb.0[0].as_float(),
+        rgb.0[1].as_float(),
+        rgb.0[2].as_float(),
+    ];
+
+    let (cmax, cmaxindex) = _max(c);
+    let (cmin, _) = _min(c);
+
+    cmp[2] = (cmax + cmin) / 2f32;
+
+    let delta = cmax - cmin;
+
+    if delta != Zero::zero() {
+        cmp[1] = delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()) * 100f32;
+
+        if cmaxindex == 0 {
+            cmp[0] = ((c[1] - c[2]) / delta) % 6f32;
+        } else if cmaxindex == 1 {
+            cmp[0] = ((c[2] - c[0]) / delta) + 2f32;
+        } else if cmaxindex == 2 {
+            cmp[0] = ((c[0] - c[1]) / delta) + 4f32;
+        }
+
+        cmp[0] = (cmp[0] * 60f32).round();
+    }
+
+    if cmp[0] < 0.0 {
+        let m = cmp[0] % 360f32;
+        if m != 0.0 {
+            cmp[0] = m + 360f32
+        }
+    }
+
+    cmp[2] = cmp[2] * 100f32;
+
+    Hsl(cmp)
 }
 
 impl From<Hsl> for Rgb<u8> {
@@ -322,24 +427,9 @@ impl From<Hsl> for Rgb<f32> {
     }
 }
 
-impl From<Rgb<u8>> for Hsl {
-    fn from(rgb: Rgb<u8>) -> Hsl {
-        let channels = rgb.channels();
-        rgb8_to_hslf32(channels[0], channels[1], channels[2])
-    }
-}
-
-impl From<Rgb<u16>> for Hsl {
-    fn from(rgb: Rgb<u16>) -> Hsl {
-        let channels = rgb.channels();
-        rgb16_to_hslf32(channels[0], channels[1], channels[2])
-    }
-}
-
-impl From<Rgb<f32>> for Hsl {
-    fn from(rgb: Rgb<f32>) -> Hsl {
-        let channels = rgb.channels();
-        rgbf32_to_hslf32(channels[0], channels[1], channels[2])
+impl<T: Primitive + Enlargeable + AsFloat> From<Rgb<T>> for Hsl {
+    fn from(rgb: Rgb<T>) -> Self {
+        rgb_to_hsl(&rgb)
     }
 }
 

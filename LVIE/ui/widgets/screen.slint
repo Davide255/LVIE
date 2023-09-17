@@ -1,8 +1,10 @@
 import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox , GridBox} from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
+import { CustomSlider } from "slider/slider.slint";
 
 global ScreenCallbacks {
     callback add-box-blur(int);
+    callback add-saturation(float);
     callback apply-filters();
     callback set-Warning-Message(string);
 }
@@ -92,16 +94,15 @@ component Screen inherits HorizontalBox {
                     VerticalBox {
                         padding: 5px;
                         Text {
-                            text: "saturation: \{round(saturation.value)}";
+                            text: "saturation: \{saturation.value}";
                             horizontal-alignment: center;
                             vertical-alignment: center;
                             font-size: 10px;
                         }
-                        saturation := Slider {
+                        saturation := CustomSlider {
                             width: right-area.width - 10px;
-                            value: 3;
-                            maximum: 30;
-                            minimum: 3;
+                            //height: 2px;
+                            background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
                         }
                     }
                 }
@@ -127,6 +128,14 @@ component Screen inherits HorizontalBox {
                         text: "apply filters";
                         clicked => {
                             ScreenCallbacks.add-box-blur(box-blur.value);
+                        }
+                    }
+                }
+                Row {
+                    Button {
+                        text: "apply saturation";
+                        clicked => {
+                            ScreenCallbacks.add-saturation(saturation.value);
                         }
                     }
                 }

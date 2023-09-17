@@ -1,17 +1,18 @@
 import { VerticalBox, Slider } from "std-widgets.slint";
 
-export component MySlider inherits Rectangle {
-    in-out property<float> maximum: 100;
-    in-out property<float> minimum: 0;
-    in-out property<float> value: 50;
+export component CustomSlider inherits Rectangle {
+    in-out property<float> maximum: 1.0;
+    in-out property<float> minimum: -1.0;
+    in-out property<float> value: 0;
+
+    in-out property <brush> bgcolor <=> self.background;
 
     min-height: 2px;
     min-width: 100px;
-    horizontal-stretch: 1;
+    horizontal-stretch: 0;
     vertical-stretch: 0;
 
     border-radius: root.height/2;
-    background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
     border-width: 1px;
     border-color: root.background.darker(25%);
 
@@ -41,10 +42,10 @@ export component MySlider inherits Rectangle {
     }
 }
 
-export component Recipe inherits Window {
+component Recipe inherits Window {
     VerticalBox {
         alignment: start;
-        slider := MySlider {
+        slider := CustomSlider {
             maximum: 100;
         }
         Text {

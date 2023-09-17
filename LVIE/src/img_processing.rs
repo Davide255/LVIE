@@ -5,6 +5,8 @@ use LVIElib::hsl::HslImage;
 use LVIElib::matrix::convolution::multithreadded::apply_convolution;
 use LVIElib::Matrix;
 
+use LVIElib::hsl::hslf32_to_rgb8;
+
 pub struct Filters {}
 
 impl Filters {
@@ -22,11 +24,6 @@ impl Filters {
         let size = sigma as usize;
         return Matrix::new(kernel, size, size);
     }
-}
-
-fn convert_to_hsl(img: &RgbImage) -> HslImage {
-    let hsl_img = HslImage::new(img.width(), img.height());
-    HslImage::new(img.width(), img.height())
 }
 
 pub fn apply_filter(
@@ -71,4 +68,34 @@ pub fn collect_histogram_data(img: &RgbImage) -> [HashMap<u8, u32>; 3] {
     }
 
     [r, g, b]
+}
+
+fn convert_to_hsl(img: &RgbImage) -> HslImage {
+    let mut hsl_img = HslImage::new(img.width(), img.height());
+
+    for (x, y, pixel) in img.enumerate_pixels() {
+        hsl_img.put_pixel(x, y, (*pixel).into());
+    }
+
+    hsl_img
+}
+
+fn convert_to_rgb(img: &HslImage) -> RgbImage {
+    let mut hsl_img = RgbImage::new(img.width(), img.height());
+
+    for (x, y, pixel) in img.enumerate_pixels() {
+        hsl_img.put_pixel(x, y, hslf32_to_rgb8(pixel.0[0], pixel.0[1], pixel.0[2]));
+    }
+
+    hsl_img
+}
+
+use crate::utils::norm_range_f32;
+
+pub fn saturate(img: &RgbImage, value: f32) -> RgbImage {
+    let mut hsl_image = convert_to_hsl(img);
+    for (_, _, pixel) in hsl_image.enumerate_pixels_mut() {
+        pixel.0[1] = norm_range_f32(-100.0..=100.0, pixel.0[1] + value * 50.0);
+    }
+    convert_to_rgb(&hsl_image)
 }

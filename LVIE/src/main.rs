@@ -17,6 +17,7 @@ use itertools::Itertools;
 mod history;
 mod img_processing;
 mod loading;
+mod utils;
 
 use crate::img_processing::Filters;
 
@@ -126,6 +127,21 @@ fn main() {
         .global::<ToolbarCallbacks>()
         .on_close_window_callback(|| {
             slint::quit_event_loop().expect("Failed to stop the event loop");
+        });
+
+    let img_weak = Arc::clone(&loaded_image);
+    //let low_res_weak = Arc::clone(&low_res_preview);
+    let Window_weak = Window.as_weak();
+    Window
+        .global::<ScreenCallbacks>()
+        .on_add_saturation(move |value: f32| {
+            let satuarated = img_processing::saturate(img_weak.lock().unwrap().deref(), value);
+            let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+                &satuarated,
+                satuarated.width(),
+                satuarated.height(),
+            );
+            Window_weak.unwrap().set_image(Image::from_rgb8(pix_buf))
         });
 
     // box blur filter
