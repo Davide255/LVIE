@@ -10,3 +10,5 @@ use rustfft::FftDirection;
 pub type FFTDirection = FftDirection;
 
 pub mod hsl;
+mod math;
+pub mod contrast;
