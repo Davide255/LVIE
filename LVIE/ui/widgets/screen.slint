@@ -6,7 +6,9 @@ global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
     callback apply-filters();
+    callback reset();
     callback set-Warning-Message(string);
+    callback save-file(string);
 }
 
 component Screen inherits HorizontalBox {
@@ -100,8 +102,8 @@ component Screen inherits HorizontalBox {
                             font-size: 10px;
                         }
                         saturation := CustomSlider {
-                            width: right-area.width - 10px;
-                            //height: 2px;
+                            //width: right-area.width - 10px;
+                            height: 4px;
                             background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
                         }
                     }
@@ -116,7 +118,7 @@ component Screen inherits HorizontalBox {
                             font-size: 10px;
                         }
                         box_blur := Slider {
-                            width: right-area.width - 10px;
+                            //width: right-area.width - 10px;
                             value: 3;
                             maximum: 30;
                             minimum: 3;
@@ -136,6 +138,29 @@ component Screen inherits HorizontalBox {
                         text: "apply saturation";
                         clicked => {
                             ScreenCallbacks.add-saturation(saturation.value);
+                        }
+                    }
+                }
+                Row {
+                    Button {
+                        text: "Reset";
+                        clicked => {
+                            saturation.value = 0;
+                            box-blur.value = 3;
+                            ScreenCallbacks.reset();
+                        }
+                    }
+                }
+                Row {
+                    HorizontalBox {
+                        tx := TextInput {
+                            text: "prova.jpg";
+                        }
+                        Button {
+                            text: "Save";
+                            clicked => {
+                                ScreenCallbacks.save-file(tx.text)
+                            }
                         }
                     }
                 }

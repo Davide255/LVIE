@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use image::RgbImage;
-use LVIElib::hsl::HslImage;
+use LVIElib::hsl::{Hsl, HslImage};
 use LVIElib::matrix::convolution::multithreadded::apply_convolution;
 use LVIElib::Matrix;
-
-use LVIElib::hsl::hslf32_to_rgb8;
 
 pub struct Filters {}
 
@@ -40,9 +38,9 @@ pub fn apply_filter(
     image::RgbImage::from_raw(width, height, convolved.get_content().clone()).unwrap()
 }
 
-pub fn build_low_res_preview(img: RgbImage) -> RgbImage {
+pub fn build_low_res_preview(img: &RgbImage) -> RgbImage {
     let resized: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> = image::imageops::resize(
-        &img,
+        img,
         img.width() / 3,
         img.height() / 3,
         image::imageops::Nearest,
@@ -74,6 +72,9 @@ fn convert_to_hsl(img: &RgbImage) -> HslImage {
     let mut hsl_img = HslImage::new(img.width(), img.height());
 
     for (x, y, pixel) in img.enumerate_pixels() {
+        if *Hsl::from(*pixel).saturation() > 1.0 {
+            panic!();
+        }
         hsl_img.put_pixel(x, y, (*pixel).into());
     }
 
@@ -84,18 +85,18 @@ fn convert_to_rgb(img: &HslImage) -> RgbImage {
     let mut hsl_img = RgbImage::new(img.width(), img.height());
 
     for (x, y, pixel) in img.enumerate_pixels() {
-        hsl_img.put_pixel(x, y, hslf32_to_rgb8(pixel.0[0], pixel.0[1], pixel.0[2]));
+        hsl_img.put_pixel(x, y, (*pixel).into());
     }
 
     hsl_img
 }
 
-use crate::utils::norm_range_f32;
+use LVIElib::hsl::utils::norm_range_f32;
 
 pub fn saturate(img: &RgbImage, value: f32) -> RgbImage {
     let mut hsl_image = convert_to_hsl(img);
     for (_, _, pixel) in hsl_image.enumerate_pixels_mut() {
-        pixel.0[1] = norm_range_f32(-100.0..=100.0, pixel.0[1] + value * 50.0);
+        *pixel.saturation_mut() = norm_range_f32(0.0..=1.0, *pixel.saturation() + value / 2f32);
     }
     convert_to_rgb(&hsl_image)
 }

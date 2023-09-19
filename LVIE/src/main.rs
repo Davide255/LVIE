@@ -17,7 +17,6 @@ use itertools::Itertools;
 mod history;
 mod img_processing;
 mod loading;
-mod utils;
 
 use crate::img_processing::Filters;
 
@@ -82,11 +81,13 @@ fn main() {
     let Window: LVIE = LVIE::new().unwrap();
 
     let loaded_image = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
+    let loaded_preview = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
     let low_res_preview = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
 
     // CALLBACKS:
     // open image:
     let img_weak = Arc::clone(&loaded_image);
+    let prev_weak = Arc::clone(&loaded_preview);
     let low_res_weak = Arc::clone(&low_res_preview);
     let Window_weak = Window.as_weak();
     Window
@@ -101,7 +102,9 @@ fn main() {
             let mut _mt = img_weak.lock().expect("Cannot lock mutex");
             *_mt = img.to_rgb8();
             let mut _low_res = low_res_weak.lock().expect("Failed to lock");
-            *_low_res = build_low_res_preview(img.to_rgb8());
+            *_low_res = build_low_res_preview(&img.to_rgb8());
+            let mut _prev = prev_weak.lock().unwrap();
+            *_prev = _mt.clone();
             Window_weak
                 .upgrade_in_event_loop(move |Window| {
                     let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
@@ -129,13 +132,35 @@ fn main() {
             slint::quit_event_loop().expect("Failed to stop the event loop");
         });
 
+    //reset
     let img_weak = Arc::clone(&loaded_image);
     //let low_res_weak = Arc::clone(&low_res_preview);
+    let prev_weak = Arc::clone(&loaded_preview);
+    let low_res_weak = Arc::clone(&low_res_preview);
+    let Window_weak = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_reset(move || {
+        let img = img_weak.lock().unwrap().deref().clone();
+        let mut _prev = prev_weak.lock().unwrap();
+        *_prev = img.clone();
+        Window_weak.unwrap().set_image(Image::from_rgb8(
+            SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(&img, img.width(), img.height()),
+        ));
+        let mut lp = low_res_weak.lock().unwrap();
+        *lp = build_low_res_preview(&img);
+    });
+
+    //saturation
+    let prev_weak = Arc::clone(&loaded_preview);
+    let low_res_weak = Arc::clone(&low_res_preview);
     let Window_weak = Window.as_weak();
     Window
         .global::<ScreenCallbacks>()
         .on_add_saturation(move |value: f32| {
-            let satuarated = img_processing::saturate(img_weak.lock().unwrap().deref(), value);
+            let mut prev = prev_weak.lock().unwrap();
+            let satuarated = img_processing::saturate(&(*prev), value);
+            *prev = satuarated.clone();
+            let mut lp = low_res_weak.lock().unwrap();
+            *lp = build_low_res_preview(&satuarated);
             let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
                 &satuarated,
                 satuarated.width(),
@@ -145,7 +170,7 @@ fn main() {
         });
 
     // box blur filter
-    let img_weak = Arc::clone(&loaded_image);
+    let img_weak = Arc::clone(&loaded_preview);
     let low_res_weak = Arc::clone(&low_res_preview);
     let Window_weak = Window.as_weak();
     Window
@@ -183,8 +208,9 @@ fn main() {
             let _i_w = img_weak.clone();
             thread::spawn(move || {
                 // full res
-                let processed =
-                    img_processing::apply_filter(_i_w.lock().unwrap().deref().clone(), &mut kernel);
+                let mut _prev = _i_w.lock().unwrap();
+                let processed = img_processing::apply_filter(_prev.deref().clone(), &mut kernel);
+                *_prev = processed.clone();
                 _w_w.upgrade_in_event_loop(move |Window: LVIE| {
                     let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
                         &processed,
@@ -215,6 +241,19 @@ fn main() {
             ui.set_AlertText(message);
         },
     );
+
+    //save
+    let img_weak = Arc::clone(&loaded_preview);
+    Window
+        .global::<ScreenCallbacks>()
+        .on_save_file(move |path: SharedString| {
+            img_weak
+                .lock()
+                .unwrap()
+                .deref()
+                .save(path.as_str())
+                .expect("Failed to save file");
+        });
 
     // startup procedure
     let l_weak: Weak<LVIE> = Window.as_weak();

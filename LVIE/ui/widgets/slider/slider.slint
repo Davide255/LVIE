@@ -7,7 +7,7 @@ export component CustomSlider inherits Rectangle {
 
     in-out property <brush> bgcolor <=> self.background;
 
-    min-height: 2px;
+    min-height: 4px;
     min-width: 100px;
     horizontal-stretch: 0;
     vertical-stretch: 0;
@@ -27,6 +27,7 @@ export component CustomSlider inherits Rectangle {
     }
     touch := TouchArea {
         property <float> pressed-value;
+        height: handle.height;
         pointer-event(event) => {
             if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
                 self.pressed-value = root.value;
@@ -38,18 +39,6 @@ export component CustomSlider inherits Rectangle {
                     self.pressed-value + (touch.mouse-x - touch.pressed-x) * (root.maximum - root.minimum) / (root.width - handle.width)));
 
             }
-        }
-    }
-}
-
-component Recipe inherits Window {
-    VerticalBox {
-        alignment: start;
-        slider := CustomSlider {
-            maximum: 100;
-        }
-        Text {
-            text: "Value: \{round(slider.value)}";
         }
     }
 }

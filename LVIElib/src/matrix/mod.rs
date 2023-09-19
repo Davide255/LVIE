@@ -45,6 +45,7 @@ impl<T: Clone> Matrix<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_content(self: &Self) -> &Vec<T> {
         &self.content
     }
@@ -60,6 +61,7 @@ impl<T: Clone> Matrix<T> {
         self.width * self.height == self.content.len()
     }
 
+    #[allow(dead_code)]
     pub fn pad(self: &mut Self, width: usize, height: usize, element: T) {
         if width < self.width || height < self.height {
             panic!("Matrix is too large");
