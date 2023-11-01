@@ -21,7 +21,7 @@ This editor can adjust:
 Later in the developement will be added filters, first with useful basic filters such as:
 - [X] *B&W Filter* to convert an image into gray scale
 - [X] *Gaussian Blur* thanks to the formula for the gaussian blur interpolation
-- [ ] *Sharpening* via Laplacian over Gaussian convolution filter
+- [X] *Sharpening* via Laplacian over Gaussian convolution filter
 - [ ] *Local contrast*
 - [ ] *Wavelets denoise* (it would be cool to adjust different channels independently too)
 - [ ] *Curves* for exposition, hue, color grading ecc
