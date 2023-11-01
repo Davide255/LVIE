@@ -45,7 +45,6 @@ impl<T: Clone> Matrix<T> {
         }
     }
 
-    #[allow(dead_code)]
     pub fn get_content(self: &Self) -> &Vec<T> {
         &self.content
     }
@@ -61,7 +60,6 @@ impl<T: Clone> Matrix<T> {
         self.width * self.height == self.content.len()
     }
 
-    #[allow(dead_code)]
     pub fn pad(self: &mut Self, width: usize, height: usize, element: T) {
         if width < self.width || height < self.height {
             panic!("Matrix is too large");
@@ -147,5 +145,49 @@ impl<Q: Copy, T: Add<Output = T> + Mul<Q, Output = T> + Sub<Output = T> + Copy> 
         }
 
         Ok(Matrix::new(result, height, rhs.width))
+    }
+}
+
+impl<T: Mul<f32, Output = T> + Clone + Copy> Mul<Matrix<T>> for f32 {
+    type Output = Matrix<T>;
+
+    fn mul(self, rhs: Matrix<T>) -> Self::Output {
+        Matrix::new(rhs.get_content().to_owned().iter().map(|x| *x * self).collect(), rhs.height(), rhs.width())
+    }
+}
+
+impl Add<Matrix<u8>> for Matrix<u8> {
+    type Output = Result<Matrix<u8>, MatrixError>;
+
+    fn add(self, rhs: Matrix<u8>) -> Self::Output {
+        let mut content: Vec<u8> = Vec::new();
+        let (x, y) = (self.width(), self.height);
+        if (x, y) != (rhs.width(), rhs.height()) {
+            return Err(MatrixError::IncompatibleShapes((x, y), (rhs.width(), rhs.height())));
+        }
+
+        for i in 0..self.get_content().len() {
+            content.push(self.get_content()[i] + rhs.get_content()[i]);
+        }
+
+        Ok(Matrix::new(content, y, x))
+    }
+}
+
+impl<O: Clone, T: Sub<T, Output = O> + Copy> Sub<Matrix<T>> for Matrix<T> {
+    type Output = Result<Matrix<O>, MatrixError>;
+
+    fn sub(self, rhs: Matrix<T>) -> Self::Output {
+        let mut content: Vec<O> = Vec::new();
+        let (x, y) = (self.width(), self.height);
+        if (x, y) != (rhs.width(), rhs.height()) {
+            return Err(MatrixError::IncompatibleShapes((x, y), (rhs.width(), rhs.height())));
+        }
+        
+        for i in 0..self.get_content().len() {
+            content.push(self.get_content()[i] - rhs.get_content()[i])
+        }
+
+        Ok(Matrix::new(content, y, x))
     }
 }
