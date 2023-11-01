@@ -53,7 +53,7 @@ pub fn collect_histogram_data(img: &RgbImage) -> [HashMap<u8, u32>; 3] {
     let mut r: HashMap<u8, u32> = HashMap::new();
 
     for n in 0u8..=u8::MAX {
-        r.insert(n, 032);
+        r.insert(n, 0u32);
     }
 
     let mut g = r.clone();
@@ -91,7 +91,7 @@ fn convert_to_rgb(img: &HslImage) -> RgbImage {
     hsl_img
 }
 
-use LVIElib::hsl::utils::norm_range_f32;
+use LVIElib::utils::norm_range_f32;
 
 pub fn saturate(img: &RgbImage, value: f32) -> RgbImage {
     let mut hsl_image = convert_to_hsl(img);

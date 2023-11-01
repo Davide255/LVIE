@@ -1,21 +1,26 @@
 use crate::{
     l_channel_matrix,
-    linear_rgb::{srgb_to_linear, linear_to_srgb},
+    linear_srgb::LinSrgb,
     matrix::convolution::{convolve, laplacian_of_gaussian},
-    oklab::{OkLab, linear_srgbf32_to_oklabf32, oklabf32_to_linear_srgbf32},
+    oklab::Oklab,
     show_l_channel, Matrix,
 };
+
+use image::{Pixel, Rgb};
 
 pub fn sharpening(image: Matrix<u8>, size: usize, sigma: f32) -> Matrix<u8> {
     let (mut vl, mut va, mut vb) = (Vec::<f32>::new(), Vec::<f32>::new(), Vec::<f32>::new());
     let content = image.get_content().to_owned();
     for i in 0..content.len() / 3 {
-        let (cl, ca, cb) = linear_srgbf32_to_oklabf32(srgb_to_linear(image::Rgb([
+        let o_color = Oklab::from(LinSrgb::from(Rgb([
             content[3 * i] as f32 / 255f32,
             content[3 * i + 1] as f32 / 255f32,
             content[3 * i + 2] as f32 / 255f32,
-        ])))
-        .components();
+        ])));
+
+        let channels = o_color.channels();
+
+        let (cl, ca, cb) = (channels[0], channels[1], channels[2]);
 
         vl.push(cl);
         va.push(ca);
@@ -34,14 +39,14 @@ pub fn sharpening(image: Matrix<u8>, size: usize, sigma: f32) -> Matrix<u8> {
     let mut out: Vec<f32> = Vec::new();
 
     for i in 0..vl.len() {
-        let rgb = linear_to_srgb(oklabf32_to_linear_srgbf32(OkLab::from_components(
-            vl[i],
-            va[i],
-            vb[i]
-        ))).0;
+        let rgb = Rgb::from(LinSrgb::from(Oklab::from_components([vl[i], va[i], vb[i]]))).0;
 
         out.append(&mut rgb.to_vec());
     }
 
-    Matrix::new(out.iter().map(|x| (*x * 255.0) as u8).collect(), image.height(), image.width())
+    Matrix::new(
+        out.iter().map(|x| (*x * 255.0) as u8).collect(),
+        image.height(),
+        image.width(),
+    )
 }
