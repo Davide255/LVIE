@@ -39,7 +39,7 @@ mod tests {
                 .expect("Unexpected error regarding the histogram Hashmap") += 1;
         }
 
-        let output = cumulative_distribution(&histogram);
+        let mut output = cumulative_distribution(&histogram);
         let mut expected_output: HashMap<u8, u32> = HashMap::new();
         for i in 0u8..=255u8 {
             expected_output.insert(i, 0);

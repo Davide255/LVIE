@@ -49,6 +49,10 @@ impl<T: Clone> Matrix<T> {
         &self.content
     }
 
+    pub fn consume_content(self: Self) -> Vec<T> {
+        self.content
+    }
+
     pub fn height(self: &Self) -> usize {
         self.height
     }
@@ -75,6 +79,18 @@ impl<T: Clone> Matrix<T> {
 
         (self.width, self.height) = (width, height);
         self.update_content(content).unwrap();
+    }
+
+    pub fn get_element(self: &Self, x: usize, y: usize) -> Result<T, MatrixError> {
+        let (width, height) = (self.width(), self.height());
+        if x >= width || y >= height {
+            return Err(MatrixError::IncompatibleShapes(
+                (x + 1, y + 1),
+                (width, height),
+            ));
+        } else {
+            return Ok(self.get_content()[y * width + x].to_owned());
+        }
     }
 }
 
@@ -151,8 +167,16 @@ impl<Q: Copy, T: Add<Output = T> + Mul<Q, Output = T> + Sub<Output = T> + Copy> 
 impl<T: Mul<f32, Output = T> + Clone + Copy> Mul<Matrix<T>> for f32 {
     type Output = Matrix<T>;
 
-    fn mul(self, rhs: Matrix<T>) -> Self::Output {
-        Matrix::new(rhs.get_content().to_owned().iter().map(|x| *x * self).collect(), rhs.height(), rhs.width())
+    fn mul(self, rhs: Matrix<T>) -> Self::Output {
+        Matrix::new(
+            rhs.get_content()
+                .to_owned()
+                .iter()
+                .map(|x| *x * self)
+                .collect(),
+            rhs.height(),
+            rhs.width(),
+        )
     }
 }
 
@@ -163,7 +187,10 @@ impl Add<Matrix<u8>> for Matrix<u8> {
         let mut content: Vec<u8> = Vec::new();
         let (x, y) = (self.width(), self.height);
         if (x, y) != (rhs.width(), rhs.height()) {
-            return Err(MatrixError::IncompatibleShapes((x, y), (rhs.width(), rhs.height())));
+            return Err(MatrixError::IncompatibleShapes(
+                (x, y),
+                (rhs.width(), rhs.height()),
+            ));
         }
 
         for i in 0..self.get_content().len() {
@@ -181,9 +208,12 @@ impl<O: Clone, T: Sub<T, Output = O> + Copy> Sub<Matrix<T>> for Matrix<T> {
         let mut content: Vec<O> = Vec::new();
         let (x, y) = (self.width(), self.height);
         if (x, y) != (rhs.width(), rhs.height()) {
-            return Err(MatrixError::IncompatibleShapes((x, y), (rhs.width(), rhs.height())));
+            return Err(MatrixError::IncompatibleShapes(
+                (x, y),
+                (rhs.width(), rhs.height()),
+            ));
         }
-        
+
         for i in 0..self.get_content().len() {
             content.push(self.get_content()[i] - rhs.get_content()[i])
         }
