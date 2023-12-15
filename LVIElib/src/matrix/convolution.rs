@@ -49,8 +49,6 @@ pub fn convolve(buf: &Matrix<f32>, kernel: &Matrix<f32>) -> Matrix<f32> {
     let mut f_kernel: Matrix<Complex<f32>> = pad_kernel.into();
     f_kernel = f_kernel.fft2d(FftDirection::Forward);
 
-    println!("done fft forward");
-
     f_buf
         .update_content(
             (0..f_buf.content.len())
@@ -60,22 +58,41 @@ pub fn convolve(buf: &Matrix<f32>, kernel: &Matrix<f32>) -> Matrix<f32> {
         .unwrap();
     let result = f_buf.fft2d(FftDirection::Inverse);
     let content: Vec<f32> = result.content.iter().map(|x| x.re).collect();
-    println!("convolved");
 
     Matrix::new(content, buf.height, buf.width)
 }
 
-/*pub mod standard {
-    use super::{convolve, split3, Matrix};
+fn convolve_u8(buf: &Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
+    let mut f_buf: Matrix<Complex<f32>> = buf.clone().into();
+    f_buf = f_buf.fft2d(FftDirection::Forward);
+
+    let mut f_kernel: Matrix<Complex<f32>> = kernel.clone().into();
+    f_kernel = f_kernel.fft2d(FftDirection::Forward);
+
+    f_buf
+        .update_content(
+            (0..f_buf.content.len())
+                .map(|x| f_buf.content[x] * f_kernel.content[x])
+                .collect(),
+        )
+        .unwrap();
+    let result = f_buf.fft2d(FftDirection::Inverse);
+    let content: Vec<u8> = result.content.iter().map(|x| x.re.round() as u8).collect();
+
+    Matrix::new(content, buf.height, buf.width)
+}
+
+pub mod standard {
+    use super::{convolve_u8, split3, Matrix};
 
     #[allow(dead_code)]
     pub fn apply_convolution(buf: Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
         let (mut r, mut g, mut b) = split3(buf);
 
         (r, g, b) = (
-            convolve(&r, kernel),
-            convolve(&g, kernel),
-            convolve(&b, kernel),
+            convolve_u8(&r, kernel),
+            convolve_u8(&g, kernel),
+            convolve_u8(&b, kernel),
         );
 
         let mut output: Vec<u8> = Vec::new();
@@ -90,7 +107,7 @@ pub fn convolve(buf: &Matrix<f32>, kernel: &Matrix<f32>) -> Matrix<f32> {
 }
 
 pub mod multithreadded {
-    use super::{convolve, split3, Matrix};
+    use super::{convolve_u8, split3, Matrix};
     use std::sync::{Arc, Mutex};
     use std::thread;
 
@@ -108,7 +125,7 @@ pub mod multithreadded {
             .name("red_channel".into())
             .spawn(move || {
                 let mut channel = r_weak.lock().unwrap();
-                *channel = convolve(&channel, &r_kernel);
+                *channel = convolve_u8(&channel, &r_kernel);
             });
 
         let g_kernel = kernel.clone();
@@ -117,7 +134,7 @@ pub mod multithreadded {
             .name("green_channel".into())
             .spawn(move || {
                 let mut channel = g_weak.lock().unwrap();
-                *channel = convolve(&channel, &g_kernel);
+                *channel = convolve_u8(&channel, &g_kernel);
             });
 
         let b_kernel = kernel.clone();
@@ -126,7 +143,7 @@ pub mod multithreadded {
             .name("blue_channel".into())
             .spawn(move || {
                 let mut channel = b_weak.lock().unwrap();
-                *channel = convolve(&channel, &b_kernel);
+                *channel = convolve_u8(&channel, &b_kernel);
             });
 
         r_thread.unwrap().join().expect("Failed to join thread");
@@ -146,7 +163,7 @@ pub mod multithreadded {
 
         Matrix::new(output, r.height, 3 * r.width)
     }
-}*/
+}
 
 pub fn laplacian_of_gaussian(sigma: f32, width: usize, height: usize) -> Matrix<f32> {
     let mut content: Vec<f32> = Vec::new();
@@ -154,7 +171,6 @@ pub fn laplacian_of_gaussian(sigma: f32, width: usize, height: usize) -> Matrix<
     let zeros = -1f32 / (PI * sigma * sigma * sigma * sigma);
 
     for iy in 0..height {
-        println!("");
         let y: f32 = iy as f32 - (height / 2) as f32;
         for ix in 0..width {
             let x: f32 = ix as f32 - (width / 2) as f32;
@@ -165,15 +181,12 @@ pub fn laplacian_of_gaussian(sigma: f32, width: usize, height: usize) -> Matrix<
                 / (PI * sigma * sigma * sigma * sigma);
 
             sum += value;
-            print!("{}", value as i32);
             content.push(value);
         }
     }
 
     let size = width * height;
     content = content.iter().map(|x| x - (sum / size as f32)).collect();
-
-    println!("LoG kernel cooked!");
 
     Matrix::new(content, height, width)
 }

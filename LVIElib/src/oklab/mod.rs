@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use image::{ImageBuffer, Luma, LumaA, Pixel, Primitive, Rgb, Rgba};
-use num_traits::{NumCast, Zero};
 use std::ops::{Deref, DerefMut};
 
 use crate::generic_color::{AsFloat, Enlargeable};
@@ -184,7 +183,7 @@ impl Pixel for Oklab {
 
     fn invert(&mut self) {}
 
-    fn blend(&mut self, other: &Oklab) {}
+    fn blend(&mut self, _other: &Oklab) {}
 }
 
 impl Deref for Oklab {

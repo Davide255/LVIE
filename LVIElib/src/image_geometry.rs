@@ -1,4 +1,4 @@
-use crate::Matrix;
+use crate::matrix::Matrix;
 
 pub fn homography<T: Clone>(mat: Matrix<f32>, img: &mut Matrix<T>, filler: T) {
     let mut output: Vec<T> = Vec::new();

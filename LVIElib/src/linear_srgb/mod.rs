@@ -181,7 +181,7 @@ impl Pixel for LinSrgb {
 
     fn invert(&mut self) {}
 
-    fn blend(&mut self, other: &LinSrgb) {}
+    fn blend(&mut self, _other: &LinSrgb) {}
 }
 
 impl Deref for LinSrgb {
@@ -270,8 +270,8 @@ pub fn rgbf32_to_srgbf32(r: f32, g: f32, b: f32) -> LinSrgb {
     LinSrgb::from_components([r.powf(2.2), g.powf(2.2), b.powf(2.2)])
 }
 
-pub fn srgbf32_to_rgb8(h: f32, s: f32, l: f32) -> Rgb<u8> {
-    let c = srgbf32_to_rgbf32(h, s, l).0;
+pub fn srgbf32_to_rgb8(r: f32, g: f32, b: f32) -> Rgb<u8> {
+    let c = srgbf32_to_rgbf32(r, g, b).0;
     Rgb::<u8>([
         NumCast::from((c[0] * u8::MAX as f32).round()).unwrap(),
         NumCast::from((c[1] * u8::MAX as f32).round()).unwrap(),
@@ -288,7 +288,35 @@ pub fn srgbf32_to_rgb16(h: f32, s: f32, l: f32) -> Rgb<u16> {
 }
 
 pub fn srgbf32_to_rgbf32(r: f32, g: f32, b: f32) -> Rgb<f32> {
-    Rgb::<f32>([r.powf(1.0 / 2.2), g.powf(1.0 / 2.2), b.powf(1.0 / 2.2)])
+    Rgb::<f32>([
+        {
+            if r.powf(1.0 / 2.2).is_nan() {
+                0.0
+            } else if r.powf(1.0 / 2.2) >= 1.0 {
+                1.0
+            } else {
+                r.powf(1.0 / 2.2)
+            }
+        },
+        {
+            if g.powf(1.0 / 2.2).is_nan() {
+                0.0
+            } else if g.powf(1.0 / 2.2) >= 1.0 {
+                1.0
+            } else {
+                g.powf(1.0 / 2.2)
+            }
+        },
+        {
+            if b.powf(1.0 / 2.2).is_nan() {
+                0.0
+            } else if b.powf(1.0 / 2.2) >= 1.0 {
+                1.0
+            } else {
+                b.powf(1.0 / 2.2)
+            }
+        },
+    ])
 }
 
 fn rgb_to_srgb<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> LinSrgb {

@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 use image;
 use LVIElib::image_geometry::homography;
-use LVIElib::merge_channel;
 use LVIElib::spline::{apply_curve, spline_coefficients};
 
 use LVIElib::contrast::set_contrast;
