@@ -14,7 +14,7 @@ This editor can adjust:
 - [X] *Exposition (EV)* by increasing or decreasing the luminance of the color prensent in the image
 - [X] *Saturation* thanks to the HSV color space conversion
 - [X] *Contrast* (in grayscale images at the monent) expanding the color histogram's range
-- [ ] *White balance* (we don't know how to implement it yet)
+- [X] *White balance* (calculates White Points in uv chromacity coordinates from the correlated colour temperature, moves on the isothermal line according to tint difference and applies chromatic adaptation using the Bradford Transform)
 
 
 ### Image Filters
