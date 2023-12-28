@@ -1,5 +1,11 @@
 use std::collections::HashMap;
 
+pub fn normalize_2d(x: f32, y: f32) -> (f32, f32) {
+    let norm = (x * x + y * y).sqrt();
+
+    (x / norm, y / norm)
+}
+
 pub fn cumulative_distribution(data: &HashMap<u8, u32>) -> HashMap<u8, u32> {
     let mut output: HashMap<u8, u32> = HashMap::new();
     output.insert(0, *data.get(&0).unwrap());

@@ -13,6 +13,7 @@ pub mod hsl;
 pub mod linear_srgb;
 pub mod oklab;
 
+pub mod image_geometry;
 pub mod sharpening;
 pub mod spline;
-pub mod image_geometry;
+pub mod white_balance;

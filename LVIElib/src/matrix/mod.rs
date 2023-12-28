@@ -17,7 +17,7 @@ pub enum MatrixError {
 /// Matrix oriented this way:
 /// M = [1 2 3
 ///      4 5 6]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Matrix<T> {
     height: usize,
     width: usize,
@@ -31,6 +31,60 @@ impl<T: Clone> Matrix<T> {
             width,
             content,
         }
+    }
+
+    /// Creates a ```Matrix<T>``` from a vector of rows of type ```Vec<T>```
+    /// Example:
+    /// ```rust
+    /// use LVIElib::matrix::Matrix;
+    ///
+    /// let rows = vec![vec![1, 2, 3], vec![4, 5, 6]];
+    /// let mat = Matrix::from_rows(rows);
+    ///
+    /// assert_eq!(mat, Matrix::new(vec![1, 2, 3, 4, 5, 6], 2, 3));
+    /// ```
+    pub fn from_rows(rows: Vec<Vec<T>>) -> Self {
+        let mut content = Vec::<T>::new();
+        let height = rows.len();
+        let width = rows[0].len();
+        for row in rows {
+            if row.len() != width {
+                panic!("Unable to convert rows vector into a Matrix")
+            } else {
+                for elem in row {
+                    content.push(elem);
+                }
+            }
+        }
+
+        Matrix::new(content, height, width)
+    }
+
+    /// Creates a square diagonal ```Matrix<T>``` from the diagonal elements
+    /// Example:
+    /// ```rust
+    /// use LVIElib::matrix::Matrix;
+    ///
+    /// let mat = Matrix::from_diagonal(vec![2, 4, 6, 8], 1);
+    ///
+    /// assert_eq!(mat, Matrix::from_rows(vec![
+    ///    vec![2, 1, 1, 1],
+    ///    vec![1, 4, 1, 1],
+    ///    vec![1, 1, 6, 1],
+    ///    vec![1, 1, 1, 8],
+    /// ]));
+    /// ```
+    pub fn from_diagonal(diag: Vec<T>, fill: T) -> Matrix<T> {
+        let size = diag.len();
+        let mut content = Vec::<T>::new();
+
+        content.push(diag[0].clone());
+        for elem in 1..size {
+            content.append(&mut vec![fill.clone(); size]);
+            content.push(diag[elem].clone());
+        }
+
+        Matrix::new(content, size, size)
     }
 
     pub fn update_content(self: &mut Self, content: Vec<T>) -> Result<(), MatrixError> {
@@ -109,6 +163,13 @@ impl From<Matrix<u8>> for Matrix<Complex<f32>> {
             .map(|x| Into::<f32>::into(*x).into())
             .collect();
         Matrix::<Complex<f32>>::new(content, value.height, value.width)
+    }
+}
+
+impl<T: Clone> From<Vec<T>> for Matrix<T> {
+    fn from(value: Vec<T>) -> Self {
+        let len = value.len();
+        Matrix::new(value, len, 1)
     }
 }
 
@@ -219,5 +280,18 @@ impl<O: Clone, T: Sub<T, Output = O> + Copy> Sub<Matrix<T>> for Matrix<T> {
         }
 
         Ok(Matrix::new(content, y, x))
+    }
+}
+
+impl Matrix<f64> {
+    pub fn round(&mut self, digits: u32) {
+        let pow = 10f64.powi(digits as i32);
+        self.update_content(
+            self.get_content()
+                .into_iter()
+                .map(|x| (x * pow).round() / pow)
+                .collect(),
+        )
+        .unwrap();
     }
 }
