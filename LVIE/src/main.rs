@@ -3,6 +3,7 @@ slint::include_modules!();
 
 use i_slint_backend_winit::WinitWindowAccessor;
 use image::RgbImage;
+use crate::img_processing::crop;
 use img_processing::{build_low_res_preview, collect_histogram_data};
 use slint::{Image, Rgb8Pixel, SharedPixelBuffer, SharedString, Weak};
 
@@ -33,7 +34,7 @@ fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
     let hist = collect_histogram_data(&buff);
     let mut _v: Vec<SharedString> = Vec::new();
     for cmp in hist {
-        let scale_factor: u32 = 1000;
+        let scale_factor: u32 = 1600;
         let max_value: &u32 = &(cmp.values().max().unwrap() / scale_factor);
 
         let mut s_out: String = String::from(format!("M 0 {}", max_value));
@@ -99,6 +100,7 @@ fn main() {
             let binding = fd.unwrap();
             let img =
                 image::open(binding.as_path().to_str().unwrap()).expect("Failed to open the image");
+            crop(&img.to_rgb8(), 100, 50, 100, 100).save("prova.png").expect("Cannot save");
             let mut _mt = img_weak.lock().expect("Cannot lock mutex");
             *_mt = img.to_rgb8();
             let mut _low_res = low_res_weak.lock().expect("Failed to lock");
@@ -149,6 +151,46 @@ fn main() {
         *lp = build_low_res_preview(&img);
     });
 
+    let img_weak = Arc::clone(&loaded_image);
+    let prev_weak = Arc::clone(&loaded_preview);
+    let Window_weak = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_preview_click(move|width: f32, height: f32, x: f32, y: f32| {
+        let (real_w, real_h) = img_weak.lock().unwrap().dimensions();
+        let new_width = width - (width / 100f32 * 20f32);
+        let new_height = ((real_h as f32) * new_width) / (real_w as f32);
+
+        let mut pos:(u32, u32) = (0u32, 0u32);
+
+        if x < (new_width / 2f32) {
+            pos.0 = 0u32;
+        } else if x > width - (new_width / 2f32) {
+            pos.0 = (width - new_width) as u32;
+        } else {
+            pos.0 = (x - (new_width / 2f32)) as u32;
+        }
+
+        if y < new_height / 2f32 {
+            pos.1 = 0u32;
+        } else if y > height - (new_height / 2f32) {
+            pos.1 = (height - new_height) as u32;
+        } else {
+            pos.1 = (y - (new_height / 2f32)) as u32;
+        }
+
+        let mut _prev = prev_weak.lock().unwrap();
+        let preview = crop(&_prev.deref(), pos.0, pos.1, new_width.round() as u32, new_height.round() as u32);
+    
+        let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+            &preview,
+            preview.width(),
+            preview.height(),
+        );
+
+        *_prev = preview;
+        Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgb8(pix_buf))).expect("Failed to call event loop");
+
+    });
+
     //saturation
     let prev_weak = Arc::clone(&loaded_preview);
     let low_res_weak = Arc::clone(&low_res_preview);
@@ -156,32 +198,48 @@ fn main() {
     Window
         .global::<ScreenCallbacks>()
         .on_add_saturation(move |value: f32| {
+            Window_weak
+                .upgrade_in_event_loop(|w| w.global::<ScreenCallbacks>().invoke_reset())
+                .expect("failed to reset");
             let mut prev = prev_weak.lock().unwrap();
             let satuarated = img_processing::saturate(&(*prev), value);
-            *prev = satuarated.clone();
-            let mut lp = low_res_weak.lock().unwrap();
-            *lp = build_low_res_preview(&satuarated);
+            *prev = satuarated;
             let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
-                &satuarated,
-                satuarated.width(),
-                satuarated.height(),
+                &prev.deref(),
+                prev.deref().width(),
+                prev.deref().height(),
             );
-            Window_weak.unwrap().set_image(Image::from_rgb8(pix_buf))
+            Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgb8(pix_buf))).expect("Failed to call event loop");
+            let mut lp = low_res_weak.lock().unwrap();
+            *lp = build_low_res_preview(&prev);
         });
 
-    // box blur filter
-    let img_weak = Arc::clone(&loaded_preview);
+    // apply filter
+    let img_weak = Arc::clone(&loaded_image);
+    let prev_weak = Arc::clone(&loaded_preview);
     let low_res_weak = Arc::clone(&low_res_preview);
     let Window_weak = Window.as_weak();
-    Window
-        .global::<ScreenCallbacks>()
-        .on_add_box_blur(move |sigma: i32| {
-            let mut low_res_kernel = Filters::BoxBlur((sigma / 3) as u32);
+    Window.global::<ScreenCallbacks>().on_apply_filters(
+        move |box_blur: i32, _gaussian_blur: f32, sharpening: f32| {
+            *low_res_weak.lock().unwrap() = build_low_res_preview(&img_weak.lock().unwrap());
+
             //low res preview
-            let processed = img_processing::apply_filter(
-                low_res_weak.lock().unwrap().deref().clone(),
-                &mut low_res_kernel,
-            );
+            let mut processed: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>;
+
+            if sharpening > 0.0 {
+                processed = img_processing::sharpen(low_res_weak.lock().unwrap().deref(), sharpening, 3);
+            }else {
+                processed = build_low_res_preview(&img_weak.lock().unwrap());
+            }
+
+            if box_blur > 3 {
+                let mut low_res_kernel = Filters::BoxBlur((box_blur / 3) as u32);
+                processed = img_processing::apply_filter(
+                    &processed,
+                    &mut low_res_kernel,
+                );
+            } 
+
             Window_weak
                 .upgrade_in_event_loop(move |Window: LVIE| {
                     let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
@@ -203,14 +261,31 @@ fn main() {
                 })
                 .expect("Failed to call event loop");
 
-            let mut kernel = Filters::BoxBlur(sigma as u32);
+            println!("Done with low res preview");
+
             let _w_w = Window_weak.clone();
             let _i_w = img_weak.clone();
+            let _p_w = prev_weak.clone();
             thread::spawn(move || {
                 // full res
                 let mut _prev = _i_w.lock().unwrap();
-                let processed = img_processing::apply_filter(_prev.deref().clone(), &mut kernel);
-                *_prev = processed.clone();
+
+                let mut processed: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>;
+
+                if box_blur > 3 {
+                    let mut kernel = Filters::BoxBlur(box_blur as u32);
+
+                    processed = img_processing::apply_filter(_prev.deref(), &mut kernel);
+                } else {
+                    processed = _prev.clone();
+                }
+
+                if sharpening > 0.0 {
+                    processed = img_processing::sharpen(&processed, sharpening, 3);
+                }
+
+                *_p_w.lock().unwrap() = processed.clone();
+
                 _w_w.upgrade_in_event_loop(move |Window: LVIE| {
                     let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
                         &processed,
@@ -229,8 +304,10 @@ fn main() {
                     });
                 })
                 .expect("Failed to call event loop");
+                println!("All done");
             });
-        });
+        },
+    );
 
     //set_Alert_Message
     let Window_weak = Window.as_weak();

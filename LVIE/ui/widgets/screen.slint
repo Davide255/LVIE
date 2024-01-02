@@ -5,10 +5,12 @@ import { CustomSlider } from "slider/slider.slint";
 global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
-    callback apply-filters();
+    callback apply-filters(int, float, float);
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
+
+    callback preview-click(length, length, length, length);
 }
 
 component Screen inherits HorizontalBox {
@@ -71,7 +73,7 @@ component Screen inherits HorizontalBox {
                         width: parent.width - 5px;
                         height: parent.height - 5px;
                         commands: histogram[p];
-                        stroke: h-color[p].transparentize(0.3);
+                        stroke: h-color[p].transparentize(0.5);
                         stroke-width: 1px;
                         fill: self.stroke;
                     }
@@ -83,6 +85,16 @@ component Screen inherits HorizontalBox {
 
     img := Image {
         image-fit: ImageFit.contain;
+        TouchArea {
+            clicked => {
+                ScreenCallbacks.preview-click(
+                    self.width, 
+                    self.height, 
+                    self.pressed-x, 
+                    self.pressed-y
+                    );
+            }
+        }
     }
 
     right_area := VerticalBox {
@@ -112,6 +124,38 @@ component Screen inherits HorizontalBox {
                     VerticalBox {
                         padding: 5px;
                         Text {
+                            text: "Sharpening: \{sharpening.value}";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 10px;
+                        }
+                        sharpening := Slider {
+                            value: 0;
+                            maximum: 1;
+                            minimum: 0;
+                        }
+                    }
+                }
+                Row {
+                    VerticalBox {
+                        padding: 5px;
+                        Text {
+                            text: "Gaussian Blur: \{round(gaussian_blur.value)}";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 10px;
+                        }
+                        gaussian_blur := Slider {
+                            value: 0;
+                            maximum: 30;
+                            minimum: 0;
+                        }
+                    }
+                }
+                Row {
+                    VerticalBox {
+                        padding: 5px;
+                        Text {
                             text: "Box Blur: \{round(box_blur.value)}";
                             horizontal-alignment: center;
                             vertical-alignment: center;
@@ -119,9 +163,9 @@ component Screen inherits HorizontalBox {
                         }
                         box_blur := Slider {
                             //width: right-area.width - 10px;
-                            value: 3;
+                            value: 0;
                             maximum: 30;
-                            minimum: 3;
+                            minimum: 0;
                         }
                     }
                 }
@@ -129,7 +173,7 @@ component Screen inherits HorizontalBox {
                     Button {
                         text: "apply filters";
                         clicked => {
-                            ScreenCallbacks.add-box-blur(box-blur.value);
+                            ScreenCallbacks.apply-filters(box-blur.value, gaussian-blur.value, sharpening.value);
                         }
                     }
                 }
