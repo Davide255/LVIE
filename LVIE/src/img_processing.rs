@@ -123,7 +123,12 @@ pub fn sharpen(img: &RgbImage, value: f32, size: usize) -> RgbImage {
     out
 }
 
-pub fn crop<P: Pixel>(img: &ImageBuffer<P, Vec<P::Subpixel>>, x: u32, y:u32, new_width: u32, new_height:u32) -> ImageBuffer<P, Vec<P::Subpixel>>{
+pub fn crop<P: Pixel>(
+    img: &ImageBuffer<P, Vec<P::Subpixel>>, 
+    x: u32, y:u32, 
+    new_width: u32, new_height:u32) -> ImageBuffer<P, Vec<P::Subpixel>>
+where <P as image::Pixel>::Subpixel: std::fmt::Debug
+{
     let mut out: ImageBuffer<P, Vec<P::Subpixel>> = ImageBuffer::new(new_width, new_height);
 
     for ny in 0..new_height {

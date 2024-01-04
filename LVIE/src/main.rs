@@ -100,13 +100,13 @@ fn main() {
             let binding = fd.unwrap();
             let img =
                 image::open(binding.as_path().to_str().unwrap()).expect("Failed to open the image");
-            crop(&img.to_rgb8(), 100, 50, 100, 100).save("prova.png").expect("Cannot save");
+            crop(&img.to_rgb8(), 500, 500, 3000, 2000).save("prova.png").expect("Cannot save");
             let mut _mt = img_weak.lock().expect("Cannot lock mutex");
             *_mt = img.to_rgb8();
             let mut _low_res = low_res_weak.lock().expect("Failed to lock");
             *_low_res = build_low_res_preview(&img.to_rgb8());
             let mut _prev = prev_weak.lock().unwrap();
-            *_prev = _mt.clone();
+            *_prev = img.to_rgb8();
             Window_weak
                 .upgrade_in_event_loop(move |Window| {
                     let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
@@ -151,34 +151,45 @@ fn main() {
         *lp = build_low_res_preview(&img);
     });
 
-    let img_weak = Arc::clone(&loaded_image);
     let prev_weak = Arc::clone(&loaded_preview);
     let Window_weak = Window.as_weak();
     Window.global::<ScreenCallbacks>().on_preview_click(move|width: f32, height: f32, x: f32, y: f32| {
-        let (real_w, real_h) = img_weak.lock().unwrap().dimensions();
-        let new_width = width - (width / 100f32 * 20f32);
-        let new_height = ((real_h as f32) * new_width) / (real_w as f32);
+        let mut img = prev_weak.lock().unwrap();
+        // check if there is an image loaded
+        if img.dimensions() == (0, 0) { return; }
+
+        let (real_w, real_h) = (*img).dimensions();
+        let new_width = real_w - (real_w / 100u32 * 20u32);
+        let new_height = (real_h * new_width) / real_w;
 
         let mut pos:(u32, u32) = (0u32, 0u32);
 
-        if x < (new_width / 2f32) {
+        // computation coefficients
+        let coefficient = real_w / (width.round() as u32);
+        let adjustement: u32 = (height.round() as u32 - (real_h * width.round() as u32) / real_w) / 2;
+
+        let x = (x.round() as u32) * coefficient;
+        let y = ({
+            if adjustement <= (y.round() as u32) { y.round() as u32 - adjustement } else { 0u32 }
+        }) * coefficient;
+        
+        if x < (new_width / 2) {
             pos.0 = 0u32;
-        } else if x > width - (new_width / 2f32) {
-            pos.0 = (width - new_width) as u32;
+        } else if x > real_w - (new_width / 2) {
+            pos.0 = real_w - new_width;
         } else {
-            pos.0 = (x - (new_width / 2f32)) as u32;
+            pos.0 = x - (new_width / 2);
         }
 
-        if y < new_height / 2f32 {
+        if y < (new_height / 2) {
             pos.1 = 0u32;
-        } else if y > height - (new_height / 2f32) {
-            pos.1 = (height - new_height) as u32;
+        } else if y > real_h - (new_height / 2) {
+            pos.1 = real_h - new_height;
         } else {
-            pos.1 = (y - (new_height / 2f32)) as u32;
+            pos.1 = y - (new_height / 2);
         }
 
-        let mut _prev = prev_weak.lock().unwrap();
-        let preview = crop(&_prev.deref(), pos.0, pos.1, new_width.round() as u32, new_height.round() as u32);
+        let preview = crop(&img.deref(), pos.0, pos.1, new_width, new_height);
     
         let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
             &preview,
@@ -186,7 +197,7 @@ fn main() {
             preview.height(),
         );
 
-        *_prev = preview;
+        *img = preview;
         Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgb8(pix_buf))).expect("Failed to call event loop");
 
     });
