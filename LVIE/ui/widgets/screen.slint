@@ -15,6 +15,7 @@ global ScreenCallbacks {
 
 component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
+    in-out property <length> image-space-size-width <=> img.width;
     in-out property <[string]> histogram: ["","",""];
     property <[color]> h_color: [Colors.red, Colors.green, Colors.blue];
     spacing: 10px;

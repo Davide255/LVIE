@@ -45,11 +45,11 @@ pub fn apply_filter(
     image::RgbImage::from_raw(width, height, convolved.get_content().clone()).unwrap()
 }
 
-pub fn build_low_res_preview(img: &RgbImage) -> RgbImage {
+pub fn build_low_res_preview(img: &RgbImage, nwidth: u32, nheight: u32) -> RgbImage {
     let resized: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> = image::imageops::resize(
         img,
-        img.width() / 3,
-        img.height() / 3,
+        nwidth,
+        nheight,
         image::imageops::Nearest,
     );
 
@@ -139,3 +139,4 @@ where <P as image::Pixel>::Subpixel: std::fmt::Debug
 
     out
 }
+

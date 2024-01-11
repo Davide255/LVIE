@@ -38,6 +38,7 @@ component LVIE inherits Window {
     }
 
     in-out property <image> image <=> content.image;
+    in-out property <physical-length> image-space-size-width: content.image-space-size-width;
 
     content := Screen {
         histogram: svg-path;
