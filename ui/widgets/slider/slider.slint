@@ -1,0 +1,44 @@
+import { VerticalBox, Slider } from "std-widgets.slint";
+
+export component CustomSlider inherits Rectangle {
+    in-out property<float> maximum: 1.0;
+    in-out property<float> minimum: -1.0;
+    in-out property<float> value: 0;
+
+    in-out property <brush> bgcolor <=> self.background;
+
+    min-height: 4px;
+    min-width: 100px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+
+    border-radius: root.height/2;
+    border-width: 1px;
+    border-color: root.background.darker(25%);
+
+    handle := Rectangle {
+        width: self.height;
+        height: 15px;
+        border-width: 1px;
+        border-radius: self.height / 2;
+        background: #ffffff;
+        border-color: self.background.darker(15%);
+        x: (root.width - handle.width) * (root.value - root.minimum)/(root.maximum - root.minimum);
+    }
+    touch := TouchArea {
+        property <float> pressed-value;
+        height: handle.height;
+        pointer-event(event) => {
+            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                self.pressed-value = root.value;
+            }
+        }
+        moved => {
+            if (self.enabled && self.pressed) {
+                root.value = max(root.minimum, min(root.maximum,
+                    self.pressed-value + (touch.mouse-x - touch.pressed-x) * (root.maximum - root.minimum) / (root.width - handle.width)));
+
+            }
+        }
+    }
+}

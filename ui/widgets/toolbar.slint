@@ -1,0 +1,153 @@
+import { HorizontalBox , ListView, ScrollView, VerticalBox, CheckBox } from "std-widgets.slint";
+import { Palette } from "../color/palette.slint";
+import { MenuItem, PopupMenu, Spacer } from "menu/menu.slint";
+
+global ToolbarCallbacks {
+    callback open_file_callback();
+    callback close_window_callback();
+    in-out property <string> mode: "RGB";
+    callback set_mode(string);
+}
+
+enum AlertType{
+    Warning,
+    Info,
+    Null
+}
+
+component ToolbarButton inherits Rectangle {
+    in-out property text <=> txt.text;
+    callback clicked <=> touch.clicked;
+
+    border-color: transparent;
+    background: Palette.Primary.Primary-500;
+    border-radius: 7px;
+    width: 50px;
+
+    txt := Text{
+        x: (parent.width - self.width)/2;
+        y: (parent.height - self.height)/2;
+        color: black;
+    }
+
+    touch := TouchArea{}
+}
+
+component Toolbar inherits Rectangle {
+
+    in-out property <AlertType> AlertBoxType;
+    in-out property <string> AlertText;
+
+    property <image> warning-icon: @image-url("../media/warning-icon.png");
+    property <image> info-icon: @image-url("../media/warning-icon.png");
+
+    background: transparent;
+    height: 25px;
+
+    tb := HorizontalBox {
+        height: parent.height;
+        width: parent.width;
+        padding: 7px;
+
+        x: 0px;
+        y: 0px;
+        
+        file_popup := PopupMenu {
+            x: file-button.x;
+            y: parent.height;
+            MenuItem {
+                text: "New project";
+            }
+            MenuItem {
+                item-callback => { ToolbarCallbacks.open-file-callback(); }
+                text: "Open a file";
+            }
+            Spacer { size: 2px; }
+            MenuItem {
+                text: "Close window";
+                item-callback => { ToolbarCallbacks.close-window-callback(); }
+            }
+        }
+
+        file_button := ToolbarButton {
+            text: "Files";
+            clicked => {
+                file-popup.show()
+            }
+        }
+
+        image_popup := PopupMenu {
+            x: image-button.x;
+            y: parent.height; 
+            width: 200px;           
+
+            MenuItem {
+                text: "Mode";
+            }
+            MenuItem {
+                CheckBox {
+                    x: parent.padding;
+                    y: parent.padding;
+                    width: 15px;
+                    height: 15px;
+                    checked: ToolbarCallbacks.mode == "RGB" ? true : false;
+                    enabled: false;
+                    text: "RGB";
+                    toggled => {
+                        ToolbarCallbacks.set-mode("RGB");
+                    }
+                }
+            }
+            MenuItem {
+                text: "Open an image";
+                item-callback => { ToolbarCallbacks.open-file-callback(); }
+            }
+            /*MenuItem {
+                CheckBox {
+                    x: parent.padding;
+                    y: parent.padding;
+                    width: 15px;
+                    height: 15px;
+                    checked:  ToolbarCallbacks.mode == "HSV" ? true : false;
+                    enabled: true;
+                    text: "HSV";
+                    toggled => {
+                        ToolbarCallbacks.set-mode("HSV");
+                    }
+                }
+            }*/
+        }
+
+        image_button := ToolbarButton {
+            text: "Image";
+            clicked => {
+                image-popup.show();
+            }
+        }
+
+        edit_menu := PopupMenu {
+            x: edit-button.x;
+            y: parent.height;
+            
+        }
+        
+        edit_button := ToolbarButton {
+            text:"Edit";
+        }
+
+        if AlertBoxType != AlertType.Null: 
+            HorizontalBox {
+                alignment: LayoutAlignment.end;
+                padding: 4px;
+                
+                message := Text {
+                    color: AlertBoxType == AlertType.Warning ? #f88127 : #0355f9;
+                    text: AlertText;
+                    vertical-alignment: center;
+                }
+            }
+    }
+
+}
+
+export { Toolbar, ToolbarCallbacks, Spacer, AlertType }
