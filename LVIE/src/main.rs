@@ -3,8 +3,8 @@ slint::include_modules!();
 
 use i_slint_backend_winit::WinitWindowAccessor;
 use image::{RgbImage, GenericImageView};
-use crate::blurs::boxblur::FastBoxBlur;
-use crate::blurs::gaussianblur::FastGaussianBlur;
+use LVIElib::blurs::boxblur::FastBoxBlur;
+use LVIElib::blurs::gaussianblur::FastGaussianBlur;
 use crate::img_processing::crop;
 use img_processing::{build_low_res_preview, collect_histogram_data};
 use slint::{Image, Rgb8Pixel, SharedPixelBuffer, SharedString, Weak};
@@ -20,9 +20,6 @@ use itertools::Itertools;
 mod history;
 mod img_processing;
 mod loading;
-mod blurs;
-
-use crate::img_processing::Filters;
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
@@ -69,13 +66,7 @@ fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
 
 #[allow(unreachable_code)]
 fn main() {
-    const WINIT_BACKEND: bool = {
-        if cfg!(windows) {
-            true
-        } else {
-            false
-        }
-    };
+    const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
 
     if WINIT_BACKEND {
         slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new()))
@@ -87,6 +78,7 @@ fn main() {
     let loaded_image = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
     let full_res_processed = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
     let preview = Arc::new(Mutex::new(image::RgbImage::new(0, 0)));
+    let zoom = Arc::new(Mutex::new((0f32, 0f32, 1f32)));
 
     // CALLBACKS:
     // open image:
@@ -190,20 +182,42 @@ fn main() {
     });
 
     // handle the zoom
+    let zoom_w = Arc::clone(&zoom);
     let prev_weak = Arc::clone(&full_res_processed);
+    let low_res_prev = Arc::clone(&preview);
     let Window_weak = Window.as_weak();
     Window.global::<ScreenCallbacks>().on_preview_click(move|width: f32, height: f32, x: f32, y: f32| {
-        let mut img = prev_weak.lock().unwrap();
+
+        // check the aviability of the full resolution image
+        // if not, utilize temporary the low resolution one
+        let img = if prev_weak.try_lock().is_ok() { 
+            prev_weak.lock().unwrap()
+        } else { 
+            low_res_prev.lock().unwrap()
+        };
+
         // check if there is an image loaded
         if img.dimensions() == (0, 0) { return; }
+        
+        let mut zoom = zoom_w.lock().unwrap();
+        let (img_w, img_h) = (*img).dimensions();
 
-        let (real_w, real_h) = (*img).dimensions();
-        let new_width = real_w - (real_w / 100u32 * 20u32);
+        // zoomed_rectangle_width / image_width  
+        let mut prop: f32 = zoom.2;
+
+        // retrive the current zoomed rectange sizes
+        let real_w = (img_w as f32 * prop) as u32;
+        let real_h = (img_h as f32 * prop) as u32;
+
+        // compute the new zoom rectangle sizes
+        prop = prop - (0.1 * (prop / 2f32));
+        let new_width = (real_w as f32 * prop) as u32;
         let new_height = (real_h * new_width) / real_w;
+        zoom.2 = prop;
 
         let mut pos:(u32, u32) = (0u32, 0u32);
 
-        // computation coefficients
+        // get the x and y coordinates of the click into the real image 
         let coefficient = real_w / (width.round() as u32);
         let adjustement: u32 = (height.round() as u32 - (real_h * width.round() as u32) / real_w) / 2;
 
@@ -212,22 +226,29 @@ fn main() {
             if adjustement <= (y.round() as u32) { y.round() as u32 - adjustement } else { 0u32 }
         }) * coefficient;
         
+        // centering the rectangle x
         if x < (new_width / 2) {
-            pos.0 = 0u32;
+            pos.0 = (img_w as f32 * zoom.0) as u32;
         } else if x > real_w - (new_width / 2) {
-            pos.0 = real_w - new_width;
+            pos.0 = (img_w as f32 * zoom.0) as u32 + real_w - new_width;
         } else {
-            pos.0 = x - (new_width / 2);
+            pos.0 = (img_w as f32 * zoom.0) as u32 + x - (new_width / 2);
         }
 
+        // centering the rectangle y
         if y < (new_height / 2) {
-            pos.1 = 0u32;
+            pos.1 = (img_h as f32 * zoom.1) as u32;
         } else if y > real_h - (new_height / 2) {
-            pos.1 = real_h - new_height;
+            pos.1 = (img_h as f32 * zoom.1) as u32 + real_h - new_height;
         } else {
-            pos.1 = y - (new_height / 2);
+            pos.1 = (img_h as f32 * zoom.1) as u32 + y - (new_height / 2);
         }
 
+        // update the position
+        zoom.0 = pos.0 as f32 / img_w as f32;
+        zoom.1 = pos.1 as f32 / img_h as f32;
+
+        // crop and display the image
         let preview = crop(&img.deref(), pos.0, pos.1, new_width, new_height);
     
         let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
@@ -236,7 +257,6 @@ fn main() {
             preview.height(),
         );
 
-        *img = preview;
         Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgb8(pix_buf))).expect("Failed to call event loop");
 
     });
@@ -248,26 +268,28 @@ fn main() {
     Window
         .global::<ScreenCallbacks>()
         .on_add_saturation(move |value: f32| {
-            Window_weak
+            /* Window_weak
                 .upgrade_in_event_loop(|w| w.global::<ScreenCallbacks>().invoke_reset())
-                .expect("failed to reset");
-            let mut prev = prev_weak.lock().unwrap();
-            let satuarated = img_processing::saturate(&(*prev), value);
-            *prev = satuarated.clone();
+                .expect("failed to reset"); */
+            let mut prev = low_res_weak.lock().unwrap();
+            *prev = img_processing::saturate(&(*prev), value.clone());
+
             let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
                 &prev.deref(),
                 prev.deref().width(),
                 prev.deref().height(),
             );
-            let lrw = Arc::clone(&low_res_weak);
+
             Window_weak.upgrade_in_event_loop(move |Window: LVIE| {
                 Window.set_image(Image::from_rgb8(pix_buf));
-                let nw: u32 = Window.get_image_space_size_width().round() as u32;
-                let nh: u32 = (satuarated.height() * nw) / satuarated.width();
-                    
-                let mut _low_res = lrw.lock().expect("Failed to lock");
-                *_low_res = build_low_res_preview(&satuarated, nw, nh);
             }).expect("Failed to call event loop");
+
+            let pw = prev_weak.clone();
+            thread::spawn(move || {
+                let mut frp = pw.lock().unwrap();
+                *frp = img_processing::saturate(frp.deref(), value);
+            });
+            
         });
 
     // apply filter
@@ -279,19 +301,25 @@ fn main() {
             //low res preview
             let mut processed: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>;
 
+            let (rw, _) = prev_weak.lock().unwrap().dimensions();
+            let mut lr = low_res_weak.lock().unwrap();
+            let (lrw, _) = lr.dimensions();
+
             if sharpening > 0.0 {
-                processed = img_processing::sharpen(low_res_weak.lock().unwrap().deref(), sharpening, 3);
+                processed = img_processing::sharpen(lr.deref(), sharpening / 2f32 , 3);
             } else {
-                processed = low_res_weak.lock().unwrap().deref().clone();
+                processed = lr.deref().clone();
             }
 
             if box_blur > 3 {
-                processed = FastBoxBlur(&processed, box_blur as u32);
+                processed = FastBoxBlur(&processed, box_blur as u32 * lrw / rw);
             }
 
             if gaussian_blur > 0.0 {
-                processed = FastGaussianBlur(&processed, gaussian_blur, 5);
+                processed = FastGaussianBlur(&processed, gaussian_blur * lrw as f32 / rw as f32, 5);
             }
+
+            *lr = processed.clone();
 
             Window_weak
                 .upgrade_in_event_loop(move |Window: LVIE| {
@@ -327,15 +355,13 @@ fn main() {
                 let mut processed: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>;
 
                 if box_blur > 3 {
-                    let mut kernel = Filters::BoxBlur(box_blur as u32);
-
-                    processed = img_processing::apply_filter(_prev.deref(), &mut kernel);
+                    processed = FastBoxBlur(_prev.deref(), box_blur as u32);
                 } else {
                     processed = _prev.clone();
                 }
 
                 if sharpening > 0.0 {
-                    processed = img_processing::sharpen(&processed, sharpening, 3);
+                    processed = img_processing::sharpen(&processed, sharpening / 2f32, 5);
                 }
 
                 *_prev = processed.clone();
