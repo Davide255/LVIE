@@ -23,7 +23,7 @@ mod loading;
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
-        .with_winit_window(|winit_window: &winit::window::Window| {
+        .with_winit_window(|winit_window: &i_slint_backend_winit::winit::window::Window| {
             winit_window.set_maximized(true);
             winit_window.set_title("LVIE");
         })
@@ -69,7 +69,7 @@ fn main() {
     const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
 
     if WINIT_BACKEND {
-        slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new()))
+        slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new().unwrap()))
             .expect("Failed to set winit backend!");
     }
 

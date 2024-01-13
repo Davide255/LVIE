@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "LVIE",
+    "LVIElib",
+    "Tests",
+    "LVIE-GPU"
+]
+
+resolver = "2"
