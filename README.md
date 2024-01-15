@@ -50,4 +50,4 @@ Implemented shaders are:
 
 To run the GPU aceleration tests use
 
-<code>cargo run -r -p LVIE-GPU<\code>
+<code>cargo run -r -p LVIE-GPU</code>
