@@ -47,3 +47,7 @@ Implemented shaders are:
 - [ ] *Saturation Shader* with the conversion in Hsl color space
 - [ ] *Gaussian Blur Shader* to compute the gaussian blur
 - [ ] *Sharpening Shader* to compute the sharpening via laplacian of gaussian
+
+To run the GPU aceleration tests use
+
+<code>cargo run -r -p LVIE-GPU<\code>
