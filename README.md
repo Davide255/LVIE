@@ -34,3 +34,16 @@ Later in the developement will be added filters, first with useful basic filters
 - [ ] *Wavelets denoise* (it would be cool to adjust different channels independently too)
 - [ ] *Curves* for exposition, hue, color grading ecc
 - [ ] *Graduated filters* of various shapes
+
+### GPU Support
+To make the code faster, we are starting to adapt some image manipulations to be GPU acelerated.
+The library we are currently using is [wgpu](https://github.com/gfx-rs/wgpu) for a cross platform backend.
+
+Currently we are trying to get access to GPU and to set rendering pipelines to render the image.
+At the moment, we are writing simple shaders using [wgsl](https://www.w3.org/TR/WGSL/) to be compiled onto GPU.
+
+Implemented shaders are:
+- [X] *B&W Shader* to convert images to grayscale using the luminance method
+- [ ] *Saturation Shader* with the conversion in Hsl color space
+- [ ] *Gaussian Blur Shader* to compute the gaussian blur
+- [ ] *Sharpening Shader* to compute the sharpening via laplacian of gaussian
