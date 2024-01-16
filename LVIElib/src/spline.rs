@@ -50,3 +50,32 @@ pub fn apply_curve(val: f32, spline: &Vec<[f32; 4]>, x: &Vec<f32>) -> f32 {
 
     val
 }
+
+// source: https://math.stackexchange.com/questions/3770662
+pub fn bezier_points(spline: &Vec<[f32; 4]>, x: &Vec<f32>) -> Vec<[(f32, f32); 4]> {
+    let mut out = Vec::<[(f32, f32); 4]>::new();
+
+    for i in 0..x.len() - 1 {
+        let p0 = (x[i], spline[i][0]);
+        let p1 = ((3.0 * x[i] + 1.0) / 3.0, spline[i][0] + spline[i][1] / 3.0);
+        let p2 = (
+            (3.0 * x[i] + 2.0) / 3.0,
+            spline[i][0] + (spline[i][2] + 2.0 * spline[i][1]) / 3.0,
+        );
+        let p3 = (x[i + 1], spline[i + 1][0]);
+        out.push([p0, p1, p2, p3]);
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod test {
+    use crate::spline::spline_coefficients;
+
+    #[test]
+    fn get_values() {
+        let ys = vec![1.0, 2.0, 5.0, 6.0];
+        println!("{:?}", spline_coefficients(ys));
+    }
+}

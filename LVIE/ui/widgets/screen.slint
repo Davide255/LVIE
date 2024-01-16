@@ -13,6 +13,13 @@ global ScreenCallbacks {
     callback preview-click(length, length, length, length);
 }
 
+//export component Curves inherits Path {
+//    width: 100px;
+//    height: 100px;
+//
+//    CubicTo
+//}
+
 component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
     in-out property <length> image-space-size-width <=> img.width;
@@ -153,6 +160,24 @@ component Screen inherits HorizontalBox {
                         }
                     }
                 }
+                Row {
+                    Path {
+                        height: 100px;
+                    stroke: white;
+                    stroke-width: 2px;
+                    MoveTo {
+                        x: 20;
+                        y: (100 - 20);
+                    }
+                    CubicTo {
+                        x: 50;
+                        y: 50;
+                        control-1-x: 30;
+                        control-1-y: 100-29;
+                        control-2-x: 40;
+                        control-2-y: 100-42;
+                    }
+                }}
                 Row {
                     VerticalBox {
                         padding: 5px;
