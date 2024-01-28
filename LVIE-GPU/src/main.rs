@@ -32,7 +32,7 @@ fn main() {
         .request_device(&Default::default(), None)
         .block_on().expect("cannot create device ad queue");
 
-    let img = image::open("D:\\Projects\\PhotoEditor\\workspaces\\original.jpg")
+    let img = image::open("..\\..\\original.jpg")
         .expect("cannot open the image")
         .to_rgba8();
 
