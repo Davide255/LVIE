@@ -14,14 +14,17 @@ This editor can work with the following color spaces:
 - [X] *OkLab* used in local contrast computation
 - [ ] *OkLch* that will substitute the Hsl color space
 
-### Image manipulation
+### Image Colors Manipulation
 Image manipulation is the core of this project, it includes all the values you need to adjust while processing an image!
 
 This editor can adjust:
 - [X] *Exposition (EV)* by increasing or decreasing the luminance of the color prensent in the image
-- [X] *Saturation* thanks to the HSV color space conversion
+- [X] *Saturation* thanks to the HSL color space conversion
 - [X] *Contrast* (in grayscale images at the moment) expanding the color histogram's range
+- [ ] - [ ] *Lights & Shadows*
 - [X] *White balance* (calculates White Points in uv chromacity coordinates from the correlated colour temperature, moves on the isothermal line according to tint difference and applies chromatic adaptation using the Bradford Transform)
+- [ ] *Tint*
+- [X] *General Hue* with the HSL color space
 
 
 ### Image Filters
@@ -44,7 +47,7 @@ At the moment, we are writing simple shaders using [wgsl](https://www.w3.org/TR/
 
 Implemented shaders are:
 - [X] *B&W Shader* to convert images to grayscale using the luminance method
-- [ ] *Saturation Shader* with the conversion in Hsl color space
+- [X] *Saturation Shader* with the conversion in Hsl color space
 - [ ] *Gaussian Blur Shader* to compute the gaussian blur
 - [ ] *Sharpening Shader* to compute the sharpening via laplacian of gaussian
 
