@@ -1,0 +1,9 @@
+[package]
+name = "Tests"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+rawloader = "0.37.1"
+image = "0.24.7"
+num = "0.4.1"
