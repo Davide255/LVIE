@@ -7,8 +7,13 @@ edition = "2021"
 name = "LVIE-GPU"
 path = "src/main.rs"
 
+[lib]
+name = "LVIE_GPU"
+path = "src/GPU.rs"
+
 [dependencies]
-bytemuck = "1.9"
-image = "0.24"
+bytemuck = { version = "1.12", features = [ "derive" ] }
+image = "0.24.7"
 pollster = "0.2"
 wgpu = "0.14"
+LVIElib = {path = "../LVIElib"}
