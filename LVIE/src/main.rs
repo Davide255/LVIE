@@ -20,6 +20,9 @@ use itertools::Itertools;
 mod history;
 mod img_processing;
 mod loading;
+mod core;
+
+use crate::core::Core;
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
@@ -67,6 +70,8 @@ fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
 #[allow(unreachable_code)]
 fn main() {
     const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
+
+    let CORE = Core::init(core::CoreBackends::GPU);
 
     if WINIT_BACKEND {
         slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new().unwrap()))
