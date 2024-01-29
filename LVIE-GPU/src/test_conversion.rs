@@ -22,7 +22,7 @@ pub fn test_conversion(color: Rgb<f32>) {
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("test shader"),
-        source: wgpu::ShaderSource::Wgsl(include_str!("C:\\Users\\david\\Documents\\workspaces\\LVIE-GPU\\shaders\\test_conversion.wgsl").into()),
+        source: wgpu::ShaderSource::Wgsl(include_str!("..\\shaders\\test_hsl_conversion.wgsl").into()),
     });
 
     let mut local_buffer = color.0;
