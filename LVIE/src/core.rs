@@ -1,5 +1,16 @@
 use LVIE_GPU::GPU;
 
+//macro_rules! build_parameters {
+//    ($name:ident, $($element: ident: $ty: ty)*) => {
+//        #[derive(Debug)]
+//        pub struct $name {
+//            $($element: $ty),*
+//        }
+//    };
+//}
+//
+//println!("{:?}", build_parameters!(SaturationParameters, value: f32));
+
 #[derive(Debug)]
 pub enum CoreBackends{
     GPU, CPU
