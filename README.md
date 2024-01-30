@@ -21,7 +21,7 @@ This editor can adjust:
 - [X] *Exposition (EV)* by increasing or decreasing the luminance of the color prensent in the image
 - [X] *Saturation* thanks to the HSL color space conversion
 - [X] *Contrast* (in grayscale images at the moment) expanding the color histogram's range
-- [ ] - [ ] *Lights & Shadows*
+- [ ] *Lights & Shadows*
 - [X] *White balance* (calculates White Points in uv chromacity coordinates from the correlated colour temperature, moves on the isothermal line according to tint difference and applies chromatic adaptation using the Bradford Transform)
 - [ ] *Tint*
 - [X] *General Hue* with the HSL color space
