@@ -13,13 +13,6 @@ global ScreenCallbacks {
     callback preview-click(length, length, length, length);
 }
 
-//export component Curves inherits Path {
-//    width: 100px;
-//    height: 100px;
-//
-//    CubicTo
-//}
-
 component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
     in-out property <length> image-space-size-width <=> img.width;
@@ -161,6 +154,23 @@ component Screen inherits HorizontalBox {
                     }
                 }
                 Row {
+                    VerticalBox {
+                        padding: 5px;
+                        Text {
+                            text: "Box Blur: \{round(box_blur.value)}";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 10px;
+                        }
+                        box_blur := Slider {
+                            //width: right-area.width - 10px;
+                            value: 0;
+                            maximum: 30;
+                            minimum: 0;
+                        }
+                    }
+                }
+                Row {
                     Path {
                         height: 100px;
                     stroke: white;
@@ -178,23 +188,6 @@ component Screen inherits HorizontalBox {
                         control-2-y: 100-42;
                     }
                 }}
-                Row {
-                    VerticalBox {
-                        padding: 5px;
-                        Text {
-                            text: "Box Blur: \{round(box_blur.value)}";
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 10px;
-                        }
-                        box_blur := Slider {
-                            //width: right-area.width - 10px;
-                            value: 0;
-                            maximum: 30;
-                            minimum: 0;
-                        }
-                    }
-                }
                 Row {
                     Button {
                         text: "apply filters";

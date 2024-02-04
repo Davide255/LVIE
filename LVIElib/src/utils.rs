@@ -1,12 +1,13 @@
 use crate::{
-    hsl::{Hsl, HslImage},
+    hsl::{HslImage, HslaImage},
     linear_srgb::LinSrgb,
     matrix::{convolution::split3, Matrix},
     oklab::{Oklab, OklabImage},
 };
 use std::ops::RangeInclusive;
-
-use image::{Rgb, RgbImage};
+use rayon::prelude::*;
+use image::{Rgb, RgbImage, RgbaImage};
+use std::sync::{Arc, Mutex};
 
 pub fn norm_range_f32(r: RangeInclusive<f32>, value: f32) -> f32 {
     if r.start() <= &value && &value <= r.end() {
@@ -73,9 +74,16 @@ pub fn convert_rgb_to_hsl(img: &RgbImage) -> HslImage {
     let mut hsl_img = HslImage::new(img.width(), img.height());
 
     for (x, y, pixel) in img.enumerate_pixels() {
-        if *Hsl::from(*pixel).saturation() > 1.0 {
-            panic!();
-        }
+        hsl_img.put_pixel(x, y, (*pixel).into());
+    }
+
+    hsl_img
+}
+
+pub fn convert_rgba_to_hsla(img: &RgbaImage) -> HslaImage {
+    let mut hsl_img = HslaImage::new(img.width(), img.height());
+
+    for (x, y, pixel) in img.enumerate_pixels() {
         hsl_img.put_pixel(x, y, (*pixel).into());
     }
 
@@ -84,6 +92,16 @@ pub fn convert_rgb_to_hsl(img: &RgbImage) -> HslImage {
 
 pub fn convert_hsl_to_rgb(img: &HslImage) -> RgbImage {
     let mut hsl_img = RgbImage::new(img.width(), img.height());
+
+    for (x, y, pixel) in img.enumerate_pixels() {
+        hsl_img.put_pixel(x, y, (*pixel).into());
+    }
+
+    hsl_img
+}
+
+pub fn convert_hsla_to_rgba(img: &HslaImage) -> RgbaImage {
+    let mut hsl_img = RgbaImage::new(img.width(), img.height());
 
     for (x, y, pixel) in img.enumerate_pixels() {
         hsl_img.put_pixel(x, y, (*pixel).into());
@@ -106,4 +124,73 @@ pub fn convert_oklab_to_rgb(img: &OklabImage) -> RgbImage {
         rgb_image.put_pixel(x, y, (*pixel).into());
     }
     rgb_image
+}
+use image::Primitive;
+
+pub fn _max<T: Primitive>(c: [T; 3]) -> (T, u8) {
+    if c[0] > c[1] && c[0] > c[2] {
+        (c[0], 0)
+    } else if c[1] > c[0] && c[1] > c[2] {
+        (c[1], 1)
+    } else if c[2] > c[0] && c[2] > c[1] {
+        (c[2], 2)
+    } else {
+        if c[0] == c[1] && c[1] != c[2] {
+            (c[0], 0)
+        } else if c[0] == c[2] && c[1] != c[2] {
+            (c[0], 0)
+        } else if c[1] == c[2] && c[1] != c[0] {
+            (c[1], 1)
+        } else if c[0] == c[1] && c[1] == c[2] {
+            (c[0], 0)
+        } else {
+            panic!("Something went wrong");
+        }
+    }
+}
+
+pub fn _min<T: Primitive>(c: [T; 3]) -> (T, u8) {
+    if c[0] < c[1] && c[0] < c[2] {
+        (c[0], 0)
+    } else if c[1] < c[0] && c[1] < c[2] {
+        (c[1], 1)
+    } else if c[2] < c[0] && c[2] < c[1] {
+        (c[2], 2)
+    } else {
+        if c[0] == c[1] && c[1] != c[2] {
+            (c[0], 0)
+        } else if c[0] == c[2] && c[1] != c[2] {
+            (c[0], 0)
+        } else if c[1] == c[2] && c[1] != c[0] {
+            (c[1], 1)
+        } else if c[0] == c[1] && c[1] == c[2] {
+            (c[0], 0)
+        } else {
+            panic!("Something went wrong");
+        }
+    }
+}
+
+#[allow(unused_must_use)]
+pub fn convert_rgb_to_rgba(img: &image::RgbImage) -> image::RgbaImage {
+    let out = Arc::new(Mutex::new(image::RgbaImage::new(img.width(), img.height())));
+
+    let out_w = out.clone();
+    img.enumerate_pixels().par_bridge().map(move |(x, y, pixel)| {
+        out_w.lock().unwrap().put_pixel(x, y, image::Rgba([pixel.0[0], pixel.0[1], pixel.0[2], 255]));
+    });
+
+    Arc::try_unwrap(out).unwrap().into_inner().unwrap()
+}
+
+#[allow(unused_must_use)]
+pub fn convert_rgba_to_rgb(img: &image::RgbaImage) -> image::RgbImage {
+    let out = Arc::new(Mutex::new(image::RgbImage::new(img.width(), img.height())));
+
+    let out_w = out.clone();
+    img.enumerate_pixels().par_bridge().map(move |(x, y, pixel)| {
+        out_w.lock().unwrap().put_pixel(x, y, image::Rgb([pixel.0[0], pixel.0[1], pixel.0[2]]));
+    });
+
+    Arc::try_unwrap(out).unwrap().into_inner().unwrap()
 }

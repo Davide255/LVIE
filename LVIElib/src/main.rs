@@ -1,49 +1,29 @@
 #![allow(non_snake_case)]
-use image::{self, Rgb};
+#![allow(unused_imports)]
 use LVIElib::image_geometry::homography;
-use LVIElib::linear_srgb::LinSrgb;
 use LVIElib::spline::{apply_curve, spline_coefficients};
 
 use LVIElib::contrast::set_contrast;
 use LVIElib::matrix::convolution::{convolve, laplacian_of_gaussian, split3};
 use LVIElib::matrix::Matrix;
-use LVIElib::white_balance::wb_matrix;
+
+use image::{Rgb, RgbImage, Pixel};
+
+use LVIElib::hsl::{HslImage, Hsl};
+use LVIElib::generic_color::PixelMapping;
 
 fn main() {
+    let coef = spline_coefficients(&vec![0.0, 20.7, 80.8, 165.5, 224.6, 255.0]);
+    let x = vec![0.0, 59.1, 117.2, 152.7, 195.0, 255.0];
+
     let img = image::open("IMG_4230.JPG").unwrap().to_rgb8();
-    let ((width, height), img_buf) = (img.dimensions(), img.into_raw());
+    let ((width, height), mut img_buf) = (img.dimensions(), img.into_raw());
 
-    let mat = wb_matrix(6500.0, 0.0, 6500.0, 1.0);
-
-    let mut out = Vec::<u8>::new();
-
-    for i in 0..img_buf.len() / 3 {
-        let pix: LinSrgb = Rgb([
-            img_buf[3 * i] as f32 / 255.0,
-            img_buf[3 * i + 1] as f32 / 255.0,
-            img_buf[3 * i + 2] as f32 / 255.0,
-        ])
-        .into();
-
-        let v = (mat.clone() * pix.to_vec().into())
-            .unwrap()
-            .consume_content();
-
-        let rgb: Rgb<f32> = LinSrgb::new(v[0], v[1], v[2]).into();
-
-        out.push((rgb[0] * 255.0) as u8);
-        out.push((rgb[1] * 255.0) as u8);
-        out.push((rgb[2] * 255.0) as u8);
+    for i in 0..img_buf.len() {
+        img_buf[i] = apply_curve(img_buf[i] as f32, &coef, &x) as u8;
     }
 
-    image::save_buffer(
-        "white_balance_rust.png",
-        &out,
-        width,
-        height,
-        image::ColorType::Rgb8,
-    )
-    .unwrap();
+    image::save_buffer("curve.png", &img_buf, width, height, image::ColorType::Rgb8).unwrap();
 
     /* SHARPENING
     println!("Dimensions: {} x {}", width, height);

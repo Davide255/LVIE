@@ -11,9 +11,11 @@ winit = {version = "0.28.6", features = ["x11"]}
 i-slint-backend-winit = "=1.3.0"
 rfd = "0.11.4"
 LVIElib = {path = "../LVIElib"}
+LVIE-GPU = {path = "../LVIE-GPU"}
 indexmap = "1.7.0"
 itertools = "0.11.0"
-
+rayon = "1.8.0"
+num-traits = "0.2.16"
 
 [build-dependencies]
 slint-build = "1.3.0"

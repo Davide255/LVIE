@@ -79,7 +79,7 @@ fn hsl_to_rgb(hsl: Hsl) -> vec3<f32> {
 }
 
 @compute @workgroup_size(16, 16)
-fn saturation_main(
+fn shader_main(
   @builtin(global_invocation_id) global_id : vec3<u32>,
 ) {
     let dimensions = textureDimensions(input_texture);

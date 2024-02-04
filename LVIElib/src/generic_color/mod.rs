@@ -1,5 +1,6 @@
+use image::{Pixel, ImageBuffer};
 use num_traits::{Bounded, Num, NumCast};
-use std::ops::AddAssign;
+use std::ops::{AddAssign, Deref, DerefMut};
 
 // cloned from image crate because it's in a private module
 pub trait Enlargeable: Sized + Bounded + NumCast {
@@ -78,5 +79,20 @@ impl AsFloat for u8 {
 impl AsFloat for u16 {
     fn as_float(&self) -> f32 {
         return <f32 as NumCast>::from(*self).unwrap() / u16::MAX as f32;
+    }
+}
+
+pub trait PixelMapping<P: Pixel, Container: Clone + DerefMut + Deref<Target = [P::Subpixel]>> {
+    fn map<F: FnMut(&mut P)>(&mut self, f: F) -> &ImageBuffer<P, Container>;
+}
+
+impl<P: Pixel, Container: Clone + DerefMut + Deref<Target = [P::Subpixel]>> PixelMapping<P, Container> for ImageBuffer<P, Container> {
+    fn map<F:FnMut(&mut P)>(&mut self, mut f: F) -> &ImageBuffer<P, Container>
+    {        
+        for (_,_,pixel) in self.enumerate_pixels_mut() {
+            f(pixel);
+        }
+
+        self
     }
 }

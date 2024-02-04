@@ -2,12 +2,13 @@
 slint::include_modules!();
 
 use i_slint_backend_winit::WinitWindowAccessor;
-use image::{RgbImage, GenericImageView};
-use LVIElib::blurs::boxblur::FastBoxBlur;
-use LVIElib::blurs::gaussianblur::FastGaussianBlur;
+use image::{RgbaImage, GenericImageView, ImageBuffer, Pixel, Primitive};
+use LVIElib::blurs::boxblur::FastBoxBlur_rgba;
+use LVIElib::blurs::gaussianblur::FastGaussianBlur_rgba;
 use crate::img_processing::crop;
-use img_processing::{build_low_res_preview, collect_histogram_data};
-use slint::{Image, Rgb8Pixel, SharedPixelBuffer, SharedString, Weak};
+use img_processing::{build_low_res_preview, collect_histogram_data, Max};
+use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
+use num_traits::NumCast;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{thread, time};
@@ -18,10 +19,12 @@ use itertools::Itertools;
 
 mod history;
 mod img_processing;
-mod loading;
-mod core;
 
-use crate::core::Core;
+mod core;
+use crate::core::{Core, Data, FilterArray, FilterType, PreviewData};
+
+mod settings;
+use crate::settings::load_settings;
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
@@ -32,7 +35,12 @@ fn maximize_ui(ui: LVIE) {
         .expect("Failed to use winit!");
 }
 
-fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
+fn _create_svg_path<P>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3] 
+where 
+    P: Pixel, P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash + std::cmp::Ord,
+    std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: num_traits::ToPrimitive
+{
     let hist = collect_histogram_data(&buff);
     let mut _v: Vec<SharedString> = Vec::new();
     for cmp in hist {
@@ -45,10 +53,10 @@ fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
             s_out.push_str(&format!(
                 " L {} {}",
                 {
-                    if k == &0u8 {
+                    if k == &NumCast::from(0).unwrap() {
                         0u32
                     } else {
-                        ((*k as f32) * (*max_value as f32 / 255f32)).round() as u32
+                        (<f32 as NumCast>::from(*k).unwrap() * (*max_value as f32 / 255f32)).round() as u32
                     }
                 },
                 max_value - (cmp.get(k).unwrap() / scale_factor)
@@ -65,27 +73,14 @@ fn _create_svg_path(buff: &RgbImage) -> [SharedString; 3] {
         _v.get(2).unwrap().clone(),
     ]
 }
-#[derive(Debug)]
-struct Data {
-    core: Core,
-    loaded_image: RgbImage,
-    full_res_preview: RgbImage
-}
-
-struct PreviewData {
-    preview: RgbImage,
-    zoom: (f32, f32, f32)
-}
-
-struct Settings {
-    backend: core::CoreBackends
-}
 
 #[allow(unreachable_code)]
 fn main() {
     const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
 
-    let CORE = Core::init(core::CoreBackends::GPU);
+    let SETTINGS: crate::settings::Settings = load_settings();
+
+    let CORE: Core = Core::init(SETTINGS.backend);
 
     if WINIT_BACKEND {
         slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new().unwrap()))
@@ -96,12 +91,13 @@ fn main() {
 
     let DATA = Arc::new(Mutex::new(Data{
         core: CORE, 
-        loaded_image: image::RgbImage::new(0, 0), 
-        full_res_preview: image::RgbImage::new(0, 0)
+        loaded_image: image::RgbaImage::new(0, 0), 
+        full_res_preview: image::RgbaImage::new(0, 0),
+        filters: FilterArray::new(None)
     }));
 
     let preview = Arc::new(Mutex::new(PreviewData{
-        preview: image::RgbImage::new(0, 0),
+        preview: image::RgbaImage::new(0, 0),
         zoom: (0.0, 0.0, 0.0)
     }));
 
@@ -126,10 +122,10 @@ fn main() {
             let mut data = data_weak.lock().unwrap();
 
             // store the image
-            data.loaded_image = img.to_rgb8();
+            data.loaded_image = img.to_rgba8();
 
             // set the full res preview
-            data.full_res_preview = img.to_rgb8();
+            data.full_res_preview = img.to_rgba8();
 
             let lpw = prev_w.clone();
             Window_weak
@@ -139,10 +135,10 @@ fn main() {
                     let nh: u32 = (real_h * nw) / real_w;
                     
                     let mut _low_res = &mut lpw.lock().expect("Failed to lock").preview;
-                    *_low_res = build_low_res_preview(&img.to_rgb8(), nw, nh);
+                    *_low_res = build_low_res_preview(&img.to_rgba8(), nw, nh);
                     
                     // loading the image into the UI
-                    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+                    let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
                         &_low_res,
                         _low_res.width(),
                         _low_res.height(),
@@ -157,7 +153,7 @@ fn main() {
                         })
                         .expect("Failed to run in event loop");
                     });
-                    Window.set_image(Image::from_rgb8(pix_buf));
+                    Window.set_image(Image::from_rgba8(pix_buf));
                 })
                 .expect("Failed to call from event loop");
         });
@@ -184,8 +180,8 @@ fn main() {
         let lpw = prev_w.clone();
         Window_weak.upgrade_in_event_loop(move |Window: LVIE| {
             Window.set_image(
-                Image::from_rgb8(
-            SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(&img, img.width(), img.height())));
+                Image::from_rgba8(
+            SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&img, img.width(), img.height())));
 
             // re-build the preview based on the effective screen sizes
             let nw: u32 = Window.get_image_space_size_width().round() as u32;
@@ -215,7 +211,7 @@ fn main() {
         // if not, utilize temporary the low resolution one
         let data: MutexGuard<'_, Data>;
         let prevdata: MutexGuard<'_, PreviewData>;
-        let img: &RgbImage;
+        let img: &RgbaImage;
         if data_weak.try_lock().is_ok() {
             data = data_weak.lock().unwrap();
             img = &data.full_res_preview;
@@ -280,13 +276,13 @@ fn main() {
         // crop and display the image
         let preview = crop(&img, pos.0, pos.1, new_width, new_height);
     
-        let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+        let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
             &preview,
             preview.width(),
             preview.height(),
         );
 
-        Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgb8(pix_buf))).expect("Failed to call event loop");
+        Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgba8(pix_buf))).expect("Failed to call event loop");
 
     });
 
@@ -300,24 +296,33 @@ fn main() {
             /* Window_weak
                 .upgrade_in_event_loop(|w| w.global::<ScreenCallbacks>().invoke_reset())
                 .expect("failed to reset"); */
+            let mut data = data_weak.lock().unwrap();
+
             let mut prevdata = prev_weak.lock().expect("Failed to lock");
             let prev = &mut prevdata.preview;
-            *prev = img_processing::saturate(prev, value.clone());
 
-            let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+            data.filters.set_filter(FilterType::Saturation, vec![value]);
+
+            let filters = data.filters.clone();
+
+            *prev = data.core.render_data(&prev, &filters).unwrap();
+
+            let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
                 prev,
                 prev.width(),
                 prev.height(),
             );
 
             Window_weak.upgrade_in_event_loop(move |Window: LVIE| {
-                Window.set_image(Image::from_rgb8(pix_buf));
+                Window.set_image(Image::from_rgba8(pix_buf));
             }).expect("Failed to call event loop");
 
             let pw = data_weak.clone();
             thread::spawn(move || {
                 let mut data = pw.lock().expect("Failed to lock");
-                data.full_res_preview = img_processing::saturate(&data.full_res_preview, value);
+                let filters = data.filters.clone();
+                let img_data = data.full_res_preview.clone();
+                data.full_res_preview = data.core.render_data(&img_data, &filters).unwrap();
             });
             
         });
@@ -329,7 +334,7 @@ fn main() {
     Window.global::<ScreenCallbacks>().on_apply_filters(
         move |box_blur: i32, gaussian_blur: f32, sharpening: f32| {
             //low res preview
-            let mut processed: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>;
+            let mut processed: image::ImageBuffer<image::Rgba<u8>, Vec<u8>>;
 
             let data = data_weak.lock().expect("Failed to lock");
             let mut prevdata = prev_weak.lock().expect("Failed to lock");
@@ -339,29 +344,29 @@ fn main() {
             let (lrw, _) = lr.dimensions();
 
             if sharpening > 0.0 {
-                processed = img_processing::sharpen(lr, sharpening / 2f32 , 3);
+                processed = img_processing::sharpen_rgba(lr, sharpening / 2f32 , 3);
             } else {
                 processed = lr.clone();
             }
 
             if box_blur > 3 {
-                processed = FastBoxBlur(&processed, box_blur as u32 * lrw / rw);
+                processed = FastBoxBlur_rgba(&processed, box_blur as u32 * lrw / rw);
             }
-
+            
             if gaussian_blur > 0.0 {
-                processed = FastGaussianBlur(&processed, gaussian_blur * lrw as f32 / rw as f32, 5);
+                processed = FastGaussianBlur_rgba(&processed, gaussian_blur * lrw as f32 / rw as f32, 5);
             }
 
             *lr = processed.clone();
 
             Window_weak
                 .upgrade_in_event_loop(move |Window: LVIE| {
-                    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+                    let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
                         &processed,
                         processed.width(),
                         processed.height(),
                     );
-                    Window.set_image(Image::from_rgb8(pix_buf));
+                    Window.set_image(Image::from_rgba8(pix_buf));
 
                     /* no longer needed                     
                     Window.set_AlertBoxType(AlertType::Warning);
@@ -385,16 +390,16 @@ fn main() {
                 // full res
                 let mut _prev = _p_w.lock().unwrap();
 
-                let mut processed: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>;
+                let mut processed: image::ImageBuffer<image::Rgba<u8>, Vec<u8>>;
 
                 if box_blur > 3 {
-                    processed = FastBoxBlur(&_prev.preview, box_blur as u32);
+                    processed = FastBoxBlur_rgba(&_prev.preview, box_blur as u32);
                 } else {
                     processed = _prev.preview.clone();
                 }
 
                 if sharpening > 0.0 {
-                    processed = img_processing::sharpen(&processed, sharpening / 2f32, 5);
+                    processed = img_processing::sharpen_rgba(&processed, sharpening / 2f32, 5);
                 }
 
                 _prev.preview = processed.clone();
@@ -412,7 +417,7 @@ fn main() {
                    seen by the user is the same as the low resolution preview!!
 
                 _w_w.upgrade_in_event_loop(move |Window: LVIE| {
-                    let pix_buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(
+                    let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
                         &processed,
                         processed.width(),
                         processed.height(),

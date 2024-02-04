@@ -66,7 +66,9 @@ fn convolve_u8(buf: &Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
     let mut f_buf: Matrix<Complex<f32>> = buf.clone().into();
     f_buf = f_buf.fft2d(FftDirection::Forward);
 
-    let mut f_kernel: Matrix<Complex<f32>> = kernel.clone().into();
+    let mut pad_kernel = kernel.clone();
+    pad_kernel.pad(buf.width(), buf.height(), 0.0);
+    let mut f_kernel: Matrix<Complex<f32>> = pad_kernel.into();
     f_kernel = f_kernel.fft2d(FftDirection::Forward);
 
     f_buf
