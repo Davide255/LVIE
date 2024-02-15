@@ -1,6 +1,6 @@
 use nalgebra::{DMatrix, DVector};
 
-pub fn spline_coefficients(data: Vec<f32>, xs: Vec<f32>) -> Vec<[f32; 4]> {
+pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32; 4]> {
     let n = data.len();
     let mut output = Vec::<[f32; 4]>::new();
 

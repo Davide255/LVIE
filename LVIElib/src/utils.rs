@@ -1,12 +1,12 @@
 use crate::{
-    hsl::{HslImage, HslaImage},
+    hsl::{Hsl, Hsla, HslImage, HslaImage},
     linear_srgb::LinSrgb,
     matrix::{convolution::split3, Matrix},
     oklab::{Oklab, OklabImage},
 };
 use std::ops::RangeInclusive;
 use rayon::prelude::*;
-use image::{Rgb, RgbImage, RgbaImage};
+use image::{Rgb, Rgba, RgbImage, RgbaImage};
 use std::sync::{Arc, Mutex};
 
 pub fn norm_range_f32(r: RangeInclusive<f32>, value: f32) -> f32 {
@@ -70,60 +70,125 @@ pub fn show_l_channel(img: Matrix<f32>) -> Matrix<u8> {
     Matrix::new(content, img.height(), img.width() * 3)
 }
 
+#[allow(unused_must_use)]
 pub fn convert_rgb_to_hsl(img: &RgbImage) -> HslImage {
-    let mut hsl_img = HslImage::new(img.width(), img.height());
+    let out_v = Arc::new(Mutex::new(HslImage::new(img.width(), img.height())));
+    
+    let out_w = out_v.clone();
+    
+    (0..img.height()).into_par_iter().for_each(|y| {
+        let mut buff: Vec<Hsl> = Vec::new();
+        for x in 0..img.width() {
+            buff.push((*img.get_pixel(x, y)).into());
+        }
+    
+        let mut out = out_w.lock().unwrap();
+        for x in 0..img.width() { 
+            out.put_pixel(x, y, buff[x as usize]);
+        }
+    });
 
-    for (x, y, pixel) in img.enumerate_pixels() {
-        hsl_img.put_pixel(x, y, (*pixel).into());
-    }
-
-    hsl_img
+    return out_v.lock().unwrap().clone();
 }
 
 pub fn convert_rgba_to_hsla(img: &RgbaImage) -> HslaImage {
-    let mut hsl_img = HslaImage::new(img.width(), img.height());
+    let out_v = Arc::new(Mutex::new(HslaImage::new(img.width(), img.height())));
+    
+    let out_w = out_v.clone();
+    
+    (0..img.height()).into_par_iter().for_each(|y| {
+        let mut buff: Vec<Hsla> = Vec::new();
+        for x in 0..img.width() {
+            buff.push((*img.get_pixel(x, y)).into());
+        }
+    
+        let mut out = out_w.lock().unwrap();
+        for x in 0..img.width() { 
+            out.put_pixel(x, y, buff[x as usize]);
+        }
+    });
 
-    for (x, y, pixel) in img.enumerate_pixels() {
-        hsl_img.put_pixel(x, y, (*pixel).into());
-    }
-
-    hsl_img
+    return out_v.lock().unwrap().clone();
 }
 
 pub fn convert_hsl_to_rgb(img: &HslImage) -> RgbImage {
-    let mut hsl_img = RgbImage::new(img.width(), img.height());
+    let out_v = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
+    
+    let out_w = out_v.clone();
+    
+    (0..img.height()).into_par_iter().for_each(|y| {
+        let mut buff: Vec<Rgb<u8>> = Vec::new();
+        for x in 0..img.width() {
+            buff.push((*img.get_pixel(x, y)).into());
+        }
+    
+        let mut out = out_w.lock().unwrap();
+        for x in 0..img.width() { 
+            out.put_pixel(x, y, buff[x as usize]);
+        }
+    });
 
-    for (x, y, pixel) in img.enumerate_pixels() {
-        hsl_img.put_pixel(x, y, (*pixel).into());
-    }
-
-    hsl_img
+    return out_v.lock().unwrap().clone();
 }
 
 pub fn convert_hsla_to_rgba(img: &HslaImage) -> RgbaImage {
-    let mut hsl_img = RgbaImage::new(img.width(), img.height());
+    let out_v = Arc::new(Mutex::new(RgbaImage::new(img.width(), img.height())));
+    
+    let out_w = out_v.clone();
+    
+    (0..img.height()).into_par_iter().for_each(|y| {
+        let mut buff: Vec<Rgba<u8>> = Vec::new();
+        for x in 0..img.width() {
+            buff.push((*img.get_pixel(x, y)).into());
+        }
+    
+        let mut out = out_w.lock().unwrap();
+        for x in 0..img.width() { 
+            out.put_pixel(x, y, buff[x as usize]);
+        }
+    });
 
-    for (x, y, pixel) in img.enumerate_pixels() {
-        hsl_img.put_pixel(x, y, (*pixel).into());
-    }
-
-    hsl_img
+    return out_v.lock().unwrap().clone();
 }
 
 pub fn convert_rgb_to_oklab(img: &RgbImage) -> OklabImage {
-    let mut oklab_image = OklabImage::new(img.width(), img.height());
-    for (x, y, pixel) in img.enumerate_pixels() {
-        oklab_image.put_pixel(x, y, (*pixel).into());
-    }
-    oklab_image
+    let out_v = Arc::new(Mutex::new(OklabImage::new(img.width(), img.height())));
+    
+    let out_w = out_v.clone();
+    
+    (0..img.height()).into_par_iter().for_each(|y| {
+        let mut buff: Vec<Oklab> = Vec::new();
+        for x in 0..img.width() {
+            buff.push((*img.get_pixel(x, y)).into());
+        }
+    
+        let mut out = out_w.lock().unwrap();
+        for x in 0..img.width() { 
+            out.put_pixel(x, y, buff[x as usize]);
+        }
+    });
+
+    return out_v.lock().unwrap().clone();
 }
 
 pub fn convert_oklab_to_rgb(img: &OklabImage) -> RgbImage {
-    let mut rgb_image = RgbImage::new(img.width(), img.height());
-    for (x, y, pixel) in img.enumerate_pixels() {
-        rgb_image.put_pixel(x, y, (*pixel).into());
-    }
-    rgb_image
+    let out_v = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
+    
+    let out_w = out_v.clone();
+    
+    (0..img.height()).into_par_iter().for_each(|y| {
+        let mut buff: Vec<Rgb<u8>> = Vec::new();
+        for x in 0..img.width() {
+            buff.push((*img.get_pixel(x, y)).into());
+        }
+    
+        let mut out = out_w.lock().unwrap();
+        for x in 0..img.width() { 
+            out.put_pixel(x, y, buff[x as usize]);
+        }
+    });
+
+    return out_v.lock().unwrap().clone();
 }
 use image::Primitive;
 
@@ -176,7 +241,7 @@ pub fn convert_rgb_to_rgba(img: &image::RgbImage) -> image::RgbaImage {
     let out = Arc::new(Mutex::new(image::RgbaImage::new(img.width(), img.height())));
 
     let out_w = out.clone();
-    img.enumerate_pixels().par_bridge().map(move |(x, y, pixel)| {
+    img.enumerate_pixels().par_bridge().for_each(move |(x, y, pixel)| {
         out_w.lock().unwrap().put_pixel(x, y, image::Rgba([pixel.0[0], pixel.0[1], pixel.0[2], 255]));
     });
 
@@ -188,7 +253,7 @@ pub fn convert_rgba_to_rgb(img: &image::RgbaImage) -> image::RgbImage {
     let out = Arc::new(Mutex::new(image::RgbImage::new(img.width(), img.height())));
 
     let out_w = out.clone();
-    img.enumerate_pixels().par_bridge().map(move |(x, y, pixel)| {
+    img.enumerate_pixels().par_bridge().for_each(move |(x, y, pixel)| {
         out_w.lock().unwrap().put_pixel(x, y, image::Rgb([pixel.0[0], pixel.0[1], pixel.0[2]]));
     });
 

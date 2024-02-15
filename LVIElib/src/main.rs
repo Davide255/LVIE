@@ -13,18 +13,6 @@ use LVIElib::hsl::{HslImage, Hsl};
 use LVIElib::generic_color::PixelMapping;
 
 fn main() {
-    let coef = spline_coefficients(&vec![0.0, 20.7, 80.8, 165.5, 224.6, 255.0]);
-    let x = vec![0.0, 59.1, 117.2, 152.7, 195.0, 255.0];
-
-    let img = image::open("IMG_4230.JPG").unwrap().to_rgb8();
-    let ((width, height), mut img_buf) = (img.dimensions(), img.into_raw());
-
-    for i in 0..img_buf.len() {
-        img_buf[i] = apply_curve(img_buf[i] as f32, &coef, &x) as u8;
-    }
-
-    image::save_buffer("curve.png", &img_buf, width, height, image::ColorType::Rgb8).unwrap();
-
     /* SHARPENING
     println!("Dimensions: {} x {}", width, height);
     let matrix = Matrix::new(img_buf, height as usize, 3 * width as usize);
