@@ -23,8 +23,9 @@ pub enum GPUBackens {
 
 #[derive(Clone, Copy)]
 pub enum GPUShaderType {
+    Exposition,
+    Saturation,
     Grayscale,
-    Saturation
 }
 
 impl GPUShaderType {
@@ -147,13 +148,19 @@ impl GPU {
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/grayscale.wgsl").into())
             });
         
+        let exposition = self.device.create_shader_module(
+            wgpu::ShaderModuleDescriptor { 
+                    label: Some("Exposition shader"), 
+                    source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/exposition.wgsl").into())
+            });
+
         let saturation = self.device.create_shader_module(
             wgpu::ShaderModuleDescriptor { 
                 label: Some("Saturation shader"), 
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/saturation.wgsl").into())
             });
 
-        self.shaders = vec![grayscale, saturation];
+        self.shaders = vec![exposition, saturation, grayscale];
     }
 
     pub fn create_texture(&mut self, img: &image::RgbaImage) {
@@ -214,7 +221,7 @@ impl GPU {
 
         let parameter_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
             label: Some("Parameter Buffer"),
-            contents: bytemuck::cast_slice(&parameters),
+            contents: bytemuck::cast_slice(parameters),
             usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
         });
     

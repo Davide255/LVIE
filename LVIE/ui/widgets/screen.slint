@@ -5,7 +5,7 @@ import { CustomSlider } from "slider/slider.slint";
 global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
-    callback apply-filters(int, float, float);
+    callback apply-filters(float, float, float, float);
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
@@ -171,6 +171,22 @@ component Screen inherits HorizontalBox {
                     }
                 }
                 Row {
+                    VerticalBox {
+                        padding: 5px;
+                        Text {
+                            text: "exposition: \{exposition.value}";
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 10px;
+                        }
+                        exposition := CustomSlider {
+                            //width: right-area.width - 10px;
+                            height: 4px;
+                            background: @linear-gradient(90deg, #000000 0%, #ffffff 100%);
+                        }
+                    }
+                }
+                Row {
                     Path {
                         height: 100px;
                     stroke: white;
@@ -192,7 +208,7 @@ component Screen inherits HorizontalBox {
                     Button {
                         text: "apply filters";
                         clicked => {
-                            ScreenCallbacks.apply-filters(box-blur.value, gaussian-blur.value, sharpening.value);
+                            ScreenCallbacks.apply-filters(exposition.value, box-blur.value, gaussian-blur.value, sharpening.value);
                         }
                     }
                 }

@@ -3,8 +3,6 @@ slint::include_modules!();
 
 use i_slint_backend_winit::WinitWindowAccessor;
 use image::{RgbaImage, GenericImageView, ImageBuffer, Pixel, Primitive};
-use LVIElib::blurs::boxblur::FastBoxBlur_rgba;
-use LVIElib::blurs::gaussianblur::FastGaussianBlur_rgba;
 use crate::img_processing::crop;
 use img_processing::{build_low_res_preview, collect_histogram_data, Max};
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
@@ -98,6 +96,7 @@ fn main() {
 
     let preview = Arc::new(Mutex::new(PreviewData{
         preview: image::RgbaImage::new(0, 0),
+        preview_filters: FilterArray::new(None),
         zoom: (0.0, 0.0, 0.0)
     }));
 
@@ -172,6 +171,9 @@ fn main() {
     Window.global::<ScreenCallbacks>().on_reset(move || {
         let mut data = data_weak.lock().expect("Failed to lock data");
 
+        // restore filters
+        data.filters = FilterArray::new(None);
+
         // restore all the previews to the original image
         let img = data.loaded_image.clone();
         let (real_w, real_h) = img.dimensions();
@@ -187,8 +189,9 @@ fn main() {
             let nw: u32 = Window.get_image_space_size_width().round() as u32;
             let nh: u32 = (real_h * nw) / real_w;
                     
-            let mut _low_res = &mut lpw.lock().expect("Failed to lock").preview;
-            *_low_res = build_low_res_preview(&img, nw, nh);
+            let mut _low_res = lpw.lock().expect("Failed to lock");
+            _low_res.preview_filters = FilterArray::new(None);
+            _low_res.preview = build_low_res_preview(&img, nw, nh);
 
             let ww = Window.as_weak();
             thread::spawn(move || {
@@ -332,31 +335,23 @@ fn main() {
     let prev_weak = preview.clone();
     let Window_weak = Window.as_weak();
     Window.global::<ScreenCallbacks>().on_apply_filters(
-        move |box_blur: i32, gaussian_blur: f32, sharpening: f32| {
+        move |exposition:f32, box_blur: f32, gaussian_blur: f32, sharpening: f32| {
             //low res preview
-            let mut processed: image::ImageBuffer<image::Rgba<u8>, Vec<u8>>;
-
-            let data = data_weak.lock().expect("Failed to lock");
+            let mut data = data_weak.lock().expect("Failed to lock");
             let mut prevdata = prev_weak.lock().expect("Failed to lock");
 
-            let (rw, _) = data.full_res_preview.dimensions();
+            let rw = data.full_res_preview.dimensions().0 as f32;
+            let lrw = prevdata.preview.dimensions().0 as f32;
+
+            prevdata.preview_filters.set_filter(FilterType::Exposition, vec![exposition]);
+            prevdata.preview_filters.set_filter(FilterType::Sharpening, vec![sharpening * (lrw / rw)]);
+            prevdata.preview_filters.set_filter(FilterType::Boxblur, vec![box_blur * (lrw / rw)]);
+            prevdata.preview_filters.set_filter(FilterType::GaussianBlur, vec![gaussian_blur * (lrw / rw), 5f32]);
+
+            let filters = prevdata.preview_filters.clone();
             let lr = &mut prevdata.preview;
-            let (lrw, _) = lr.dimensions();
 
-            if sharpening > 0.0 {
-                processed = img_processing::sharpen_rgba(lr, sharpening / 2f32 , 3);
-            } else {
-                processed = lr.clone();
-            }
-
-            if box_blur > 3 {
-                processed = FastBoxBlur_rgba(&processed, box_blur as u32 * lrw / rw);
-            }
-            
-            if gaussian_blur > 0.0 {
-                processed = FastGaussianBlur_rgba(&processed, gaussian_blur * lrw as f32 / rw as f32, 5);
-            }
-
+            let processed = data.core.render_data(&lr, &filters).unwrap();
             *lr = processed.clone();
 
             Window_weak
@@ -382,27 +377,29 @@ fn main() {
                     });
                 })
                 .expect("Failed to call event loop");
+
+            drop(data);
+            drop(prevdata);
             
             // start computing the full resolution image
             let _w_w = Window_weak.clone();
-            let _p_w = prev_weak.clone();
+            let _p_w = data_weak.clone();
             thread::spawn(move || {
                 // full res
-                let mut _prev = _p_w.lock().unwrap();
+                let mut data = _p_w.lock().unwrap();
 
-                let mut processed: image::ImageBuffer<image::Rgba<u8>, Vec<u8>>;
+                data.filters.set_filter(FilterType::Exposition, vec![exposition]);
+                data.filters.set_filter(FilterType::Sharpening, vec![sharpening]);
+                data.filters.set_filter(FilterType::Boxblur, vec![box_blur]);
+                data.filters.set_filter(FilterType::GaussianBlur, vec![gaussian_blur]);
 
-                if box_blur > 3 {
-                    processed = FastBoxBlur_rgba(&_prev.preview, box_blur as u32);
-                } else {
-                    processed = _prev.preview.clone();
-                }
+                let filters = data.filters.clone();
 
-                if sharpening > 0.0 {
-                    processed = img_processing::sharpen_rgba(&processed, sharpening / 2f32, 5);
-                }
+                let processed = data.full_res_preview.clone();
+                // re allocate the variable to assure that's immutable
+                let processed = data.core.render_data(&processed, &filters).unwrap();
 
-                _prev.preview = processed.clone();
+                data.full_res_preview = processed.clone();
 
                 let ww = _w_w.clone();
                 thread::spawn(move || {

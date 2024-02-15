@@ -1,8 +1,9 @@
 use std::slice::Iter;
 
-use LVIE_GPU::GPU;
+use LVIElib::blurs::{boxblur::FastBoxBlur_rgba, gaussianblur::FastGaussianBlur_rgba};
+use LVIE_GPU::{GPUShaderType, GPU};
 
-use crate::img_processing::saturate_rgba;
+use crate::img_processing::{exposition_rgba, saturate_rgba, sharpen_rgba};
 
 #[derive(Debug)]
 pub struct Data {
@@ -14,16 +15,18 @@ pub struct Data {
 
 pub struct PreviewData {
     pub preview: image::RgbaImage,
+    pub preview_filters: FilterArray,
     pub zoom: (f32, f32, f32)
 }
 
 #[derive(Debug)]
 pub enum CoreError<'a> {
-    GENERICERROR(&'a str)
+    GENERICERROR(&'a str),
+    GPUERROR(LVIE_GPU::GPUError)
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CoreBackends{
     GPU, CPU
 }
@@ -36,12 +39,23 @@ pub struct Filter {
 
 #[derive(Clone, Copy, Debug)]
 pub enum FilterType {
+    Exposition,
     Sharpening,
-    GaussianBlur,
-    Boxblur,
+    WhiteBalance,
     Contrast,
     Saturation,
+    GaussianBlur,
+    Boxblur,
 }
+
+//impl fmt::Debug for FilterType {
+//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//        f.debug_struct("Point")
+//         .field("x", &self.x)
+//         .field("y", &self.y)
+//         .finish()
+//    }
+//}
 
 impl FilterType {
     pub fn index(&self) -> usize {
@@ -73,11 +87,13 @@ macro_rules! filter {
 impl FilterArray {
     pub fn new(filters: Option<Vec<Filter>>) -> FilterArray {
         let mut fa = vec![
+            filter!(FilterType::Exposition, 0.0),
             filter!(FilterType::Sharpening, 0.0),
+            filter!(FilterType::WhiteBalance, 0.0),
+            filter!(FilterType::Contrast, 0.0),
+            filter!(FilterType::Saturation, 0.0),
             filter!(FilterType::GaussianBlur, 0.0),
             filter!(FilterType::Boxblur, 0.0),
-            filter!(FilterType::Contrast, 0.0),
-            filter!(FilterType::Saturation, 0.0)
         ];
 
         if filters.is_some() {
@@ -139,40 +155,52 @@ impl Core{
 
     pub fn render_data(&mut self, img: &image::RgbaImage, filters: &FilterArray) -> Result<image::RgbaImage, crate::core::CoreError> {
 
-        match self.backend {
-            CoreBackends::CPU => {
-                let mut out = img.clone();
-                for filter in filters{
+        let mut out = img.clone();
+
+        for filter in filters {
+            if filter.parameters[0] != 0.0 {
+                println!("applying {:?} with values: {:?}", filter.filtertype, filter.parameters);
+                let gpu_filter: Option<GPUShaderType> = {
+                    match filter.filtertype {
+                        FilterType::Saturation => Some(LVIE_GPU::GPUShaderType::Saturation),
+                        FilterType::Exposition => Some(LVIE_GPU::GPUShaderType::Exposition),
+                        _ => None,
+                    }
+                };
+
+                if self.backend == CoreBackends::GPU && gpu_filter.is_some(){
+                    let gpu = self.gpu.as_mut().unwrap();
+                    gpu.create_texture(&out);
+                    let res = gpu.render(&gpu_filter.unwrap(), &filter.parameters);
+                    if res.is_err() {
+                        return Err(CoreError::GPUERROR(res.unwrap_err()));
+                    } else {
+                        out = res.unwrap();
+                    }
+                } else {
                     match filter.filtertype {
                         FilterType::Saturation => {
                             out = saturate_rgba(&out, filter.parameters[0]);
                         }
-                        _ => unimplemented!()
-                    }
-                }
-                return Ok(out);
-
-            }
-            CoreBackends::GPU => {
-                let mut out = img.clone();
-                for filter in filters {
-                    match filter.filtertype {
-                        FilterType::Saturation => {
-                            let gpu = self.gpu.as_mut().unwrap();
-                            gpu.create_texture(&out);
-                            let res = gpu.render(&LVIE_GPU::GPUShaderType::Saturation, &filter.parameters);
-                            if res.is_err() {
-                                println!("{:?}", res.unwrap_err());
-                            } else {
-                                out = res.unwrap();
-                            }
+                        FilterType::Exposition => {
+                            out = exposition_rgba(&out, filter.parameters[0]);
+                        }
+                        FilterType::Boxblur => {
+                            out = FastBoxBlur_rgba(&out, filter.parameters[0] as u32);
+                        }
+                        FilterType::Sharpening => {
+                            out = sharpen_rgba(&out, filter.parameters[0], filter.parameters[1] as usize)
+                        }
+                        FilterType::GaussianBlur => {
+                            out = FastGaussianBlur_rgba(&out, filter.parameters[0], filter.parameters[1] as u8)
                         }
                         _ => unimplemented!()
                     }
                 }
-
-                return Ok(out);
             }
         }
+
+        Ok(out)
+
     }
 }
