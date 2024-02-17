@@ -38,14 +38,14 @@ impl LinSrgb {
         &mut self.channels[2]
     }
 
-    pub fn new(hue: f32, saturation: f32, luma: f32) -> LinSrgb {
+    pub fn new(red: f32, green: f32, blue: f32) -> LinSrgb {
         LinSrgb {
-            channels: [hue, saturation, luma],
+            channels: [red, green, blue],
         }
     }
 
-    pub fn from_components(hsl: [f32; 3]) -> LinSrgb {
-        LinSrgb { channels: hsl }
+    pub fn from_components(rgb: [f32; 3]) -> LinSrgb {
+        LinSrgb { channels: rgb }
     }
 }
 

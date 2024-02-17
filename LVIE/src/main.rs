@@ -480,3 +480,41 @@ fn main() {
     slint::run_event_loop().expect("Cannnot run the evnt loop due to an error!");
     let _ = Window.hide();
 }
+
+#[cfg(test)]
+#[macro_use]
+mod tests {
+    use crate::core::*;
+
+    macro_rules! filter {
+        ($ty:expr, $($param:expr), *) => {{
+            let mut parameters = Vec::new();
+            $(
+                parameters.push($param);
+            )*
+            crate::core::Filter {
+                filtertype: $ty,
+                parameters
+            }}
+        };
+    }
+
+    #[test]
+    fn white_balance(){
+        let fromtemp = 6500.0;
+        let fromtint = 0.0;
+        let totemp = 9900.0;
+        let totint = 1.23;
+
+        let mut cpu = Core::init(crate::core::CoreBackends::CPU);
+        let mut gpu = Core::init(crate::core::CoreBackends::GPU);
+
+        let filters = FilterArray::new(Some(vec![filter!(FilterType::WhiteBalance, fromtemp, fromtint, totemp, totint)]));
+
+        let img = image::open("C:\\Users\\david\\Documents\\workspaces\\original.jpg").unwrap().to_rgba8();
+
+        cpu.render_data(&img, &filters).unwrap().save("prova_cpu.jpg");
+        gpu.render_data(&img, &filters).unwrap().save("prova_gpu.jpg");
+
+    }
+}

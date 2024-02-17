@@ -26,6 +26,7 @@ pub enum GPUShaderType {
     Exposition,
     Saturation,
     Grayscale,
+    WhiteBalance
 }
 
 impl GPUShaderType {
@@ -159,8 +160,13 @@ impl GPU {
                 label: Some("Saturation shader"), 
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/saturation.wgsl").into())
             });
+        let whitebalance = self.device.create_shader_module(
+            wgpu::ShaderModuleDescriptor { 
+                label: Some("White Balance shader"), 
+                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/whitebalance.wgsl").into())
+            });
 
-        self.shaders = vec![exposition, saturation, grayscale];
+        self.shaders = vec![exposition, saturation, grayscale, whitebalance];
     }
 
     pub fn create_texture(&mut self, img: &image::RgbaImage) {
