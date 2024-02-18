@@ -211,12 +211,16 @@ fn shader_main(
     let color = textureLoad(input_texture, coords.xy, 0);
     let xyz_color = linsrgb_to_xyz(rgb_to_linsrgb(color.rgb));
 
-    let scale = xyz_color.y;
-    let downscaled = Xyz(xyz_color.x / xyz_color.y, 1.0, xyz_color.z / xyz_color.y);
+    //let scale = xyz_color.y;
+    //let downscaled = Xyz(xyz_color.x / xyz_color.y, 1.0, xyz_color.z / xyz_color.y);
 
-    let downscaled_v = xyz_wb_matrix(parameters[0], parameters[1], parameters[2], parameters[3]) * vec3<f32>(downscaled.x, downscaled.y, downscaled.z);
+    let xyz_out = mat3x3<f32>(
+        parameters[0], parameters[3], parameters[6],
+        parameters[1], parameters[4], parameters[7],
+        parameters[2], parameters[5], parameters[8]
+    ) * vec3<f32>(xyz_color.x, xyz_color.y, xyz_color.z);
 
     textureStore(output_texture, coords.xy, vec4<f32>(linsrgb_to_rgb(xyz_to_linsrgb(
-        Xyz(downscaled_v[0] * scale, downscaled_v[1] * scale, downscaled_v[2] * scale)
+      Xyz(xyz_out[0], xyz_out[1], xyz_out[2])
     )), color.a));
 }
