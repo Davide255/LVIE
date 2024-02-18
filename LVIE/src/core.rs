@@ -3,7 +3,7 @@ use std::slice::Iter;
 use LVIElib::blurs::{boxblur::FastBoxBlur_rgba, gaussianblur::FastGaussianBlur_rgba};
 use LVIE_GPU::{GPUShaderType, GPU};
 
-use crate::img_processing::{exposition_rgba, saturate_rgba, sharpen_rgba};
+use crate::img_processing::{exposition_rgba, saturate_rgba, sharpen_rgba, whitebalance_rgba};
 
 #[derive(Debug)]
 pub struct Data {
@@ -164,6 +164,7 @@ impl Core{
                     match filter.filtertype {
                         FilterType::Saturation => Some(LVIE_GPU::GPUShaderType::Saturation),
                         FilterType::Exposition => Some(LVIE_GPU::GPUShaderType::Exposition),
+                        FilterType::WhiteBalance => Some(LVIE_GPU::GPUShaderType::WhiteBalance),
                         _ => None,
                     }
                 };
@@ -194,6 +195,8 @@ impl Core{
                         FilterType::GaussianBlur => {
                             out = FastGaussianBlur_rgba(&out, filter.parameters[0], filter.parameters[1] as u8)
                         }
+                        FilterType::WhiteBalance => {
+                            out = whitebalance_rgba(&out, filter.parameters[0], filter.parameters[1], filter.parameters[2], filter.parameters[3]);                       }
                         _ => unimplemented!()
                     }
                 }

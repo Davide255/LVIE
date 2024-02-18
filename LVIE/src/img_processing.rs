@@ -1,5 +1,7 @@
 use rayon::prelude::*;
 use LVIElib::hsl::{Hsl, Hsla};
+use LVIElib::linear_srgb::{LinSrgb, LinSrgba};
+use LVIElib::white_balance::{xyz_wb_matrix, LINSRGB_TO_XYZ, XYZ_TO_LINSRGB};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
@@ -262,3 +264,69 @@ where <P as image::Pixel>::Subpixel: std::fmt::Debug
     out
 }
 
+
+pub fn whitebalance(img: &RgbImage, fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> RgbImage {
+    let out = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
+
+    let out_v = out.clone();
+    (0..img.height()).into_par_iter().for_each(move |y| {
+        let mut row = Vec::<Rgb<u8>>::new();
+        for x in 0..img.width() {
+            let linsrgb = LinSrgb::from(*img.get_pixel(x, y));
+            let xyz = (Matrix::new(LINSRGB_TO_XYZ.to_vec(), 3, 3)* linsrgb.to_vec().into()).unwrap().get_content().to_owned();
+            let scale = xyz[1];
+
+            let downscaled = vec![xyz[0] / scale, 1.0, xyz[2] / scale];
+            let mut new_v = (xyz_wb_matrix(fromtemp, fromtint, totemp, totint) * downscaled.into()).unwrap().get_content().to_owned();
+
+            new_v[0] *= scale;
+            new_v[1] *= scale;
+            new_v[2] *= scale;
+
+            let rgb = (Matrix::new(XYZ_TO_LINSRGB.to_vec(), 3, 3) * new_v.into()).unwrap().get_content().to_owned();
+            row.push(Rgb::<u8>::from(LinSrgb::new(rgb[0], rgb[1], rgb[2])));
+        }
+
+        let mut out = out_v.lock().unwrap();
+        for x in 0..img.width() {
+            out.put_pixel(x, y, row[x as usize]);
+        }
+    });
+
+    return out.lock().unwrap().clone();
+
+}
+
+pub fn whitebalance_rgba(img: &RgbaImage, fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> RgbaImage {
+    let out = Arc::new(Mutex::new(RgbaImage::new(img.width(), img.height())));
+
+    let xyz_wb = xyz_wb_matrix(fromtemp, fromtint, totemp, totint);
+
+    let out_v = out.clone();
+    (0..img.height()).into_par_iter().for_each(move |y| {
+        let mut row = Vec::<Rgba<u8>>::new();
+        for x in 0..img.width() {
+            let linsrgb = LinSrgba::from(*img.get_pixel(x, y));
+            let xyz = (Matrix::new(LINSRGB_TO_XYZ.to_vec(), 3, 3)* linsrgb.to_vec()[0..3].to_vec().into()).unwrap().get_content().to_owned();
+            let scale = xyz[1];
+
+            let downscaled = vec![xyz[0] / scale, 1.0, xyz[2] / scale];
+            let mut new_v = (xyz_wb.clone() * downscaled.into()).unwrap().get_content().to_owned();
+
+            new_v[0] *= scale;
+            new_v[1] *= scale;
+            new_v[2] *= scale;
+
+            let rgb = (Matrix::new(XYZ_TO_LINSRGB.to_vec(), 3, 3) * new_v.into()).unwrap().get_content().to_owned();
+            row.push(Rgba::<u8>::from(LinSrgba::new(rgb[0], rgb[1], rgb[2], *linsrgb.alpha())));
+        }
+
+        let mut out = out_v.lock().unwrap();
+        for x in 0..img.width() {
+            out.put_pixel(x, y, row[x as usize]);
+        }
+    });
+
+    return out.lock().unwrap().clone();
+
+}
