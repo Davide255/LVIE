@@ -4,7 +4,6 @@ use num_traits::NumCast;
 use image::Primitive;
 use rawloader::decode_file;
 
-
 fn mean<T: Primitive>(a: T, b:T) -> T { (a + b) / NumCast::from(2).unwrap() }
 fn amean<T: Primitive>(a: [T; 2]) -> T { (a[0] + a[1]) / NumCast::from(2).unwrap() }
 
@@ -113,4 +112,8 @@ pub fn decode<P: AsRef<Path>>(path: P) -> Option<image::RgbaImage> {
         return Some(img);
     }
     None
+}
+
+pub fn supported_formats() -> Vec<&'static str> {
+    return vec!["MRW","ARW","SRF","SR2","MEF","ORF","SRW","ERF","KDC","DCS","RW2","RAF","DCR","DNG","PEF","CRW","IIQ","3FR","NRW","NEF","MOS","CR2","ARI"];
 }

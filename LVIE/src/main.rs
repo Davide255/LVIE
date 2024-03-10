@@ -4,6 +4,7 @@ slint::include_modules!();
 use i_slint_backend_winit::WinitWindowAccessor;
 use image::{RgbaImage, GenericImageView, ImageBuffer, Pixel, Primitive};
 use crate::img_processing::crop;
+use crate::raw_decoder::{decode, supported_formats};
 use img_processing::{collect_histogram_data, Max};
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
 use num_traits::NumCast;
@@ -102,18 +103,25 @@ fn main() {
         .on_open_file_callback(move || {
             // get the file with native file dialog
             let fd = FileDialog::new()
-                .add_filter("images", &["jpg", "jpeg", "png"])
+                .add_filter("all image formats", 
+                &[supported_formats().as_slice(), ["jpg", "jpeg", "png"].as_slice()].concat())
                 .pick_file();
             let binding = fd.unwrap();
 
-            let img =
-                image::open(binding.as_path().to_str().unwrap()).expect("Failed to open the image");
+            let img: image::RgbaImage;
+
+            if supported_formats().contains(&binding.as_path().extension().unwrap().to_str().unwrap().to_uppercase().as_str()) {
+                img = decode(binding.as_path()).unwrap();
+            } else {
+                img = image::open(binding.as_path().to_str().unwrap()).expect("Failed to open the image").to_rgba8();
+            }
+
             let (real_w, real_h) = img.dimensions();
 
             let mut data = data_weak.lock().unwrap();
 
             // load the image
-            data.load_image(img.to_rgba8());
+            data.load_image(img.clone());
 
             let nw: u32 = Window_weak.unwrap().get_image_space_size_width().round() as u32;
             let nh: u32 = (real_h * nw) / real_w;
@@ -135,7 +143,7 @@ fn main() {
                     // create the histogram and update the UI
                     let ww = Window.as_weak();
                     thread::spawn(move || {
-                        let path = _create_svg_path(&img.to_rgb8());
+                        let path = _create_svg_path(&img);
                         ww.upgrade_in_event_loop(move |window| {
                             window.set_svg_path(path.into());
                         })
