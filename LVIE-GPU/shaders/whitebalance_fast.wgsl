@@ -214,7 +214,13 @@ fn shader_main(
     let scale = xyz_color.y;
     let downscaled = Xyz(xyz_color.x / xyz_color.y, 1.0, xyz_color.z / xyz_color.y);
 
-    let downscaled_v = xyz_wb_matrix(parameters[0], parameters[1], parameters[2], parameters[3]) * vec3<f32>(downscaled.x, downscaled.y, downscaled.z);
+    let XYZ_WB_MATRIX = mat3x3<f32>(
+        parameters[0], parameters[3], parameters[6],
+        parameters[1], parameters[4], parameters[7],
+        parameters[2], parameters[5], parameters[8]
+    );
+
+    let downscaled_v = XYZ_WB_MATRIX * vec3<f32>(downscaled.x, downscaled.y, downscaled.z);
 
     textureStore(output_texture, coords.xy, vec4<f32>(linsrgb_to_rgb(xyz_to_linsrgb(
         Xyz(downscaled_v[0] * scale, downscaled_v[1] * scale, downscaled_v[2] * scale)

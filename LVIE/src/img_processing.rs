@@ -126,6 +126,7 @@ pub fn saturate_rgba(img: &RgbaImage, value: f32) -> RgbaImage {
     convert_hsla_to_rgba(&hsl_image)
 }
 
+#[allow(dead_code)]
 pub fn sharpen(img: &RgbImage, value: f32, size: usize) -> RgbImage {
     let (mut vl, mut va, mut vb) = (Vec::<f32>::new(), Vec::<f32>::new(), Vec::<f32>::new());
     let mut oklab_image = OklabImage::new(img.width(), img.height());
@@ -205,6 +206,7 @@ pub fn sharpen_rgba(img: &RgbaImage, value: f32, size: usize) -> RgbaImage {
     out
 }
 
+#[allow(dead_code)]
 pub fn exposition(img: &RgbImage, value: f32) -> RgbImage{
     let out = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
 
@@ -264,9 +266,11 @@ where <P as image::Pixel>::Subpixel: std::fmt::Debug
     out
 }
 
-
+#[allow(dead_code)]
 pub fn whitebalance(img: &RgbImage, fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> RgbImage {
     let out = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
+
+    let xyz_wb = xyz_wb_matrix(fromtemp, fromtint, totemp, totint);
 
     let out_v = out.clone();
     (0..img.height()).into_par_iter().for_each(move |y| {
@@ -277,7 +281,7 @@ pub fn whitebalance(img: &RgbImage, fromtemp: f32, fromtint: f32, totemp: f32, t
             let scale = xyz[1];
 
             let downscaled = vec![xyz[0] / scale, 1.0, xyz[2] / scale];
-            let mut new_v = (xyz_wb_matrix(fromtemp, fromtint, totemp, totint) * downscaled.into()).unwrap().get_content().to_owned();
+            let mut new_v = (xyz_wb.clone() * downscaled.into()).unwrap().get_content().to_owned();
 
             new_v[0] *= scale;
             new_v[1] *= scale;
