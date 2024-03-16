@@ -7,6 +7,8 @@ export component CustomSlider inherits Rectangle {
 
     in-out property <brush> bgcolor <=> self.background;
 
+    callback on-click <=> touch.clicked;
+
     min-height: 4px;
     min-width: 100px;
     horizontal-stretch: 0;
@@ -37,7 +39,6 @@ export component CustomSlider inherits Rectangle {
             if (self.enabled && self.pressed) {
                 root.value = max(root.minimum, min(root.maximum,
                     self.pressed-value + (touch.mouse-x - touch.pressed-x) * (root.maximum - root.minimum) / (root.width - handle.width)));
-
             }
         }
     }

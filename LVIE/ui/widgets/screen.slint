@@ -5,7 +5,7 @@ import { CustomSlider } from "slider/slider.slint";
 global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
-    callback apply-filters(float, float, float, float);
+    callback apply-filters(float, float, float, float, float, float, float);
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
@@ -24,10 +24,10 @@ component Screen inherits HorizontalBox {
         background: Palette.Dark.Dark-300;
         border-radius: 7px;
         width: root.width * 20%;
-        /*ScrollView {
+        ScrollView {
             width: parent.width;
             padding: 2px;
-            x: 0px;*/
+            x: 0px;
 
             VerticalBox {
                 //height: auto;
@@ -79,9 +79,53 @@ component Screen inherits HorizontalBox {
                         fill: self.stroke;
                     }
                 }
+                GridBox {
+                    Row {
+                        VerticalBox {
+                            padding: 5px;
+                            Text {
+                                text: "temp: \{round(temp.value*100)/100}";
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                font-size: 10px;
+                            }
+                            temp := CustomSlider {
+                                height: 4px;
+                                background: @linear-gradient(90deg, #8400ff 0%, #ffffff 50%, #f9ff56 100%);
+                                on-click => {
+                                    ScreenCallbacks.apply-filters(
+                                        exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
+                                        temp.value, tint.value, saturation.value
+                                        );
+                                }
+                            }
+                        }
+                    }
+                    Row {
+                        VerticalBox {
+                            padding: 5px;
+                            Text {
+                                text: "tint: \{round(tint.value*100)/100}";
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                font-size: 10px;
+                            }
+                            tint := CustomSlider {
+                                height: 4px;
+                                background: @linear-gradient(90deg, #66ff00 0%, #f660f9 100%);
+                                on-click => {
+                                    ScreenCallbacks.apply-filters(
+                                        exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
+                                        temp.value, tint.value, saturation.value
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
             }
             //viewport-height: (self.width - 10px) * 3;
-        //}
+        }
     }
 
     img := Image {
@@ -109,7 +153,7 @@ component Screen inherits HorizontalBox {
                     VerticalBox {
                         padding: 5px;
                         Text {
-                            text: "saturation: \{saturation.value}";
+                            text: "saturation: \{round(saturation.value*100)/100}";
                             horizontal-alignment: center;
                             vertical-alignment: center;
                             font-size: 10px;
@@ -208,15 +252,10 @@ component Screen inherits HorizontalBox {
                     Button {
                         text: "apply filters";
                         clicked => {
-                            ScreenCallbacks.apply-filters(exposition.value, box-blur.value, gaussian-blur.value, sharpening.value);
-                        }
-                    }
-                }
-                Row {
-                    Button {
-                        text: "apply saturation";
-                        clicked => {
-                            ScreenCallbacks.add-saturation(saturation.value);
+                            ScreenCallbacks.apply-filters(
+                                exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
+                                temp.value, tint.value, saturation.value
+                            );
                         }
                     }
                 }
@@ -226,6 +265,9 @@ component Screen inherits HorizontalBox {
                         clicked => {
                             saturation.value = 0;
                             box-blur.value = 0;
+                            temp.value = 0;
+                            tint.value = 0;
+                            exposition.value = 0;
                             ScreenCallbacks.reset();
                         }
                     }

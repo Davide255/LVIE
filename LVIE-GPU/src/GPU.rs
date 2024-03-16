@@ -142,6 +142,40 @@ impl GPU {
         
     }
 
+    pub fn clone_from(gpu: &GPU) -> Result<GPU, GPUError> {
+
+        let instance = wgpu::Instance::new(gpu.adapter.get_info().backend.into());
+        
+        let mut adapter: wgpu::Adapter = instance.request_adapter(&wgpu::RequestAdapterOptionsBase { power_preference: 
+            wgpu::PowerPreference::HighPerformance, 
+            force_fallback_adapter: false, compatible_surface: None })
+            .block_on().unwrap();
+
+        for a in instance.enumerate_adapters(gpu.adapter.get_info().backend.into()) {
+            if a.get_info().name == gpu.adapter.get_info().name {
+                adapter = a;
+            }
+        }
+
+        let dev_and_qu = adapter
+        .request_device(&Default::default(),None).block_on();
+
+        if dev_and_qu.is_err() {
+            return Err(GPUError::REQUESTDEVICEERROR(dev_and_qu.err().unwrap()));
+        }
+
+        let (device, queue) = dev_and_qu.unwrap();
+
+        Ok(GPU {
+            instance,
+            adapter,
+            device, 
+            queue,
+            shaders: Vec::new(),
+            texture: None
+        })
+    }
+
     pub fn compile_shaders(&mut self) {
         let grayscale = self.device.create_shader_module(
             wgpu::ShaderModuleDescriptor { 

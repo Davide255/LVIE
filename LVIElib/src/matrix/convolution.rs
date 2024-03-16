@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use rayon::prelude::*;
 use rustfft::{num_complex::Complex, FftDirection};
 
 use super::Matrix;
@@ -52,12 +53,13 @@ pub fn convolve(buf: &Matrix<f32>, kernel: &Matrix<f32>) -> Matrix<f32> {
     f_buf
         .update_content(
             (0..f_buf.content.len())
+                .into_par_iter()
                 .map(|x| f_buf.content[x] * f_kernel.content[x])
                 .collect(),
         )
         .unwrap();
     let result = f_buf.fft2d(FftDirection::Inverse);
-    let content: Vec<f32> = result.content.iter().map(|x| x.re).collect();
+    let content: Vec<f32> = result.content.into_par_iter().map(|x| x.re).collect();
 
     Matrix::new(content, buf.height, buf.width)
 }
@@ -74,6 +76,7 @@ fn convolve_u8(buf: &Matrix<u8>, kernel: &Matrix<f32>) -> Matrix<u8> {
     f_buf
         .update_content(
             (0..f_buf.content.len())
+                .into_par_iter()
                 .map(|x| f_buf.content[x] * f_kernel.content[x])
                 .collect(),
         )
@@ -188,7 +191,7 @@ pub fn laplacian_of_gaussian(sigma: f32, width: usize, height: usize) -> Matrix<
     }
 
     let size = width * height;
-    content = content.iter().map(|x| x - (sum / size as f32)).collect();
+    content = content.into_par_iter().map(|x| x - (sum / size as f32)).collect();
 
     Matrix::new(content, height, width)
 }
