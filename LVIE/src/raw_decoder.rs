@@ -115,5 +115,9 @@ pub fn decode<P: AsRef<Path>>(path: P) -> Option<image::RgbaImage> {
 }
 
 pub fn supported_formats() -> Vec<&'static str> {
-    return vec!["MRW","ARW","SRF","SR2","MEF","ORF","SRW","ERF","KDC","DCS","RW2","RAF","DCR","DNG","PEF","CRW","IIQ","3FR","NRW","NEF","MOS","CR2","ARI"];
+    return vec![
+        "MRW","ARW","SRF","SR2","MEF","ORF","ARI","MOS",
+        "SRW","ERF","KDC","DCS","RW2","RAF","DCR","CR2",
+        "DNG","PEF","CRW","IIQ","3FR","NRW","NEF"
+    ];
 }

@@ -6,11 +6,13 @@ global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
     callback apply-filters(float, float, float, float, float, float, float);
+    callback generate-histogram();
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
 
     callback preview-click(length, length, length, length);
+    callback print(length);
 }
 
 component Screen inherits HorizontalBox {
@@ -19,6 +21,43 @@ component Screen inherits HorizontalBox {
     in-out property <[string]> histogram: ["","",""];
     property <[color]> h_color: [Colors.red, Colors.green, Colors.blue];
     spacing: 10px;
+
+    function send-applyfilters() {
+        ScreenCallbacks.apply-filters(
+            exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
+            temp.value, tint.value, saturation.value
+            );
+    }
+
+    function zoom-in(x: length, y: length) {
+        
+        if (sv.width / 2.0) - x + x * (5.0 / 100.0) >= 0 {
+            sv.viewport-x = 0;
+        }
+        else if (sv.width / 2.0) - x + x * (5.0 / 100.0) < sv.width - sv.viewport-width {
+            sv.viewport-x = sv.width - sv.viewport-width;
+        } else {
+            sv.viewport-x = (sv.width / 2.0) - x + x * (5.0 / 100.0);
+        }
+
+        if (sv.height / 2.0) - y + y * (5.0 / 100.0) >= 0 {
+            sv.viewport-y = 0;
+        }
+        else if (sv.height / 2.0) - y + y * (5.0 / 100.0) < sv.height - sv.viewport-height {
+            sv.viewport-x = sv.height - sv.viewport-height;
+        }
+        else {
+            sv.viewport-y = (sv.height / 2.0) - y + y * (5.0 / 100.0);
+        }
+
+        sv.viewport-width += sv.width * 5 / 100;
+        sv.viewport-height += sv.height * 5 / 100;
+    }
+
+    function zoom-out() {
+        sv.viewport-width -= sv.width == sv.viewport-width ? 0 : sv.width * 5 / 100; 
+        sv.viewport-height -= sv.height == sv.viewport-height ? 0 : sv.height * 5 / 100;
+    }
 
     left_area := Rectangle {
         background: Palette.Dark.Dark-300;
@@ -91,12 +130,12 @@ component Screen inherits HorizontalBox {
                             }
                             temp := CustomSlider {
                                 height: 4px;
-                                background: @linear-gradient(90deg, #8400ff 0%, #ffffff 50%, #f9ff56 100%);
+                                background: @linear-gradient(90deg, #0011ff 0%, #ffffff 50%, #f9ff56 100%);
+                                on-move => {
+                                    send-applyfilters();
+                                }
                                 on-click => {
-                                    ScreenCallbacks.apply-filters(
-                                        exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
-                                        temp.value, tint.value, saturation.value
-                                        );
+                                    ScreenCallbacks.generate-histogram();
                                 }
                             }
                         }
@@ -112,12 +151,12 @@ component Screen inherits HorizontalBox {
                             }
                             tint := CustomSlider {
                                 height: 4px;
-                                background: @linear-gradient(90deg, #66ff00 0%, #f660f9 100%);
+                                background: @linear-gradient(90deg, #f660f9 0%, #66ff00 100%);
+                                on-move => {
+                                    send-applyfilters();
+                                }
                                 on-click => {
-                                    ScreenCallbacks.apply-filters(
-                                        exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
-                                        temp.value, tint.value, saturation.value
-                                    );
+                                    ScreenCallbacks.generate-histogram();
                                 }
                             }
                         }
@@ -128,16 +167,52 @@ component Screen inherits HorizontalBox {
         }
     }
 
-    img := Image {
-        image-fit: ImageFit.contain;
-        TouchArea {
-            clicked => {
-                ScreenCallbacks.preview-click(
-                    self.width, 
-                    self.height, 
-                    self.pressed-x, 
-                    self.pressed-y
-                    );
+    in-out property <length> vh <=> sv.viewport-height;
+    in-out property <length> vw <=> sv.viewport-width;
+    in-out property <length> vx <=> sv.viewport-x;
+    in-out property <length> vy <=> sv.viewport-y;
+
+    Rectangle {
+        sv := ScrollView {
+            height: parent.height;
+            width: parent.width;
+            viewport-height: self.height;
+            viewport-width: self.width;
+            img := Image {
+                image-fit: ImageFit.contain;
+                width: parent.viewport-width;
+                height: parent.viewport-height;
+            }  
+        }
+        
+        t := TouchArea {
+            height: parent.height;
+            width: parent.width;
+    
+            property <length> ovx;
+            property <length> ovy;
+
+            scroll-event(s) => {
+                if s.delta-y / 1px == 60 {
+                    zoom-in(self.mouse-x, self.mouse-y);
+                } else if s.delta-y / 1px == -60 {
+                    zoom-out();
+                }
+                EventResult.accept
+            }
+
+            pointer-event(event) => {
+                if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                    self.ovx = sv.viewport-x;
+                    self.ovy = sv.viewport-y;
+                }
+            }
+
+            moved => {
+                if (self.enabled && self.pressed) {
+                    sv.viewport-x = Math.clamp(self.ovx + t.mouse-x - t.pressed-x, self.width - sv.viewport-width, 0);
+                    sv.viewport-y = Math.clamp(self.ovx + t.mouse-y - t.pressed-y, self.height - sv.viewport-height, 0);
+                }
             }
         }
     }
@@ -162,6 +237,9 @@ component Screen inherits HorizontalBox {
                             //width: right-area.width - 10px;
                             height: 4px;
                             background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
+                            on-move => {
+                                send-applyfilters();
+                            }
                         }
                     }
                 }
@@ -268,6 +346,12 @@ component Screen inherits HorizontalBox {
                             temp.value = 0;
                             tint.value = 0;
                             exposition.value = 0;
+
+                            sv.viewport-x = 0;
+                            sv.viewport-y = 0;
+                            sv.viewport-height = sv.height;
+                            sv.viewport-width = sv.width;
+                            
                             ScreenCallbacks.reset();
                         }
                     }
