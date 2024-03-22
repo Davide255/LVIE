@@ -12,6 +12,7 @@ pub struct Data {
     filters: FilterArray,
     loaded_filters: FilterArray,
     loaded_image: image::RgbaImage,
+    pub zoom: (u32, u32, f32)
 }
 
 impl Data {
@@ -32,7 +33,8 @@ impl Data {
             full_res_preview: img.clone(),
             filters: FilterArray::new(filters_to_load),
             loaded_filters: FilterArray::new(None),
-            loaded_image: img
+            loaded_image: img,
+            zoom: (0,0, 1.0)
         }
     }
 
@@ -57,7 +59,15 @@ impl Data {
     }
 
     pub fn update_image(&mut self) -> image::RgbaImage {
-        let filters = &self.filters - &self.loaded_filters;
+        let mut filters = &self.filters - &self.loaded_filters;
+        filters.update_filter(
+            FilterType::WhiteBalance, 
+            self.loaded_filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+                .chain(
+                    filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+                )
+                .collect()
+            );
         let out = self.rendering.render_data(&self.full_res_preview, &filters).unwrap();
         self.full_res_preview = out.clone();
         self.loaded_filters = &self.loaded_filters + &filters;
@@ -100,12 +110,20 @@ impl PreviewData {
             },
             filters: FilterArray::new(filters_to_load),
             loaded_filters: FilterArray::new(None),
-            zoom: (0.0, 0.0, 0.0)
+            zoom: (0.0, 0.0, 1.0)
         }
     }
 
     pub fn update_image(&mut self) -> image::RgbaImage {
-        let filters = &self.filters - &self.loaded_filters;
+        let mut filters = &self.filters - &self.loaded_filters;
+        filters.update_filter(
+            FilterType::WhiteBalance, 
+            self.loaded_filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+                .chain(
+                    filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+                )
+                .collect()
+            );
         let out = self.rendering.as_mut().unwrap().render_data(&self.preview, &filters).unwrap();
         self.preview = out.clone();
         self.loaded_filters = &self.loaded_filters + &filters;
@@ -187,7 +205,7 @@ impl FilterArray {
         let mut fa = vec![
             filter!(FilterType::Exposition, 0.0),
             filter!(FilterType::Sharpening, 0.0, 0.0),
-            filter!(FilterType::WhiteBalance, 6500.0, 0.0, 6500.0, 0.0),
+            filter!(FilterType::WhiteBalance, 6500.0, 0.0),
             filter!(FilterType::Contrast, 0.0),
             filter!(FilterType::Saturation, 0.0),
             filter!(FilterType::GaussianBlur, 0.0, 0.0),
@@ -244,13 +262,6 @@ impl std::ops::Sub for &FilterArray {
         // Sharpening
         // difference between the amounts
         out.filters[1].parameters[0] -= rhs.filters[1].parameters[0];
-        // White Balance
-        // old temp will be initial temp and old tint will be initial tint
-        out.filters[2].parameters[0] = out.filters[2].parameters[2];
-        out.filters[2].parameters[1] = out.filters[2].parameters[3];
-        out.filters[2].parameters[2] = rhs.filters[2].parameters[0];
-        out.filters[2].parameters[3] = rhs.filters[2].parameters[1];
-        println!("{:?} - {:?} = {:?}", self.filters[2].parameters, rhs.filters[2].parameters, out.filters[2].parameters);
         // Contrast
         // difference in contrast
         out.filters[3].parameters[0] -= rhs.filters[3].parameters[0];
@@ -276,13 +287,9 @@ impl std::ops::Add for &FilterArray {
         // Sharpening
         // difference between the amounts
         out.filters[1].parameters[0] += rhs.filters[1].parameters[0];
-        // White Balance
-        // old temp will be initial temp and old tint will be initial tint
-        out.filters[2].parameters[0] = 6500.0;
-        out.filters[2].parameters[1] = 0.0;
-        out.filters[2].parameters[2] = rhs.filters[2].parameters[2];
-        out.filters[2].parameters[3] = rhs.filters[2].parameters[3];
-        println!("{:?} - {:?} = {:?}", self.filters[2].parameters, rhs.filters[2].parameters, out.filters[2].parameters);
+        // White balance
+        // copy the values from the other
+        out.filters[2].parameters = rhs.filters[2].parameters[2..=3].to_vec();
         // Contrast
         // difference in contrast
         out.filters[3].parameters[0] += rhs.filters[3].parameters[0];
