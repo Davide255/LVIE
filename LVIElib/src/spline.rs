@@ -1,3 +1,8 @@
+pub enum SplineConstrains {
+    FirstDerivatives(f32, f32),
+    SecondDerivatives(f32, f32),
+}
+
 fn solve_tridiagonal_system(up: Vec<f32>, mid: Vec<f32>, down: Vec<f32>, b: Vec<f32>) -> Vec<f32> {
     let n = mid.len();
     let mut out = vec![0.0; n];
@@ -23,15 +28,10 @@ fn solve_tridiagonal_system(up: Vec<f32>, mid: Vec<f32>, down: Vec<f32>, b: Vec<
     out
 }
 
-pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32; 4]> {
+pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>, cstr: SplineConstrains) -> Vec<[f32; 4]> {
     let n = data.len();
     let mut output = Vec::<[f32; 4]>::new();
 
-    //let b: Vec<f32> = (0..n).map(|i| match i {
-    //    0 => 3.0 * (data[1] - data[0]),
-    //    x if x == n - 1 => 3.0 * (data[n - 1] - data[n - 2]),
-    //    _ => 3.0 * (data[i + 1] - data[i - 1]),
-    //}).collect();
     let mut b= vec![0.0; n];
 
     // $$ h1 D0 + 2(h1 + h0)D1 + h0 D2 = 3(-h1/h0 y0 + (h1^2 - h0^2)/h1h0 y1 + h0/h1 y2) $$
@@ -46,6 +46,21 @@ pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32; 4]> {
         b[i] = 3.0*((data[i]-data[i-1])*h1/h0 + (data[i+1]-data[i])*h0/h1);
     }
 
+    match cstr {
+        SplineConstrains::FirstDerivatives(start, end) => (b[0], b[n-1]) = (start, end),
+        SplineConstrains::SecondDerivatives(start, end) => {
+            // 6.0 * (data[i + 1] - data[i])/h - 4.0 * x[i] - 2.0 * x[i + 1] = k*h
+            // 6.0 * (data[i + 1] - data[i])/h -k*h = 4.0 * x[i] + 2.0 * x[i + 1]
+            (mid[0], up[0]) = (4.0, 2.0);
+            b[0] = 6.0 * (data[1]-data[0])/(xs[1]-xs[0]) - start*(xs[1]-xs[0]);
+
+            // (6(yn-1 - yn)/h + 2Dn-1 +4Dn) / h = k
+            // kh + 6(yn - yn-1)/h = 2Dn-1 + 4Dn
+            (down[n-2], mid[n-1]) = (2.0, 4.0);
+            b[n-1] = 6.0 * (data[n-1] - data[n-2])/(xs[n-1] - xs[n-2]) + end*(xs[n-1]-xs(n-2));
+        },
+    }
+
     let x = solve_tridiagonal_system(up, mid, down, b);
 
     for i in 0..n - 1 {
@@ -55,9 +70,6 @@ pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32; 4]> {
             x[i]*h,
             3.0 * (data[i + 1] - data[i]) - 2.0 * x[i]*h - x[i + 1]*h,
             2.0 * (data[i] - data[i + 1]) + x[i]*h + x[i + 1]*h,
-            //2.0*(3.0 * (data[i + 1] - data[i]) - 2.0 * x[i]*h - x[i + 1]*h),
-            //3.0*(2.0 * (data[i] - data[i + 1]) + x[i]*h + x[i + 1]*h),
-            //0.0
         ]);
     }
 

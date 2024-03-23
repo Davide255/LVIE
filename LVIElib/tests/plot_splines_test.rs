@@ -1,7 +1,7 @@
 use plotters::prelude::*;
 use plotters::prelude::full_palette::ORANGE_400;
 use plotters::style::full_palette::{ORANGE_800};
-use LVIElib::spline::{apply_1st_derivative, apply_2nd_derivative, apply_curve, monotone_spline_coefficients, spline_coefficients};
+use LVIElib::spline::{apply_1st_derivative, apply_2nd_derivative, apply_curve, monotone_spline_coefficients, spline_coefficients, SplineConstrains};
 
 #[test]
 fn plot() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,7 +20,7 @@ fn plot() -> Result<(), Box<dyn std::error::Error>> {
 
     chart.configure_mesh().draw()?;
 
-    let coeffs = spline_coefficients(&ys, &xs);
+    let coeffs = spline_coefficients(&ys, &xs, SplineConstrains::FirstDerivatives(8.0, 2.0));
     chart
         .draw_series(LineSeries::new(
             (0..=5000).map(|x| x as f32/50.0).map(|x| (x/100.0, {
@@ -28,20 +28,28 @@ fn plot() -> Result<(), Box<dyn std::error::Error>> {
             })),
             &RED,
         ))?;
+    let coeffs = spline_coefficients(&ys, &xs, SplineConstrains::FirstDerivatives(0.0, 0.0));
     chart
         .draw_series(LineSeries::new(
             (0..=5000).map(|x| x as f32/50.0).map(|x| (x/100.0, {
-                apply_1st_derivative(x, &coeffs, &xs) / 100.0
+                apply_curve(x, &coeffs, &xs) / 100.0
+            })),
+            &ORANGE_800,
+        ))?;
+    /*chart
+        .draw_series(LineSeries::new(
+            (0..=5000).map(|x| x as f32/50.0).map(|x| (x/100.0, {
+                apply_1st_derivative(x, &coeffs, &xs) / 10.0
             })),
             &ORANGE_800,
         ))?;
     chart
         .draw_series(LineSeries::new(
             (0..=5000).map(|x| x as f32/50.0).map(|x| (x/100.0, {
-                apply_2nd_derivative(x, &coeffs, &xs) / 100.0
+                apply_2nd_derivative(x, &coeffs, &xs) / 10.0
             })),
             &ORANGE_400,
-        ))?;
+        ))?;*/
 
     chart
         .draw_series(LineSeries::new(
