@@ -1,7 +1,4 @@
-pub enum SplineConstrains {
-    FirstDerivatives(f32, f32),
-    SecondDerivatives(f32, f32),
-}
+use plotters::prelude::*;
 
 fn solve_tridiagonal_system(up: Vec<f32>, mid: Vec<f32>, down: Vec<f32>, b: Vec<f32>) -> Vec<f32> {
     let n = mid.len();
@@ -28,10 +25,15 @@ fn solve_tridiagonal_system(up: Vec<f32>, mid: Vec<f32>, down: Vec<f32>, b: Vec<
     out
 }
 
-pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>, cstr: SplineConstrains) -> Vec<[f32; 4]> {
+pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32; 4]> {
     let n = data.len();
     let mut output = Vec::<[f32; 4]>::new();
 
+    //let b: Vec<f32> = (0..n).map(|i| match i {
+    //    0 => 3.0 * (data[1] - data[0]),
+    //    x if x == n - 1 => 3.0 * (data[n - 1] - data[n - 2]),
+    //    _ => 3.0 * (data[i + 1] - data[i - 1]),
+    //}).collect();
     let mut b= vec![0.0; n];
 
     // $$ h1 D0 + 2(h1 + h0)D1 + h0 D2 = 3(-h1/h0 y0 + (h1^2 - h0^2)/h1h0 y1 + h0/h1 y2) $$
@@ -46,21 +48,6 @@ pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>, cstr: SplineConstrain
         b[i] = 3.0*((data[i]-data[i-1])*h1/h0 + (data[i+1]-data[i])*h0/h1);
     }
 
-    match cstr {
-        SplineConstrains::FirstDerivatives(start, end) => (b[0], b[n-1]) = (start, end),
-        SplineConstrains::SecondDerivatives(start, end) => {
-            // 6.0 * (data[i + 1] - data[i])/h - 4.0 * x[i] - 2.0 * x[i + 1] = k*h
-            // 6.0 * (data[i + 1] - data[i])/h -k*h = 4.0 * x[i] + 2.0 * x[i + 1]
-            (mid[0], up[0]) = (4.0, 2.0);
-            b[0] = 6.0 * (data[1]-data[0])/(xs[1]-xs[0]) - start*(xs[1]-xs[0]);
-
-            // (6(yn-1 - yn)/h + 2Dn-1 +4Dn) / h = k
-            // kh + 6(yn - yn-1)/h = 2Dn-1 + 4Dn
-            (down[n-2], mid[n-1]) = (2.0, 4.0);
-            b[n-1] = 6.0 * (data[n-1] - data[n-2])/(xs[n-1] - xs[n-2]) + end*(xs[n-1]-xs(n-2));
-        },
-    }
-
     let x = solve_tridiagonal_system(up, mid, down, b);
 
     for i in 0..n - 1 {
@@ -70,6 +57,9 @@ pub fn spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>, cstr: SplineConstrain
             x[i]*h,
             3.0 * (data[i + 1] - data[i]) - 2.0 * x[i]*h - x[i + 1]*h,
             2.0 * (data[i] - data[i + 1]) + x[i]*h + x[i + 1]*h,
+            //2.0*(3.0 * (data[i + 1] - data[i]) - 2.0 * x[i]*h - x[i + 1]*h),
+            //3.0*(2.0 * (data[i] - data[i + 1]) + x[i]*h + x[i + 1]*h),
+            //0.0
         ]);
     }
 
@@ -104,8 +94,8 @@ pub fn monotone_spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32;
     }
 
 
-    let mut a: Vec<f32> = (0..secants.len()).map(|i| m[i]/secants[i]).collect();
-    let mut b: Vec<f32> = (0..secants.len()).map(|i| m[i+1]/secants[i]).collect();
+    let a: Vec<f32> = (0..secants.len()).map(|i| m[i]/secants[i]).collect();
+    let b: Vec<f32> = (0..secants.len()).map(|i| m[i+1]/secants[i]).collect();
 
     for i in 0..n-1 {
         if a[i]*a[i] + b[i]*b[i] > 9.0 {
@@ -129,6 +119,7 @@ pub fn monotone_spline_coefficients(data: &Vec<f32>, xs: &Vec<f32>) -> Vec<[f32;
 }
 
 // assumes the x values are in ascending order
+#[allow(unused_parens)]
 pub fn apply_curve(val: f32, spline: &Vec<[f32; 4]>, x: &Vec<f32>) -> f32 {
     for i in 0..x.len() - 1 {
         if x[i] <= val && val < x[i + 1] {
@@ -187,10 +178,55 @@ pub fn bezier_points(spline: &Vec<[f32; 4]>, x: &Vec<f32>) -> Vec<[(f32, f32); 4
     out
 }
 
+pub fn create_plot_view<S: plotters::style::SizeDesc + num_traits::NumCast>(
+    buf: &mut [u8], 
+    size: (u32, u32), 
+    xs: &Vec<f32>, ys: &Vec<f32>,
+    margins: Option<(S, S, S, S)>,
+    coefficients: Option<&Vec<[f32; 4]>>
+) -> Result<(), Box<dyn std::error::Error>> {
+
+    let root = BitMapBackend::with_buffer(buf, size).into_drawing_area();
+    root.fill(&WHITE)?;
+    
+    let mut builder = ChartBuilder::on(&root);
+    if margins.is_some(){
+        let m = margins.unwrap();
+        builder
+            .margin_top(m.0)
+            .margin_right(m.1)
+            .margin_bottom(m.2)
+            .margin_left(m.3);
+    };
+
+    let mut chart = builder.build_cartesian_2d(0f32..*xs.last().unwrap() / 100.0, 0f32..*ys.last().unwrap() / 100.0)?;
+
+    chart.configure_mesh().draw()?;
+
+    let sc = spline_coefficients(ys, xs);
+
+    chart
+        .draw_series(LineSeries::new(
+            (0..=5000).map(|x| x as f32/50.0).map(|x| (x / 100.0, {
+                apply_curve(x, {
+                    if coefficients.is_none() {
+                        &sc
+                    } else {
+                        coefficients.unwrap()
+                    }
+                }, &xs) / 100.0
+            })),
+            &RED,
+        ))?;
+
+    //chart.draw_series((0..xs.len()).map(|i| Circle::new((xs[i] / 100.0, ys[i] / 100.0), 5, &RED)))?;
+
+    return Ok(());
+}
+
 #[cfg(test)]
 mod tests {
     use nalgebra::{DMatrix, DVector};
-    use num_traits::Float;
     use crate::spline::solve_tridiagonal_system;
 
     #[test]
@@ -250,7 +286,7 @@ mod tests {
             0.005, 23.555, 34.04, 49.24, 294.94,
             24.68, 0.5959, 34.68, 04.85,
         ];
-        let mut mid = vec![
+        let mid = vec![
             4.0, 178.4, 2.2, 5.5233, 55.76,
             3.534, 123.321, 123.42, 72.0, 29.58,
             07.38, 348.85, 0.004, 12.45, 49.34

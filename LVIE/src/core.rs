@@ -12,6 +12,7 @@ pub struct Data {
     filters: FilterArray,
     loaded_filters: FilterArray,
     loaded_image: image::RgbaImage,
+    pub curve: Curve,
     pub zoom: (u32, u32, f32)
 }
 
@@ -34,7 +35,8 @@ impl Data {
             filters: FilterArray::new(filters_to_load),
             loaded_filters: FilterArray::new(None),
             loaded_image: img,
-            zoom: (0,0, 1.0)
+            zoom: (0,0, 1.0),
+            curve: Curve::new(CurveType::MONOTONE)
         }
     }
 
@@ -83,6 +85,7 @@ impl Data {
         self.filters = FilterArray::new(None);
         self.loaded_filters = FilterArray::new(None)
     }
+
 }
 
 pub struct PreviewData {
@@ -160,6 +163,81 @@ pub enum RenderingBackends{
 pub struct Filter {
     pub filtertype: FilterType,
     pub parameters: Vec<f32>
+}
+
+#[derive(Debug, PartialEq)]
+pub enum CurveType {
+    MONOTONE,
+    SMOOTH
+}
+
+#[derive(Debug)]
+pub struct Curve {
+    xs: Vec<f32>,
+    ys: Vec<f32>,
+    coefficients: Vec<[f32; 4]>,
+    curve_type: CurveType
+}
+
+impl Curve {
+
+    pub fn new(curve_type: CurveType) -> Curve {
+        let mut c = Curve {
+            xs: vec![0.0, 100.0],
+            ys: vec![0.0, 100.0],
+            coefficients: vec![],
+            curve_type
+        };
+        c.build_curve();
+        return c;
+    }
+
+    pub fn to_image(&self, size: (u32, u32)) -> slint::Image {
+        let mut buff = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
+
+        LVIElib::spline::create_plot_view(
+            buff.make_mut_bytes(), 
+            size, &self.xs, &self.ys,
+            Some((0, 0, 0, 0)), Some(&self.coefficients))
+                .expect("Failed to create the plot");
+
+        slint::Image::from_rgb8(buff)
+    }
+
+    pub fn from_points(xs: Vec<f32>, ys: Vec<f32>, curve_type: CurveType) -> Curve {
+        let mut c = Curve {
+            xs,
+            ys,
+            coefficients: vec![],
+            curve_type
+        };
+        c.build_curve();
+        return c;
+    }
+
+    pub fn update_curve(&mut self, xs: Vec<f32>, ys: Vec<f32>) {
+        self.xs = xs;
+        self.ys = ys;
+        self.build_curve();
+    }
+
+    fn build_curve(&mut self) {
+        self.coefficients = {
+            if self.curve_type == CurveType::SMOOTH {
+                LVIElib::spline::spline_coefficients(&self.ys, &self.xs)
+            } else {
+                LVIElib::spline::monotone_spline_coefficients(&self.ys, &self.xs)
+            }
+        };
+    }
+
+    pub fn into_rc_model(&self) -> slint::ModelRc<slint::ModelRc<f32>> {
+        let mut c: Vec<slint::ModelRc<f32>> = vec![];
+        for i in 0..self.xs.len() {
+            c.push(std::rc::Rc::new(slint::VecModel::from(vec![self.xs[i], self.ys[i]])).into())
+        };
+        std::rc::Rc::new(slint::VecModel::from(c)).into()
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

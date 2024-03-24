@@ -5,7 +5,7 @@ use i_slint_backend_winit::WinitWindowAccessor;
 use image::{ImageBuffer, Pixel, Primitive};
 use crate::raw_decoder::{decode, supported_formats};
 use img_processing::{collect_histogram_data, Max};
-use slint::{Image, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
+use slint::{Image, Model, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
 use num_traits::NumCast;
 
 use std::sync::{Arc, Mutex};
@@ -91,6 +91,10 @@ fn main() {
     let DATA = Arc::new(Mutex::new(Data::new(CORE, None, None)));
 
     let preview = Arc::new(Mutex::new(PreviewData::new(None, None, None)));
+
+    let curves = &DATA.lock().unwrap().curve;
+    Window.set_curve(curves.to_image((300, 300)));
+    Window.set_curve_points(curves.into_rc_model());
 
     // CALLBACKS:
     // open image:
@@ -207,218 +211,37 @@ fn main() {
         }).expect("Failed to call event loop");
     });
 
-    let Window_weak = Window.as_weak();
-    Window.global::<ScreenCallbacks>().on_preview_click(move|width: f32, height: f32, x: f32, y: f32| {
-
-        Window_weak.upgrade_in_event_loop(move |Window| {
-            let mut vh: f32 = Window.get_vh();
-            let mut vw: f32 = Window.get_vw();
-            let mut vx: f32 = Window.get_vx();
-            let mut vy: f32 = Window.get_vy();
-
-            let nx = x + x * (5.0 / 100.0);
-            let ny = y + y * (5.0 / 100.0);
-
-            vx += {
-                let v = (width / 2.0) - nx;
-                if v >= 0f32 {
-                    0f32
-                } else if v < width-vw {
-                    width-vw
-                } else {
-                    v
-                }
-            };
-            vy += {
-                let v = (height / 2.0) - ny;
-                if v >= 0f32 {
-                    0f32
-                } else if v < height-vh {
-                    height-vh
-                } else {
-                    v
-                }
-            };
-
-            vw += width * 5.0 / 100.0;
-            vh += height * 5.0 / 100.0;
-
-            Window.set_vh(vh);
-            Window.set_vw(vw);
-            Window.set_vx(vx);
-            Window.set_vy(vy);
-        }).expect("Failed to call the main thread");
-
-        return;
-    });
-
-    // handle the zoom old
-    /*let data_weak = DATA.clone();
-    let Window_weak = Window.as_weak();
-    Window.global::<ScreenCallbacks>().on_preview_click(move|width: f32, height: f32, x: f32, y: f32| {
-
-        // check the aviability of the full resolution image
-        // if not, utilize temporary the low resolution one
-        let mut data = data_weak.lock().unwrap();
-
-        let img = &data.full_res_preview;
-
-        // check if there is an image loaded
-        if img.dimensions() == (0, 0) { return; }
-        
-        let mut zoom = data.zoom;
-        let (img_w, img_h) = img.dimensions();
-
-        // zoomed_rectangle_width / image_width  
-        let mut prop: f32 = zoom.2;
-
-        // retrive the current zoomed rectange sizes
-        let real_w = (img_w as f32 * prop) as u32;
-        let real_h = (img_h as f32 * prop) as u32;
-
-        // compute the new zoom rectangle sizes
-        prop = prop - (0.1 * (prop / 2f32));
-        let new_width = (real_w as f32 * prop) as u32;
-        let new_height = (real_h * new_width) / real_w;
-        zoom.2 = prop;
-
-        let mut pos:(u32, u32) = (0u32, 0u32);
-
-        // get the x and y coordinates of the click into the real image 
-        let coefficient = real_w / (width.round() as u32);
-        let adjustement: u32 = (height.round() as u32 - (real_h * width.round() as u32) / real_w) / 2;
-
-        let x = (x.round() as u32) * coefficient;
-        let y = ({
-            if adjustement <= (y.round() as u32) { y.round() as u32 - adjustement } else { 0u32 }
-        }) * coefficient;
-        
-        // centering the rectangle x
-        if x < (new_width / 2) {
-            pos.0 = zoom.0;
-        } else if x > real_w - (new_width / 2) {
-            pos.0 = zoom.0 + real_w - new_width;
-        } else {
-            pos.0 = zoom.0 + x - (new_width / 2);
-        }
-
-        // centering the rectangle y
-        if y < (new_height / 2) {
-            pos.1 = zoom.1;
-        } else if y > real_h - (new_height / 2) {
-            pos.1 = zoom.1 + real_h - new_height;
-        } else {
-            pos.1 = zoom.1 + y - (new_height / 2);
-        }
-
-        // crop and display the image
-        let preview = crop(&img, pos.0, pos.1, new_width, new_height);
-
-        // update the position
-        zoom.0 = pos.0;
-        zoom.1 = pos.1;
-    
-        let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-            &preview,
-            preview.width(),
-            preview.height(),
-        );
-
-        Window_weak.upgrade_in_event_loop(|Window: LVIE| Window.set_image(Image::from_rgba8(pix_buf))).expect("Failed to call event loop");
-
-        data.zoom = zoom;
-    });*/
-
-    // apply filters with low resolution preview
-    //let data_weak = DATA.clone();
-    //let prev_weak = preview.clone();
-    //let Window_weak = Window.as_weak();
-    //Window.global::<ScreenCallbacks>().on_apply_filters(
-    //    move |exposition:f32, box_blur: f32, gaussian_blur: f32, sharpening: f32, temp: f32, tint: f32, saturation: f32| {
-    //        //low res preview
-    //        let data = data_weak.lock().expect("Failed to lock");
-    //        let mut prevdata = prev_weak.lock().expect("Failed to lock");
-//
-    //        let rw = data.image_dimensions().0 as f32;
-    //        let lrw = prevdata.preview.dimensions().0 as f32;
-//
-    //        prevdata.update_filter(FilterType::Exposition, vec![exposition]);
-    //        prevdata.update_filter(FilterType::Saturation, vec![saturation]);
-    //        prevdata.update_filter(FilterType::Sharpening, vec![sharpening * (lrw / rw), 5.0]);
-    //        prevdata.update_filter(FilterType::Boxblur, vec![box_blur * (lrw / rw), 5.0]);
-    //        prevdata.update_filter(FilterType::GaussianBlur, vec![gaussian_blur * (lrw / rw), 5f32]);
-    //        prevdata.update_filter(FilterType::WhiteBalance, vec![2000f32*temp + 6500f32, tint]);
-//
-    //        let start = std::time::Instant::now();
-    //        let processed = prevdata.update_image();
-    //        println!("Filters applyed in {} ms (low res)", start.elapsed().as_millis());
-//
-    //        Window_weak
-    //            .upgrade_in_event_loop(move |Window: LVIE| {
-    //                let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-    //                    &processed,
-    //                    processed.width(),
-    //                    processed.height(),
-    //                );
-    //                Window.set_image(Image::from_rgba8(pix_buf));
-//
-    //                /* no longer needed                     
-    //                Window.set_AlertBoxType(AlertType::Warning);
-    //                Window.set_AlertText("Low Res preview".into());*/
-    //                
-    //                let ww = Window.as_weak();
-    //                thread::spawn(move || {
-    //                    let path = _create_svg_path(&processed);
-    //                    ww.upgrade_in_event_loop(move |window| {
-    //                        window.set_svg_path(path.into());
-    //                    })
-    //                    .expect("Failed to run in event loop");
-    //                });
-    //            })
-    //            .expect("Failed to call event loop");
-//
-    //        drop(data);
-    //        drop(prevdata);
-    //        
-    //        // start computing the full resolution image
-    //        let _w_w = Window_weak.clone();
-    //        let _p_w = data_weak.clone();
-    //        thread::spawn(move || {
-    //            // full res
-    //            let mut data = _p_w.lock().unwrap();
-//
-    //            data.update_filter(FilterType::Exposition, vec![exposition]);
-    //            data.update_filter(FilterType::Saturation, vec![saturation]);
-    //            data.update_filter(FilterType::Sharpening, vec![sharpening, 5.0]);
-    //            data.update_filter(FilterType::Boxblur, vec![box_blur, 5.0]);
-    //            data.update_filter(FilterType::GaussianBlur, vec![gaussian_blur, 5.0]);
-    //            data.update_filter(FilterType::WhiteBalance, vec![2000f32*temp + 6000f32, tint]);
-    //            
-    //            let start = std::time::Instant::now();
-    //            let processed = data.update_image();
-    //            println!("Filters applyed in {} ms", start.elapsed().as_millis());
-//
-    //            /* there's no needing to load the full resolution image into the UI because the result
-    //               seen by the user is the same as the low resolution preview!! */
-//
-    //            _w_w.upgrade_in_event_loop(move |Window: LVIE| {
-    //                let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-    //                    &processed,
-    //                    processed.width(),
-    //                    processed.height(),
-    //                );
-    //                Window.set_image(Image::from_rgba8(pix_buf));
-    //                //Window.set_AlertBoxType(AlertType::Null);
-    //                let path = _create_svg_path(&processed);
-    //                Window.set_svg_path(path.into());
-    //            })
-    //            .expect("Failed to call event loop");
-    //        });
-    //    },
-    //);
-
     Window.global::<ScreenCallbacks>().on_print(|value: f32| {
         println!("{}", value);
+    });
+
+    let ww = Window.as_weak();
+    let dw = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_update_curve(move |points: slint::ModelRc<slint::ModelRc<f32>>| {
+        let mut xs: Vec<f32> = Vec::new();
+        let mut ys: Vec<f32> = Vec::new();
+
+        for point in points.iter() {
+            let p: Vec<f32> = point.iter().collect();
+            xs.push(p[0]);
+            ys.push(p[1]);
+        }
+
+        let mut data = dw.lock().unwrap();
+        data.curve.update_curve(xs, ys);
+
+        let W = ww.unwrap();
+
+        W.set_curve(data.curve.to_image((300, 300)));
+        W.set_curve_points(data.curve.into_rc_model());
+
+        //let data_w = dw.clone();
+        //ww.upgrade_in_event_loop(move |Window: LVIE| {
+        //    let data = data_w.
+        //    //Window.set_curve(data.curve.to_image((300,300)));
+        //    Window.set_curve_points(data.curve.into_rc_model());
+        //});
+
     });
 
     // apply filters

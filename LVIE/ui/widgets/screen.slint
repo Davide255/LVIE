@@ -6,7 +6,7 @@ global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
     callback apply-filters(float, float, float, float, float, float, float);
-    callback generate-histogram();
+    callback update-curve([[float]]);
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
@@ -19,6 +19,10 @@ component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
     in-out property <length> image-space-size-width <=> img.width;
     in-out property <[string]> histogram: ["","",""];
+    in-out property <image> curve <=> plot.source;
+
+    in-out property <[[float]]> curve_points;
+
     property <[color]> h_color: [Colors.red, Colors.green, Colors.blue];
     spacing: 10px;
 
@@ -30,24 +34,24 @@ component Screen inherits HorizontalBox {
     }
 
     function zoom-in(x: length, y: length) {
-        
-        if (sv.width / 2.0) - x + x * (5.0 / 100.0) >= 0 {
+                
+        if (sv.width / 2.0) - (x + x * (5.0 / 100.0)) <= 0 {
             sv.viewport-x = 0;
         }
-        else if (sv.width / 2.0) - x + x * (5.0 / 100.0) < sv.width - sv.viewport-width {
+        else if (sv.width / 2.0) - (x + x * (5.0 / 100.0)) > sv.width - sv.viewport-width {
             sv.viewport-x = sv.width - sv.viewport-width;
         } else {
-            sv.viewport-x = (sv.width / 2.0) - x + x * (5.0 / 100.0);
+            sv.viewport-x = (sv.width / 2.0) - (x + x * (5.0 / 100.0));
         }
 
-        if (sv.height / 2.0) - y + y * (5.0 / 100.0) >= 0 {
+        if (sv.height / 2.0) - (y + y * (5.0 / 100.0)) <= 0 {
             sv.viewport-y = 0;
         }
-        else if (sv.height / 2.0) - y + y * (5.0 / 100.0) < sv.height - sv.viewport-height {
+        else if (sv.height / 2.0) - (y + y * (5.0 / 100.0)) > sv.height - sv.viewport-height {
             sv.viewport-x = sv.height - sv.viewport-height;
         }
         else {
-            sv.viewport-y = (sv.height / 2.0) - y + y * (5.0 / 100.0);
+            sv.viewport-y = (sv.height / 2.0) - (y + y * (5.0 / 100.0));
         }
 
         sv.viewport-width += sv.width * 5 / 100;
@@ -55,8 +59,10 @@ component Screen inherits HorizontalBox {
     }
 
     function zoom-out() {
-        sv.viewport-width -= sv.width == sv.viewport-width ? 0 : sv.width * 5 / 100; 
-        sv.viewport-height -= sv.height == sv.viewport-height ? 0 : sv.height * 5 / 100;
+        sv.viewport-width = sv.width >= sv.viewport-width ? sv.width : sv.viewport-width - sv.width * 5 / 100;
+        sv.viewport-x = Math.clamp(sv.viewport-x + sv.width * 5 / 100, 0, sv.width - sv.viewport-width);
+        sv.viewport-height = sv.height >= sv.viewport-height ? sv.height : sv.viewport-height - sv.height * 5 / 100;
+        sv.viewport-y = Math.clamp(sv.viewport-y + sv.height * 5 / 100, 0, sv.height - sv.viewport-height);
     }
 
     left_area := Rectangle {
@@ -118,6 +124,64 @@ component Screen inherits HorizontalBox {
                         fill: self.stroke;
                     }
                 }
+                Rectangle {
+                    width: parent.width - 30px;
+                    height: (root.height - 30px) / 3;
+                    //x: 5px;
+                    //y: 30px;
+                    background: transparent;
+                    border-radius: 7px;
+                    border-width: 2px;
+                    border-color: black;
+                    plot := Image {
+                        image-fit: fill;
+                        width: parent.width -5px;
+                        height: parent.height - 5px;
+                        property <length> ox;
+                        property <length> oy;
+                        property <int> cid;
+
+                        for pos[index] in curve_points: Rectangle {
+                            property <int> id: index;
+                            x: parent.width * pos[0] / 100 - self.width / 2;
+                            y: parent.height * (100 - pos[1]) / 100 - self.height / 2;
+                            height: 10px;
+                            width: 10px;
+                            border-radius: 5px;
+                            border-color: black;
+                            border-width: 2px;
+                            TouchArea {
+                                pointer-event(e) => {
+                                    if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                        debug("pressed", parent.id);
+                                        plot.ox = parent.x;
+                                        plot.oy = parent.y;
+                                        plot.cid = parent.id;
+                                    } else if (e.kind == PointerEventKind.move && plot.cid >= 0) {
+                                        plt-touch.moved();
+                                    } else if (e.kind == PointerEventKind.up) {
+                                        debug("released", parent.id);
+                                        plot.cid = -1;
+                                    }
+                                }
+                            }
+                        }
+
+                        plt_touch := TouchArea {
+                            moved => {
+                                if (plot.cid >= 0) {
+                                    debug(self.mouse-x, self.mouse-y);
+                                    curve_points[plot.cid][0] = Math.clamp(
+                                        ((parent.ox + self.mouse-x) - self.width / 2) * 100 / self.width, 0, 100
+                                    );
+                                    curve_points[plot.cid][1] = Math.clamp(
+                                        100 - (((parent.oy + self.mouse-y) - self.height / 2) * 100 / self.height), 0, 100
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
                 GridBox {
                     Row {
                         VerticalBox {
@@ -133,9 +197,6 @@ component Screen inherits HorizontalBox {
                                 background: @linear-gradient(90deg, #0011ff 0%, #ffffff 50%, #f9ff56 100%);
                                 on-move => {
                                     send-applyfilters();
-                                }
-                                on-click => {
-                                    ScreenCallbacks.generate-histogram();
                                 }
                             }
                         }
@@ -155,9 +216,6 @@ component Screen inherits HorizontalBox {
                                 on-move => {
                                     send-applyfilters();
                                 }
-                                on-click => {
-                                    ScreenCallbacks.generate-histogram();
-                                }
                             }
                         }
                     }
@@ -166,11 +224,6 @@ component Screen inherits HorizontalBox {
             //viewport-height: (self.width - 10px) * 3;
         }
     }
-
-    in-out property <length> vh <=> sv.viewport-height;
-    in-out property <length> vw <=> sv.viewport-width;
-    in-out property <length> vx <=> sv.viewport-x;
-    in-out property <length> vy <=> sv.viewport-y;
 
     Rectangle {
         sv := ScrollView {
@@ -210,8 +263,8 @@ component Screen inherits HorizontalBox {
 
             moved => {
                 if (self.enabled && self.pressed) {
-                    sv.viewport-x = Math.clamp(self.ovx + t.mouse-x - t.pressed-x, self.width - sv.viewport-width, 0);
-                    sv.viewport-y = Math.clamp(self.ovx + t.mouse-y - t.pressed-y, self.height - sv.viewport-height, 0);
+                    sv.viewport-x = Math.clamp(self.ovx + self.mouse-x - self.pressed-x, self.width - sv.viewport-width, 0);
+                    sv.viewport-y = Math.clamp(self.ovy + self.mouse-y - self.pressed-y, self.height - sv.viewport-height, 0);
                 }
             }
         }
