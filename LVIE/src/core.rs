@@ -224,7 +224,8 @@ impl Curve {
     fn build_curve(&mut self) {
         self.coefficients = {
             if self.curve_type == CurveType::SMOOTH {
-                LVIElib::spline::spline_coefficients(&self.ys, &self.xs)
+                LVIElib::spline::spline_coefficients(&self.ys, &self.xs, 
+                    LVIElib::spline::SplineConstrains::FirstDerivatives(0.0, 0.0))
             } else {
                 LVIElib::spline::monotone_spline_coefficients(&self.ys, &self.xs)
             }
