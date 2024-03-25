@@ -88,13 +88,15 @@ fn main() {
 
     let Window: LVIE = LVIE::new().unwrap();
 
-    let DATA = Arc::new(Mutex::new(Data::new(CORE, None, None)));
-
-    let preview = Arc::new(Mutex::new(PreviewData::new(None, None, None)));
-
-    let curves = &DATA.lock().unwrap().curve;
+    let d = Data::new(CORE, None, None);
+    
+    let curves = &d.curve;
     Window.set_curve(curves.to_image((300, 300)));
     Window.set_curve_points(curves.into_rc_model());
+
+    let DATA = Arc::new(Mutex::new(d));
+
+    let preview = Arc::new(Mutex::new(PreviewData::new(None, None, None)));
 
     // CALLBACKS:
     // open image:
@@ -242,6 +244,27 @@ fn main() {
         //    Window.set_curve_points(data.curve.into_rc_model());
         //});
 
+    });
+
+    let d_w = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_there_is_a_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {
+        let mut p_number = -1;
+
+        let data = d_w.try_lock().unwrap();
+
+        let cps = data.curve.get_points();
+
+        for (i, coords) in cps.iter().enumerate() {
+            let xr = width * coords[0] / 100.0 - size / 2.0;
+            let yr = height * coords[1] / 100.0 - size / 2.0;
+
+            if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
+                p_number = i as i32;
+                break;
+            }
+        }
+
+        return p_number;
     });
 
     // apply filters

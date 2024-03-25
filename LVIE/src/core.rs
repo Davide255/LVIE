@@ -36,7 +36,7 @@ impl Data {
             loaded_filters: FilterArray::new(None),
             loaded_image: img,
             zoom: (0,0, 1.0),
-            curve: Curve::new(CurveType::MONOTONE)
+            curve: Curve::new(CurveType::SMOOTH)
         }
     }
 
@@ -183,8 +183,8 @@ impl Curve {
 
     pub fn new(curve_type: CurveType) -> Curve {
         let mut c = Curve {
-            xs: vec![0.0, 100.0],
-            ys: vec![0.0, 100.0],
+            xs: vec![0.0, 50.0, 100.0],
+            ys: vec![0.0, 50.0, 100.0],
             coefficients: vec![],
             curve_type
         };
@@ -238,6 +238,14 @@ impl Curve {
             c.push(std::rc::Rc::new(slint::VecModel::from(vec![self.xs[i], self.ys[i]])).into())
         };
         std::rc::Rc::new(slint::VecModel::from(c)).into()
+    }
+
+    pub fn get_points(&self) -> Vec<[f32; 2]> {
+        let mut c: Vec<[f32; 2]> = vec![];
+        for i in 0..self.xs.len() {
+            c.push([self.xs[i], self.ys[i]]);
+        };
+        c
     }
 }
 

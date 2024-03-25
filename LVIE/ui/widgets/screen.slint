@@ -1,12 +1,14 @@
 import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox , GridBox} from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
 import { CustomSlider } from "slider/slider.slint";
+//import { Curve } from "curve/curve.slint";
 
 global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
     callback apply-filters(float, float, float, float, float, float, float);
     callback update-curve([[float]]);
+    callback there-is-a-point(length, length, length, length, length) -> int;
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
@@ -19,8 +21,8 @@ component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
     in-out property <length> image-space-size-width <=> img.width;
     in-out property <[string]> histogram: ["","",""];
-    in-out property <image> curve <=> plot.source;
 
+    in-out property <image> curve <=> plot.source;
     in-out property <[[float]]> curve_points;
 
     property <[color]> h_color: [Colors.red, Colors.green, Colors.blue];
@@ -124,11 +126,7 @@ component Screen inherits HorizontalBox {
                         fill: self.stroke;
                     }
                 }
-                Rectangle {
-                    width: parent.width - 30px;
-                    height: (root.height - 30px) / 3;
-                    //x: 5px;
-                    //y: 30px;
+                Rectangle {                
                     background: transparent;
                     border-radius: 7px;
                     border-width: 2px;
@@ -137,12 +135,10 @@ component Screen inherits HorizontalBox {
                         image-fit: fill;
                         width: parent.width -5px;
                         height: parent.height - 5px;
-                        property <length> ox;
-                        property <length> oy;
-                        property <int> cid;
-
+                
                         for pos[index] in curve_points: Rectangle {
                             property <int> id: index;
+                            
                             x: parent.width * pos[0] / 100 - self.width / 2;
                             y: parent.height * (100 - pos[1]) / 100 - self.height / 2;
                             height: 10px;
@@ -150,33 +146,37 @@ component Screen inherits HorizontalBox {
                             border-radius: 5px;
                             border-color: black;
                             border-width: 2px;
-                            TouchArea {
-                                pointer-event(e) => {
-                                    if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
-                                        debug("pressed", parent.id);
-                                        plot.ox = parent.x;
-                                        plot.oy = parent.y;
-                                        plot.cid = parent.id;
-                                    } else if (e.kind == PointerEventKind.move && plot.cid >= 0) {
-                                        plt-touch.moved();
-                                    } else if (e.kind == PointerEventKind.up) {
-                                        debug("released", parent.id);
-                                        plot.cid = -1;
-                                    }
+                        }
+                
+                        plot_touch := TouchArea {
+                            property <int> cid: -1;
+                            property <float> ox;
+                            property <float> oy;
+                
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                    self.cid = ScreenCallbacks.there-is-a-point(
+                                        self.mouse-x, self.mouse-y, self.width, self.height, 10px
+                                        );
+                                    self.ox = curve_points[self.cid][0];
+                                    self.oy = curve_points[self.cid][1];
+                                } else if (e.kind == PointerEventKind.up) {
+                                    self.cid = -1;
                                 }
                             }
-                        }
-
-                        plt_touch := TouchArea {
+                
                             moved => {
-                                if (plot.cid >= 0) {
-                                    debug(self.mouse-x, self.mouse-y);
-                                    curve_points[plot.cid][0] = Math.clamp(
-                                        ((parent.ox + self.mouse-x) - self.width / 2) * 100 / self.width, 0, 100
+                                if (self.cid >= 0 && self.pressed) {
+                                    curve_points[self.cid][0] = Math.clamp(
+                                        (self.mouse-x) * 100 / parent.width, 0, 100
                                     );
-                                    curve_points[plot.cid][1] = Math.clamp(
-                                        100 - (((parent.oy + self.mouse-y) - self.height / 2) * 100 / self.height), 0, 100
+                                    curve_points[self.cid][1] = Math.clamp(
+                                        100 - (self.mouse-y * 100 / parent.height), 0, 100
                                     );
+
+                                    if (abs(curve_points[self.cid][0] + curve_points[self.cid][1] - self.ox - self.oy) >= 0.01){
+                                        ScreenCallbacks.update-curve(curve_points);
+                                    }
                                 }
                             }
                         }
@@ -361,24 +361,6 @@ component Screen inherits HorizontalBox {
                         }
                     }
                 }
-                Row {
-                    Path {
-                        height: 100px;
-                    stroke: white;
-                    stroke-width: 2px;
-                    MoveTo {
-                        x: 20;
-                        y: (100 - 20);
-                    }
-                    CubicTo {
-                        x: 50;
-                        y: 50;
-                        control-1-x: 30;
-                        control-1-y: 100-29;
-                        control-2-x: 40;
-                        control-2-y: 100-42;
-                    }
-                }}
                 Row {
                     Button {
                         text: "apply filters";
