@@ -5,9 +5,9 @@ A light-weight open source photo editor written in Rust
 We are currently developing a photo editor thanks to the power of rust language and the slint ui framework!
 
 ## Features
-This is only an embrional phase of this project so it hasn't even the GUI, but this list is a list of features that will surely be implemented in this editor!
+(marked checkboxes are completed and working, maybe they still aren't abviable with the graphical interface)
 
-## Color Spaces
+### Color Spaces
 This editor can work with the following color spaces:
 - [X] *RGB* with 8 and 16 bit support
 - [X] *HSL* used for the saturation adjustements
@@ -22,8 +22,7 @@ This editor can adjust:
 - [X] *Saturation* thanks to the HSL color space conversion
 - [X] *Contrast* (in grayscale images at the moment) expanding the color histogram's range
 - [ ] *Lights & Shadows*
-- [X] *White balance* (calculates White Points in uv chromacity coordinates from the correlated colour temperature, moves on the isothermal line according to tint difference and applies chromatic adaptation using the Bradford Transform)
-- [ ] *Tint*
+- [X] *White balance (tint and temp)* (calculates White Points in uv chromacity coordinates from the correlated colour temperature, moves on the isothermal line according to tint difference and applies chromatic adaptation using the Bradford Transform)
 - [X] *General Hue* with the HSL color space
 
 
@@ -35,7 +34,7 @@ Later in the developement will be added filters, first with useful basic filters
 - [X] *Sharpening* via Laplacian over Gaussian convolution filter
 - [ ] *Local contrast*
 - [ ] *Wavelets denoise* (it would be cool to adjust different channels independently too)
-- [ ] *Curves* for exposition, hue, color grading ecc
+- [X] *Curves* for exposition, hue, color grading ecc
 - [ ] *Graduated filters* of various shapes
 
 ### GPU Support
@@ -48,8 +47,9 @@ At the moment, we are writing simple shaders using [wgsl](https://www.w3.org/TR/
 Implemented shaders are:
 - [X] *B&W Shader* to convert images to grayscale using the luminance method
 - [X] *Saturation Shader* with the conversion in Hsl color space
+- [X] *White Balance Shader* to quickly compute the white balance
+- [X] *Sharpening Shader* to compute the sharpening via laplacian of gaussian
 - [ ] *Gaussian Blur Shader* to compute the gaussian blur
-- [ ] *Sharpening Shader* to compute the sharpening via laplacian of gaussian
 
 To run the GPU aceleration tests use
 
