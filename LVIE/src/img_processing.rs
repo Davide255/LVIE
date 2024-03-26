@@ -334,3 +334,20 @@ pub fn whitebalance_rgba(img: &RgbaImage, fromtemp: f32, fromtint: f32, totemp: 
     return out.lock().unwrap().clone();
 
 }
+
+pub fn apply_curve(img: &RgbaImage, curve: crate::core::Curve) -> RgbaImage {
+    let mut nb = RgbaImage::new(img.width(), img.height());
+
+    for (x, y, pixel) in img.enumerate_pixels() {
+        let cmp = pixel.channels();
+        let np: Rgba<u8> = Rgba([
+            (curve.apply_curve(cmp[0] as f32 / 255.0) * 255.0) as u8, 
+            (curve.apply_curve(cmp[1] as f32 / 255.0) * 255.0) as u8, 
+            (curve.apply_curve(cmp[2] as f32 / 255.0) * 255.0) as u8, 
+            cmp[3]]
+        );
+        nb.put_pixel(x, y, np);
+    }
+
+    nb
+}

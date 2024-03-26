@@ -36,7 +36,7 @@ impl Data {
             loaded_filters: FilterArray::new(None),
             loaded_image: img,
             zoom: (0,0, 1.0),
-            curve: Curve::new(CurveType::SMOOTH)
+            curve: Curve::new(CurveType::MONOTONE)
         }
     }
 
@@ -179,6 +179,11 @@ pub struct Curve {
     curve_type: CurveType
 }
 
+#[derive(Debug)]
+pub enum CurveError {
+    OUT_OF_RANGE(String)
+}
+
 impl Curve {
 
     pub fn new(curve_type: CurveType) -> Curve {
@@ -204,6 +209,25 @@ impl Curve {
         slint::Image::from_rgb8(buff)
     }
 
+    pub fn add_point(&mut self, point: [f32; 2]) -> Result<(), CurveError> {
+        if point[0] < 0.0 || point[0] > 100.0 || point[1] < 0.0 || point[1] > 100.0 {
+            return Err(CurveError::OUT_OF_RANGE(String::from("Points coordinates out of range")));
+        }
+        for (i, x) in self.xs.clone().iter().enumerate() {
+            if *x > point[0] {
+                self.xs.insert(i, point[0]);
+                self.ys.insert(i, point[1]);
+                break;
+            }
+        }
+        self.build_curve();
+        Ok(())
+    }
+
+    pub fn apply_curve(&self, val: f32) -> f32 {
+        LVIElib::spline::apply_curve(val, &self.coefficients, &self.xs)
+    }
+
     pub fn from_points(xs: Vec<f32>, ys: Vec<f32>, curve_type: CurveType) -> Curve {
         let mut c = Curve {
             xs,
@@ -222,6 +246,7 @@ impl Curve {
     }
 
     fn build_curve(&mut self) {
+        self.xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         self.coefficients = {
             if self.curve_type == CurveType::SMOOTH {
                 LVIElib::spline::spline_coefficients(&self.ys, &self.xs, 

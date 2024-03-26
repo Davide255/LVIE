@@ -9,6 +9,7 @@ global ScreenCallbacks {
     callback apply-filters(float, float, float, float, float, float, float);
     callback update-curve([[float]]);
     callback there-is-a-point(length, length, length, length, length) -> int;
+    callback add-curve-point(float, float);
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
@@ -168,7 +169,7 @@ component Screen inherits HorizontalBox {
                             moved => {
                                 if (self.cid >= 0 && self.pressed) {
                                     curve_points[self.cid][0] = Math.clamp(
-                                        (self.mouse-x) * 100 / parent.width, 0, 100
+                                        self.mouse-x * 100 / parent.width, 0, 100
                                     );
                                     curve_points[self.cid][1] = Math.clamp(
                                         100 - (self.mouse-y * 100 / parent.height), 0, 100
@@ -183,6 +184,14 @@ component Screen inherits HorizontalBox {
                     }
                 }
                 GridBox {
+                    Row {
+                        Button {
+                            text: "Add a point";
+                            clicked => {
+                                ScreenCallbacks.add-curve-point(50.0, 50.0);
+                            }
+                        }
+                    }
                     Row {
                         VerticalBox {
                             padding: 5px;

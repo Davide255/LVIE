@@ -235,15 +235,17 @@ fn main() {
         let W = ww.unwrap();
 
         W.set_curve(data.curve.to_image((300, 300)));
-        W.set_curve_points(data.curve.into_rc_model());
+        W.set_curve_points(data.curve.into_rc_model()); 
+    });
 
-        //let data_w = dw.clone();
-        //ww.upgrade_in_event_loop(move |Window: LVIE| {
-        //    let data = data_w.
-        //    //Window.set_curve(data.curve.to_image((300,300)));
-        //    Window.set_curve_points(data.curve.into_rc_model());
-        //});
-
+    let dw = DATA.clone();
+    let ww = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_add_curve_point(move |x: f32, y: f32| {
+        let mut d = dw.lock().unwrap();
+        d.curve.add_point([x, y]).expect("Failed to add a point");
+        let Window = ww.unwrap();
+        Window.set_curve(d.curve.to_image((300, 300)));
+        Window.set_curve_points(d.curve.into_rc_model());
     });
 
     let d_w = DATA.clone();
@@ -256,7 +258,7 @@ fn main() {
 
         for (i, coords) in cps.iter().enumerate() {
             let xr = width * coords[0] / 100.0 - size / 2.0;
-            let yr = height * coords[1] / 100.0 - size / 2.0;
+            let yr = height * (100.0 - coords[1]) / 100.0 - size / 2.0;
 
             if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
                 p_number = i as i32;
