@@ -26,20 +26,15 @@ component LVIE inherits Window {
     in-out property <[[float]]> curve_points <=> content.curve_points;
     in-out property <physical-length> image-space-size-width: content.image-space-size-width;
 
-    callback init-context();
-    init-context() => {
-        key-handler.focus();
-    }
-
     callback to-lowercase(string) -> string;
 
     function handle-shortcuts(event: KeyEvent) {
-        debug(event.text, event.modifiers);
         if (to-lowercase(event.text) == "o" && event.modifiers.control) {
-            ToolbarCallbacks.open_file();
-        }
-        if (to-lowercase(event.text) == "r" && event.modifiers.control && event.modifiers.shift) {
+            ToolbarCallbacks.open-file();
+        } else if (to-lowercase(event.text) == "r" && event.modifiers.control && event.modifiers.shift) {
             ToolbarCallbacks.rotate-90-deg();
+        } else if (to-lowercase(event.text) == "s" && event.modifiers.control){
+            debug("exporting")
         }
     }
 
@@ -76,6 +71,10 @@ component LVIE inherits Window {
             handle-shortcuts(event);
             return EventResult.accept;
         }
+    }
+
+    init => {
+        key-handler.focus();
     }
 }
 

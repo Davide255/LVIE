@@ -14,3 +14,4 @@ Tests/
 Cargo.lock
 
 .idea/
+.vscode/

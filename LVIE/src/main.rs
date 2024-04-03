@@ -15,7 +15,6 @@ use rfd::FileDialog;
 
 use itertools::Itertools;
 
-mod history;
 mod img_processing;
 mod raw_decoder;
 
@@ -164,7 +163,6 @@ fn main() {
                         .expect("Failed to run in event loop");
                     });
                     Window.set_image(Image::from_rgba8(pix_buf));
-                    Window.invoke_init_context();
                 })
                 .expect("Failed to call from event loop");
         });
@@ -371,7 +369,6 @@ fn main() {
     }
 
     let _ = Window.show();
-    Window.invoke_init_context();
     slint::run_event_loop().expect("Failed to create the event loop");
     let _ = Window.hide();
 }
