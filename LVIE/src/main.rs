@@ -168,6 +168,32 @@ fn main() {
                 .expect("Failed to call from event loop");
         });
 
+    let data_weak = DATA.clone();
+    let prev_w = preview.clone();
+    let Window_weak = Window.as_weak();
+    Window
+        .global::<ToolbarCallbacks>()
+        .on_rotate_90_deg(move || {
+            let mut data = data_weak.lock().unwrap();
+            let img = image::imageops::rotate90(&data.full_res_preview);
+            // load the image
+            data.load_image(img.clone());
+
+            //let lpw = prev_w.clone();
+            Window_weak
+                .upgrade_in_event_loop(move |Window| {
+                    // loading the image into the UI
+                    let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                        &img,
+                        img.width(),
+                        img.height(),
+                    );
+
+                    Window.set_image(Image::from_rgba8(pix_buf));
+                })
+                .expect("Failed to call from event loop");
+        });
+
     // close window: (quit the slint event loop)
     Window
         .global::<ToolbarCallbacks>()

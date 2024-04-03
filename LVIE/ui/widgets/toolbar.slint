@@ -7,6 +7,7 @@ global ToolbarCallbacks {
     callback close_window_callback();
     in-out property <string> mode: "RGB";
     callback set_mode(string);
+    callback rotate-90-deg();
 }
 
 enum AlertType{
@@ -101,6 +102,11 @@ component Toolbar inherits Rectangle {
             MenuItem {
                 text: "Open an image";
                 item-callback => { ToolbarCallbacks.open-file-callback(); }
+            }
+
+            MenuItem {
+                text: "Rotate 90 deg";
+                item-callback => { ToolbarCallbacks.rotate-90-deg(); }
             }
             /*MenuItem {
                 CheckBox {
