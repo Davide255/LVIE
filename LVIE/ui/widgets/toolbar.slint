@@ -3,7 +3,7 @@ import { Palette } from "../color/palette.slint";
 import { MenuItem, PopupMenu, Spacer } from "menu/menu.slint";
 
 global ToolbarCallbacks {
-    callback open_file_callback();
+    callback open_file();
     callback close_window_callback();
     in-out property <string> mode: "RGB";
     callback set_mode(string);
@@ -60,7 +60,7 @@ component Toolbar inherits Rectangle {
                 text: "New project";
             }
             MenuItem {
-                item-callback => { ToolbarCallbacks.open-file-callback(); }
+                item-callback => { ToolbarCallbacks.open-file(); }
                 text: "Open a file";
             }
             Spacer { size: 2px; }
@@ -101,7 +101,7 @@ component Toolbar inherits Rectangle {
             }
             MenuItem {
                 text: "Open an image";
-                item-callback => { ToolbarCallbacks.open-file-callback(); }
+                item-callback => { ToolbarCallbacks.open-file(); }
             }
 
             MenuItem {

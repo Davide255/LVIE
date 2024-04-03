@@ -21,33 +21,61 @@ component LVIE inherits Window {
 
     in-out property <[string]> svg_path;
 
-    tb := Toolbar {
-        AlertBoxType: AlertBoxType;
-        AlertText: AlertText;
-        height: 40px;
-        width: root.width;
-        x: 0px;
-        y: 0px;
-    }
-
-    Spacer {
-        bgcolor: Palette.Dark.Dark-200;
-        x: 10px;
-        y: tb.height;
-        width: root.width - 20px;
-    }
-
     in-out property <image> image <=> content.image;
     in-out property <image> curve <=> content.curve;
     in-out property <[[float]]> curve_points <=> content.curve_points;
     in-out property <physical-length> image-space-size-width: content.image-space-size-width;
 
-    content := Screen {
-        histogram: svg-path;
-        height: root.height - tb.height;
-        width: root.width;
-        x: 0px;
-        y: tb.height;
+    callback init-context();
+    init-context() => {
+        key-handler.focus();
+    }
+
+    callback to-lowercase(string) -> string;
+
+    function handle-shortcuts(event: KeyEvent) {
+        debug(event.text, event.modifiers);
+        if (to-lowercase(event.text) == "o" && event.modifiers.control) {
+            ToolbarCallbacks.open_file();
+        }
+        if (to-lowercase(event.text) == "r" && event.modifiers.control && event.modifiers.shift) {
+            ToolbarCallbacks.rotate-90-deg();
+        }
+    }
+
+    key_handler := FocusScope {
+
+        tb := Toolbar {
+            AlertBoxType: AlertBoxType;
+            AlertText: AlertText;
+            height: 40px;
+            width: root.width;
+            x: 0px;
+            y: 0px;
+        }
+
+        Spacer {
+            bgcolor: Palette.Dark.Dark-200;
+            x: 10px;
+            y: tb.height;
+            width: root.width - 20px;
+        }
+
+        
+
+        content := Screen {
+            histogram: svg-path;
+            height: root.height - tb.height;
+            width: root.width;
+            x: 0px;
+            y: tb.height;
+        }
+
+
+        key-pressed(event) => {
+            handle-shortcuts(event);
+            return EventResult.accept;
+        }
     }
 }
 

@@ -105,7 +105,7 @@ fn main() {
     let Window_weak = Window.as_weak();
     Window
         .global::<ToolbarCallbacks>()
-        .on_open_file_callback(move || {
+        .on_open_file(move || {
             // get the file with native file dialog
             let fd = FileDialog::new()
                 .add_filter("all image formats", 
@@ -164,12 +164,12 @@ fn main() {
                         .expect("Failed to run in event loop");
                     });
                     Window.set_image(Image::from_rgba8(pix_buf));
+                    Window.invoke_init_context();
                 })
                 .expect("Failed to call from event loop");
         });
 
     let data_weak = DATA.clone();
-    let prev_w = preview.clone();
     let Window_weak = Window.as_weak();
     Window
         .global::<ToolbarCallbacks>()
@@ -200,6 +200,10 @@ fn main() {
         .on_close_window_callback(|| {
             slint::quit_event_loop().expect("Failed to stop the event loop");
         });
+
+    Window.on_to_lowercase(move |s: SharedString| {
+        s.to_lowercase().into()
+    });
 
     //reset
     let data_weak = DATA.clone();
@@ -237,10 +241,6 @@ fn main() {
                 .expect("Failed to run in event loop");
             });
         }).expect("Failed to call event loop");
-    });
-
-    Window.global::<ScreenCallbacks>().on_print(|value: f32| {
-        println!("{}", value);
     });
 
     let ww = Window.as_weak();
@@ -371,6 +371,7 @@ fn main() {
     }
 
     let _ = Window.show();
+    Window.invoke_init_context();
     slint::run_event_loop().expect("Failed to create the event loop");
     let _ = Window.hide();
 }
