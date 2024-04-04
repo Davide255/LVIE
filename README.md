@@ -5,7 +5,7 @@ A light-weight open source photo editor written in Rust
 We are currently developing a photo editor thanks to the power of rust language and the slint ui framework!
 
 ## Features
-(marked checkboxes are completed and working, maybe they still aren't abviable with the graphical interface)
+(marked checkboxes are completed and working, maybe they still aren't aviable with the graphical interface)
 
 ### Color Spaces
 This editor can work with the following color spaces:

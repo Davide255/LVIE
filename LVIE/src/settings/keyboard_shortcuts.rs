@@ -31,6 +31,18 @@ pub struct Binding {
     modifiers: Vec<MODIFIER>,
 }
 
+impl Binding {
+    pub fn action(&self) -> String {
+        self.action.clone()
+    }
+
+    pub fn modifiers(&self) -> &Vec<MODIFIER> {
+        &self.modifiers
+    }
+
+    
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Key {
     #[serde(rename = "@value")]
@@ -39,10 +51,33 @@ pub struct Key {
     bindings: Vec<Binding>
 }
 
+impl Key {
+    pub fn is(&self, x: &String) -> bool{
+        x == &self.value
+    }
+
+    pub fn value(&self) -> &String {
+        &self.value
+    }
+
+    pub fn bindings(&self) -> &Vec<Binding> {
+        &self.bindings
+    }
+
+    pub fn get_binding_by_modifiers(&self, modifiers: &Vec<MODIFIER>) -> Option<&Binding> {
+        for k in &self.bindings {
+            if k.modifiers == *modifiers {
+                return Some(k);
+            }
+        }
+        None
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Keyboard {
     #[serde(rename = "key")]
-    keys: Vec<Key>
+    keys: Vec<Key>,
 }
 
 impl IntoIterator for Keyboard {
@@ -51,6 +86,15 @@ impl IntoIterator for Keyboard {
 
     fn into_iter(self) -> Self::IntoIter {
         self.keys.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Keyboard {
+    type Item = &'a Key;
+    type IntoIter = std::slice::Iter<'a, Key>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.keys).into_iter()
     }
 }
 

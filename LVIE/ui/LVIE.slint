@@ -28,15 +28,7 @@ component LVIE inherits Window {
 
     callback to-lowercase(string) -> string;
 
-    function handle-shortcuts(event: KeyEvent) {
-        if (to-lowercase(event.text) == "o" && event.modifiers.control) {
-            ToolbarCallbacks.open-file();
-        } else if (to-lowercase(event.text) == "r" && event.modifiers.control && event.modifiers.shift) {
-            ToolbarCallbacks.rotate-90-deg();
-        } else if (to-lowercase(event.text) == "s" && event.modifiers.control){
-            debug("exporting")
-        }
-    }
+    callback handle-shortcut(string, bool, bool, bool);
 
     key_handler := FocusScope {
 
@@ -68,7 +60,7 @@ component LVIE inherits Window {
 
 
         key-pressed(event) => {
-            handle-shortcuts(event);
+            handle-shortcut(event.text, event.modifiers.alt, event.modifiers.control, event.modifiers.shift);
             return EventResult.accept;
         }
     }

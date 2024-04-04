@@ -1,5 +1,3 @@
-use std::slice::Iter;
-
 use LVIElib::blurs::{boxblur::FastBoxBlur_rgba, gaussianblur::FastGaussianBlur_rgba};
 use LVIE_GPU::{GPUShaderType, GPU};
 
@@ -355,7 +353,7 @@ impl IntoIterator for FilterArray {
 
 impl<'a> IntoIterator for &'a FilterArray {
     type Item = &'a Filter;
-    type IntoIter = Iter<'a, Filter>;
+    type IntoIter = std::slice::Iter<'a, Filter>;
 
     fn into_iter(self) -> Self::IntoIter {
         (&self.filters).into_iter()

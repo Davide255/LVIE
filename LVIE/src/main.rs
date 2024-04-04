@@ -22,7 +22,7 @@ mod core;
 use crate::core::{Rendering, Data, FilterType, PreviewData};
 
 mod settings;
-use crate::settings::load_settings;
+use crate::settings::{load_settings, keyboard_shortcuts};
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
@@ -31,6 +31,26 @@ fn maximize_ui(ui: LVIE) {
             winit_window.set_title("LVIE");
         })
         .expect("Failed to use winit!");
+}
+
+fn handle_shortcut_action(ww: Weak<LVIE>, action: Vec<&str>) {
+    let Window = ww.unwrap();
+    // action[0] should allways be editor
+    match action[1] {
+        "file" => {
+            match action[2] {
+                "open" => Window.global::<ToolbarCallbacks>().invoke_open_file(),
+                _ => return,
+            }
+        }
+        "image" => {
+            match action[2] {
+                "rotate-90-deg" => Window.global::<ToolbarCallbacks>().invoke_rotate_90_deg(),
+                _ => return,
+            }
+        }
+        _ => return,
+    }
 }
 
 fn _create_svg_path<P>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3] 
@@ -76,11 +96,11 @@ where
 fn main() {
     const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
 
-    let SETTINGS: crate::settings::Settings = load_settings(None).unwrap();
+    let s: crate::settings::Settings = load_settings(None).unwrap();
 
-    println!("{:?}", SETTINGS.keyboard_shortcuts);
+    let CORE: Rendering = Rendering::init(s.backend);
 
-    let CORE: Rendering = Rendering::init(SETTINGS.backend);
+    let SETTINGS = Arc::new(Mutex::new(s));
 
     if WINIT_BACKEND {
         slint::platform::set_platform(Box::new(i_slint_backend_winit::Backend::new().unwrap()))
@@ -203,6 +223,31 @@ fn main() {
 
     Window.on_to_lowercase(move |s: SharedString| {
         s.to_lowercase().into()
+    });
+
+    let ww = Window.as_weak();
+    let sw =  SETTINGS.clone();
+    Window.on_handle_shortcut(move |kvalue: SharedString, alt: bool, ctrl: bool, shift: bool| {
+        let settings = sw.lock().unwrap();
+        let keyboard = &settings.keyboard_shortcuts;
+
+        let mut modifiers: Vec<keyboard_shortcuts::MODIFIER> = Vec::new();
+        if alt { modifiers.push(keyboard_shortcuts::MODIFIER::ALT); }
+        if ctrl { modifiers.push(keyboard_shortcuts::MODIFIER::CTRL); }
+        if shift { modifiers.push(keyboard_shortcuts::MODIFIER::SHIFT); }
+
+        let kvalue: String = kvalue.into();
+
+        for key in keyboard {
+            if key.is(&kvalue) {
+                if let Some(b) = key.get_binding_by_modifiers(&modifiers) {
+                    // the pattern is 'editor.*.*'
+                    let _ts = b.action();
+                    let action = _ts.split(".").collect_vec();
+                    handle_shortcut_action(ww.clone(), action);
+                }
+            }
+        }
     });
 
     //reset

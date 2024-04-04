@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use std::io::Write;
+use std::{collections::HashMap, io::Write};
 
 use serde::{Deserialize, Serialize};
 
@@ -78,6 +78,7 @@ fn _prettify_xml(content: &mut String) {
     *content = content.replace("<key", "\n\t<key");
     *content = content.replace("<binding", "\n\t\t<binding");
     *content = content.replace("</key>", "\n\t</key>\n");
+    *content = content.replace("\n\n", "\n");
 }
 
 fn main() {
