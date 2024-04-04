@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use std::vec::Vec;
 
-use super::xml;
 
 #[derive(PartialEq, Clone)]
 pub enum OpType {

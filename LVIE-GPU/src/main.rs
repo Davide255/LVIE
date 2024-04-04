@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 pub mod shader_compiler;
-pub mod test_conversion;
 
 use image::{GenericImageView, Primitive, RgbaImage};
 use shader_compiler::build;

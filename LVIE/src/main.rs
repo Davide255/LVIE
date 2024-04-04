@@ -76,7 +76,9 @@ where
 fn main() {
     const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
 
-    let SETTINGS: crate::settings::Settings = load_settings();
+    let SETTINGS: crate::settings::Settings = load_settings(None).unwrap();
+
+    println!("{:?}", SETTINGS.keyboard_shortcuts);
 
     let CORE: Rendering = Rendering::init(SETTINGS.backend);
 

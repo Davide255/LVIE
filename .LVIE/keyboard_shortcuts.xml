@@ -1,0 +1,12 @@
+<Keyboard>
+    <key value="o">
+        <binding action="openfile">
+            <ctrl/>
+        </binding>
+    </key>
+    <key value="r">
+        <binding action="rotate-90-deg">
+            <ctrl/><shift/>
+        </binding>
+    </key>
+</Keyboard>

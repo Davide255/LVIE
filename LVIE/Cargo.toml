@@ -5,18 +5,19 @@ build = "build.rs"
 edition = "2021"
 
 [dependencies]
-slint = "1.3.0"
+slint = "1.5.0"
 image = "0.24.7"
 winit = {version = "0.28.6", features = ["x11"]}
 i-slint-backend-winit = "=1.5.0"
 rfd = "0.11.4"
 LVIElib = {path = "../LVIElib"}
 LVIE-GPU = {path = "../LVIE-GPU"}
-indexmap = "1.7.0"
 itertools = "0.11.0"
 rayon = "1.8.1"
 num-traits = "0.2.16"
 rawloader = "0.37.1"
+quick-xml = {version="0.31.0", features=["serialize"]}
+serde = { version = "1.0", features = ["derive"] }
 
 [build-dependencies]
-slint-build = "1.3.0"
+slint-build = "1.5.0"
