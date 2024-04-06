@@ -3,8 +3,7 @@
 members = [
     "LVIE",
     "LVIElib",
-    "LVIE-GPU",
-    "Tests"
+    "LVIE-GPU"
 ]
 
 resolver = "2"

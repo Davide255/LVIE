@@ -1,8 +1,0 @@
-<Keyboard>
-	<key value="o">
-		<binding action="editor.file.open"><ctrl/></binding>
-	</key>
-	<key value="r">
-		<binding action="rotate-90-deg"><ctrl/><shift/></binding>
-	</key>
-</Keyboard>

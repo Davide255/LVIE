@@ -1,4 +1,8 @@
+slint::include_modules!();
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
+use slint::Weak;
 
 pub const DEFAULT: &str = r#"<Keyboard>
     <key value="o">
@@ -39,8 +43,6 @@ impl Binding {
     pub fn modifiers(&self) -> &Vec<MODIFIER> {
         &self.modifiers
     }
-
-    
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -123,3 +125,32 @@ fn _prettify_xml(content: &mut String) {
     *content = content.replace("<binding", "\n\t\t<binding");
     *content = content.replace("</key>", "\n\t</key>\n");
 }
+
+
+struct EditorActions {
+    options: HashMap<&'static str, HashMap<&'static str, Box<dyn FnOnce(Weak<LVIE>, &[&str]) -> ()>>>
+}
+
+impl EditorActions {
+    pub fn add_fn(&mut self, first: &'static str, second: &'static str, f: Box<dyn FnOnce(Weak<LVIE>, &[&str]) + 'static>) {
+        if self.options.get(&first).is_some() {
+            self.options.get_mut(first).insert(&mut HashMap::from([(second, f)]));
+        } else {
+            let mut inner = HashMap::new();
+            inner.insert(second, f);
+            self.options.insert(first, inner);
+        }
+    }
+}
+//const Editor: HashMap<&'static str, HashMap<&'static str, Box<dyn Fn(Weak<LVIE>, &[&str]) -> ()>>> = HashMap::from(
+//    [
+//        ("file", HashMap::from(
+//            [
+//                ("open", Box::new(|ww: Weak<LVIE>, args: &[&str]| {
+//                        ww.upgrade_in_event_loop(|Window| Window.global::<ToolbarCallbacks>().invoke_open_file());
+//                    }))
+//            ])
+//        )
+//    ]
+//);
+//
