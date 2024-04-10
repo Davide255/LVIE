@@ -4,6 +4,11 @@
             <ctrl/>
         </binding>
     </key>
+    <key value="e">
+        <binding action="editor.file.close">
+            <ctrl/><shift/>
+        </binding>
+    </key>
     <key value="r">
         <binding action="editor.image.rotate-90-deg">
             <ctrl/><shift/>

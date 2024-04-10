@@ -1,5 +1,6 @@
 pub mod history;
 pub mod keyboard_shortcuts;
+
 use serde::Deserialize;
 use std::io::prelude::*;
 
@@ -14,10 +15,10 @@ struct LVIESettings {
 
 pub struct Settings {
     pub backend: crate::core::RenderingBackends,
-    pub keyboard_shortcuts: keyboard_shortcuts::Keyboard
+    pub keyboard_shortcuts: keyboard_shortcuts::Keyboard,
 }
 
-pub fn load_settings(fd: Option<String>) -> std::io::Result<Settings> {
+pub fn load_settings(fd: Option<String>) -> std::io::Result<Settings> {      
 
     let f = {
         if fd.is_none() {
@@ -56,7 +57,7 @@ pub fn load_settings(fd: Option<String>) -> std::io::Result<Settings> {
                 } else {
                     ks.unwrap()
                 }
-            },
+            }
         });
     }
 }

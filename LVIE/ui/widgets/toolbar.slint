@@ -4,10 +4,11 @@ import { MenuItem, PopupMenu, Spacer } from "menu/menu.slint";
 
 global ToolbarCallbacks {
     callback open_file();
-    callback close_window_callback();
+    callback close_window();
+    callback rotate-90-deg();
+
     in-out property <string> mode: "RGB";
     callback set_mode(string);
-    callback rotate-90-deg();
 }
 
 enum AlertType{
@@ -66,7 +67,7 @@ component Toolbar inherits Rectangle {
             Spacer { size: 2px; }
             MenuItem {
                 text: "Close window";
-                item-callback => { ToolbarCallbacks.close-window-callback(); }
+                item-callback => { ToolbarCallbacks.close-window(); }
             }
         }
 

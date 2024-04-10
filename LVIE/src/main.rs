@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
-slint::include_modules!();
-
+mod ui;
+use crate::ui::*;
 use i_slint_backend_winit::WinitWindowAccessor;
+
+use slint::ComponentHandle;
 use image::{ImageBuffer, Pixel, Primitive};
 use crate::raw_decoder::{decode, supported_formats};
 use img_processing::{collect_histogram_data, Max};
@@ -33,25 +35,24 @@ fn maximize_ui(ui: LVIE) {
         .expect("Failed to use winit!");
 }
 
-fn handle_shortcut_action(ww: Weak<LVIE>, action: Vec<&str>) {
-    let Window = ww.unwrap();
-    // action[0] should allways be editor
-    match action[1] {
-        "file" => {
-            match action[2] {
-                "open" => Window.global::<ToolbarCallbacks>().invoke_open_file(),
-                _ => return,
-            }
-        }
-        "image" => {
-            match action[2] {
-                "rotate-90-deg" => Window.global::<ToolbarCallbacks>().invoke_rotate_90_deg(),
-                _ => return,
-            }
-        }
-        _ => return,
-    }
-}
+build_shortcuts!(
+"editor"
+>"file"
+--"open":(|Window: LVIE, _args: &[&str]| Window.global::<ToolbarCallbacks>().invoke_open_file())
+--"close":(|Window: LVIE, _args: &[&str]| Window.global::<ToolbarCallbacks>().invoke_close_window())
+>"image"
+--"rotate-90-deg":(|Window: LVIE, _args: &[&str]| Window.global::<ToolbarCallbacks>().invoke_rotate_90_deg())
+);
+
+//fn handle_shortcut_action(ww: Weak<LVIE>, action: Vec<&'static str>, settingsref: &mut crate::settings::keyboard_shortcuts::EditorActions) {
+//    let Window = ww.unwrap();
+//    let function = settingsref
+//    .get_options_mut().get_mut(&action[1]).unwrap().remove(&action[2]).unwrap();
+//
+//    function(Window, &action[2..]);
+//
+//    settingsref.get_options_mut().get_mut(&action[1]).unwrap().insert(&action[2], function);
+//}
 
 fn _create_svg_path<P>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3] 
 where 
@@ -217,7 +218,7 @@ fn main() {
     // close window: (quit the slint event loop)
     Window
         .global::<ToolbarCallbacks>()
-        .on_close_window_callback(|| {
+        .on_close_window(|| {
             slint::quit_event_loop().expect("Failed to stop the event loop");
         });
 
@@ -229,21 +230,20 @@ fn main() {
     let sw =  SETTINGS.clone();
     Window.on_handle_shortcut(move |kvalue: SharedString, alt: bool, ctrl: bool, shift: bool| {
         let settings = sw.lock().unwrap();
-        let keyboard = &settings.keyboard_shortcuts;
+
+        let kvalue: String = kvalue.to_lowercase();
 
         let mut modifiers: Vec<keyboard_shortcuts::MODIFIER> = Vec::new();
         if alt { modifiers.push(keyboard_shortcuts::MODIFIER::ALT); }
         if ctrl { modifiers.push(keyboard_shortcuts::MODIFIER::CTRL); }
         if shift { modifiers.push(keyboard_shortcuts::MODIFIER::SHIFT); }
 
-        let kvalue: String = kvalue.into();
-
-        for key in keyboard {
+        for key in &settings.keyboard_shortcuts {
             if key.is(&kvalue) {
                 if let Some(b) = key.get_binding_by_modifiers(&modifiers) {
                     // the pattern is 'editor.*.*'
-                    let _ts = b.action();
-                    let action = _ts.split(".").collect_vec();
+                    let _ts = b.action().clone();
+                    let action: Vec<&str> = _ts.split(".").collect_vec();
                     handle_shortcut_action(ww.clone(), action);
                 }
             }
