@@ -1,28 +1,42 @@
+use image::{Pixel, Primitive};
 use LVIElib::blurs::{boxblur::FastBoxBlur_rgba, gaussianblur::FastGaussianBlur_rgba};
 use LVIE_GPU::{GPUShaderType, GPU};
 
-use crate::img_processing::{build_low_res_preview, exposition_rgba, saturate_rgba, sharpen_rgba, whitebalance_rgba};
+use LVIElib::traits::*;
+
+#[allow(type_alias_bounds)]
+pub type CRgbaImage<P: Pixel> = image::ImageBuffer<P, Vec<P::Subpixel>>;
+
+use crate::img_processing::{exposition_rgba, saturate_rgba, sharpen_rgba, whitebalance_rgba};
 
 #[derive(Debug)]
-pub struct Data {
+pub struct Data<P> 
+where 
+    P: Pixel + Send + Sync,
+    P::Subpixel: Scale + Primitive + std::fmt::Debug
+{
     rendering: Rendering,
-    pub full_res_preview: image::RgbaImage,
+    pub full_res_preview: CRgbaImage<P>,
     filters: FilterArray,
     loaded_filters: FilterArray,
-    loaded_image: image::RgbaImage,
+    loaded_image: CRgbaImage<P>,
     pub curve: Curve,
     pub zoom: (u32, u32, f32)
 }
 
-impl Data {
+impl<P> Data<P>
+where 
+    P: Pixel + Send + Sync + 'static,
+    P::Subpixel: Scale + Primitive + std::fmt::Debug
+{
     pub fn new(
         rendering: Rendering,
-        image_to_load: Option<image::RgbaImage>,
+        image_to_load: Option<CRgbaImage<P>>,
         filters_to_load: Option<Vec<Filter>>
-    ) -> Data {
+    ) -> Data<P> {
         let img = {
             if image_to_load.is_none() {
-                image::RgbaImage::new(0, 0)
+                CRgbaImage::<P>::new(0, 0)
             } else {
                 image_to_load.unwrap()
             }
@@ -42,21 +56,20 @@ impl Data {
         self.loaded_image.dimensions()
     }
 
-    pub fn load_image(&mut self, img: image::RgbaImage) {
+    pub fn load_image(&mut self, img: CRgbaImage<P>) {
         self.loaded_image = img.clone();
         self.full_res_preview = img;
         self.loaded_filters = FilterArray::new(None);
     }
 
-    pub fn generate_preview(&mut self, nwidth: u32, nheight: u32) -> PreviewData {
-        let prev = PreviewData::new(
-            Some(self.rendering.clone()),
-            Some(build_low_res_preview(&self.full_res_preview, nwidth, nheight)), 
-            Some(self.loaded_filters.filters.clone())
-        );
-
-        prev
-    }
+    //pub fn generate_preview(&mut self, nwidth: u32, nheight: u32) -> PreviewData {
+    //    let prev = PreviewData::new(
+    //        Some(self.rendering.clone()),
+    //        Some(build_low_res_preview(&self.full_res_preview, nwidth, nheight)), 
+    //        Some(self.loaded_filters.filters.clone())
+    //    );
+    //    prev
+    //}
 
     pub fn update_image(&mut self) -> image::RgbaImage {
         let mut filters = &self.filters - &self.loaded_filters;
@@ -68,8 +81,10 @@ impl Data {
                 )
                 .collect()
             );
-        let out = self.rendering.render_data(&self.full_res_preview, &filters).unwrap();
-        self.full_res_preview = out.clone();
+        let out: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = self.rendering.render_data(
+            &(self.full_res_preview.scale_image::<P, image::Rgba<u8>>()), &filters
+        ).unwrap();
+        self.full_res_preview = out.scale_image::<image::Rgba<u8>, P>();
         self.loaded_filters = &self.loaded_filters + &filters;
         out
     }
@@ -86,63 +101,63 @@ impl Data {
 
 }
 
-pub struct PreviewData {
-    rendering: Option<Rendering>,
-    pub preview: image::RgbaImage,
-    filters: FilterArray,
-    loaded_filters: FilterArray,
-    zoom: (f32, f32, f32)
-}
-
-impl PreviewData {
-    pub fn new(
-        rendering: Option<Rendering>,
-        preview: Option<image::RgbaImage>,
-        filters_to_load: Option<Vec<Filter>>
-    ) -> PreviewData {
-        PreviewData {
-            rendering,
-            preview: {
-                if preview.is_some() {
-                    preview.unwrap()
-                } else {
-                    image::RgbaImage::new(0, 0)
-                }
-            },
-            filters: FilterArray::new(filters_to_load),
-            loaded_filters: FilterArray::new(None),
-            zoom: (0.0, 0.0, 1.0)
-        }
-    }
-
-    pub fn update_image(&mut self) -> image::RgbaImage {
-        let mut filters = &self.filters - &self.loaded_filters;
-        filters.update_filter(
-            FilterType::WhiteBalance, 
-            self.loaded_filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
-                .chain(
-                    filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
-                )
-                .collect()
-            );
-        let out = self.rendering.as_mut().unwrap().render_data(&self.preview, &filters).unwrap();
-        self.preview = out.clone();
-        self.loaded_filters = &self.loaded_filters + &filters;
-        out
-    }
-
-    pub fn update_filter(&mut self, filtertype: FilterType, parameters: Vec<f32>) {
-        self.filters.update_filter(filtertype, parameters);
-    }
-
-    pub fn zoom(&self) -> &(f32, f32, f32) {
-        &self.zoom
-    }
-
-    pub fn set_zoom(&mut self, zoom: (f32, f32, f32)) {
-        self.zoom = zoom;
-    }
-}
+//pub struct PreviewData<P: Pixel> {
+//    rendering: Option<Rendering>,
+//    pub preview: CRgbaImage<P>,
+//    filters: FilterArray,
+//    loaded_filters: FilterArray,
+//    zoom: (f32, f32, f32)
+//}
+//
+//impl<P: Pixel> PreviewData<P> {
+//    pub fn new(
+//        rendering: Option<Rendering>,
+//        preview: Option<CRgbaImage<P>>,
+//        filters_to_load: Option<Vec<Filter>>
+//    ) -> PreviewData {
+//        PreviewData {
+//            rendering,
+//            preview: {
+//                if preview.is_some() {
+//                    preview.unwrap()
+//                } else {
+//                    image::RgbaImage::new(0, 0)
+//                }
+//            },
+//            filters: FilterArray::new(filters_to_load),
+//            loaded_filters: FilterArray::new(None),
+//            zoom: (0.0, 0.0, 1.0)
+//        }
+//    }
+//
+//    pub fn update_image(&mut self) -> image::RgbaImage {
+//        let mut filters = &self.filters - &self.loaded_filters;
+//        filters.update_filter(
+//            FilterType::WhiteBalance, 
+//            self.loaded_filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+//                .chain(
+//                    filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+//                )
+//                .collect()
+//            );
+//        let out = self.rendering.as_mut().unwrap().render_data(&self.preview, &filters).unwrap();
+//        self.preview = out.clone();
+//        self.loaded_filters = &self.loaded_filters + &filters;
+//        out
+//    }
+//
+//    pub fn update_filter(&mut self, filtertype: FilterType, parameters: Vec<f32>) {
+//        self.filters.update_filter(filtertype, parameters);
+//    }
+//
+//    pub fn zoom(&self) -> &(f32, f32, f32) {
+//        &self.zoom
+//    }
+//
+//    pub fn set_zoom(&mut self, zoom: (f32, f32, f32)) {
+//        self.zoom = zoom;
+//    }
+//}
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -177,6 +192,7 @@ pub struct Curve {
     curve_type: CurveType
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub enum CurveError {
     OUT_OF_RANGE(String)
@@ -186,8 +202,8 @@ impl Curve {
 
     pub fn new(curve_type: CurveType) -> Curve {
         let mut c = Curve {
-            xs: vec![0.0, 50.0, 100.0],
-            ys: vec![0.0, 50.0, 100.0],
+            xs: vec![0.0, 100.0],
+            ys: vec![0.0, 100.0],
             coefficients: vec![],
             curve_type
         };
@@ -201,31 +217,35 @@ impl Curve {
         LVIElib::spline::create_plot_view(
             buff.make_mut_bytes(), 
             size, &self.xs, &self.ys,
-            Some((0, 0, 0, 0)), Some(&self.coefficients))
+            Some(0.0..1.0), Some(0.0..1.0),
+            (0, 0, 0, 0), Some(&self.coefficients))
                 .expect("Failed to create the plot");
 
         slint::Image::from_rgb8(buff)
     }
 
-    pub fn add_point(&mut self, point: [f32; 2]) -> Result<(), CurveError> {
+    pub fn add_point(&mut self, point: [f32; 2]) -> Result<usize, CurveError> {
         if point[0] < 0.0 || point[0] > 100.0 || point[1] < 0.0 || point[1] > 100.0 {
             return Err(CurveError::OUT_OF_RANGE(String::from("Points coordinates out of range")));
         }
+        let mut ri = 0;
         for (i, x) in self.xs.clone().iter().enumerate() {
             if *x > point[0] {
                 self.xs.insert(i, point[0]);
                 self.ys.insert(i, point[1]);
+                ri = i;
                 break;
             }
         }
         self.build_curve();
-        Ok(())
+        Ok(ri)
     }
 
     pub fn apply_curve(&self, val: f32) -> f32 {
         LVIElib::spline::apply_curve(val, &self.coefficients, &self.xs)
     }
 
+    #[allow(dead_code)]
     pub fn from_points(xs: Vec<f32>, ys: Vec<f32>, curve_type: CurveType) -> Curve {
         let mut c = Curve {
             xs,
@@ -269,6 +289,23 @@ impl Curve {
             c.push([self.xs[i], self.ys[i]]);
         };
         c
+    }
+
+    pub fn remove_point(&mut self, index: usize) -> Result<(), CurveError> {
+        let x = self.xs.get(index);
+        if index == 0 || index == self.xs.len() - 1 || x.is_none() {
+            return Err(CurveError::OUT_OF_RANGE(format!("{} is out of range", index)));
+        } else {
+            self.xs.remove(index);
+            self.ys.remove(index);
+            self.build_curve();
+            return Ok(());
+        }
+    }
+
+    pub fn set_curve_type(&mut self, curve_type: CurveType) {
+        self.curve_type = curve_type;
+        self.build_curve();
     }
 }
 
@@ -434,7 +471,6 @@ impl Rendering {
     }
 
     pub fn render_data(&mut self, img: &image::RgbaImage, filters: &FilterArray) -> Result<image::RgbaImage, crate::core::RenderingError> {
-
         let mut out = img.clone();
 
         for filter in filters {

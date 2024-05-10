@@ -20,13 +20,12 @@ component LVIE inherits Window {
     in-out property <string> AlertText: "";
 
     in-out property <[string]> svg_path;
+    in-out property <[image]> new_histogram;
 
     in-out property <image> image <=> content.image;
     in-out property <image> curve <=> content.curve;
     in-out property <[[float]]> curve_points <=> content.curve_points;
     in-out property <physical-length> image-space-size-width: content.image-space-size-width;
-
-    callback to-lowercase(string) -> string;
 
     callback handle-shortcut(string, bool, bool, bool);
 
@@ -52,6 +51,7 @@ component LVIE inherits Window {
 
         content := Screen {
             histogram: svg-path;
+            new_histogram: new_histogram;
             height: root.height - tb.height;
             width: root.width;
             x: 0px;

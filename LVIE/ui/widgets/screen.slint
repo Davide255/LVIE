@@ -1,15 +1,18 @@
 import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox , GridBox} from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
 import { CustomSlider } from "slider/slider.slint";
-//import { Curve } from "curve/curve.slint";
 
 global ScreenCallbacks {
     callback add-box-blur(int);
     callback add-saturation(float);
     callback apply-filters(float, float, float, float, float, float, float);
+
     callback update-curve([[float]]);
     callback there-is-a-point(length, length, length, length, length) -> int;
-    callback add-curve-point(float, float);
+    callback remove-curve-point(int);
+    callback add-curve-point(float, float) -> int;
+    callback set-curve-type(int);
+
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
@@ -22,11 +25,11 @@ component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
     in-out property <length> image-space-size-width <=> img.width;
     in-out property <[string]> histogram: ["","",""];
+    in property <[image]> new_histogram;
 
     in-out property <image> curve <=> plot.source;
     in-out property <[[float]]> curve_points;
 
-    property <[color]> h_color: [Colors.red, Colors.green, Colors.blue];
     spacing: 10px;
 
     function send-applyfilters() {
@@ -89,7 +92,6 @@ component Screen inherits HorizontalBox {
                     width: 100px;
                     height: 30px;                 
                 }
-                if 0 <= h-choice.current-index && h-choice.current-index < 3:
                 Rectangle {
                     width: parent.width - 30px;
                     height: (root.height - 30px) / 3;
@@ -99,33 +101,19 @@ component Screen inherits HorizontalBox {
                     border-radius: 7px;
                     border-width: 2px;
                     border-color: black;
-                    Path {
+                    Image {
                         width: parent.width - 5px;
                         height: parent.height - 5px;
-                        commands: histogram[h-choice.current-index];
-                        stroke: h-color[h-choice.current-index];
-                        stroke-width: 1px;
-                        fill: self.stroke;
+                        source: new_histogram[h-choice.current-index];
                     }
-                }
-                if h-choice.current-index == 3: Rectangle {
-                    width: parent.width - 30px;
-                    height: (root.height - 30px) / 3;
-                    //x: 5px;
-                    //y: 30px;
-                    background: transparent;
-                    border-radius: 7px;
-                    border-width: 2px;
-                    border-color: black;
-                    for p in [0, 1, 2] :
-                    Path {
-                        width: parent.width - 5px;
-                        height: parent.height - 5px;
-                        commands: histogram[p];
-                        stroke: h-color[p].transparentize(0.5);
-                        stroke-width: 1px;
-                        fill: self.stroke;
-                    }
+                    //Path {
+                    //    width: parent.width - 5px;
+                    //    height: parent.height - 5px;
+                    //    commands: histogram[h-choice.current-index];
+                    //    stroke: h-color[h-choice.current-index];
+                    //    stroke-width: 1px;
+                    //    fill: self.stroke;
+                    //}
                 }
                 Rectangle {                
                     background: transparent;
@@ -153,14 +141,24 @@ component Screen inherits HorizontalBox {
                             property <int> cid: -1;
                             property <float> ox;
                             property <float> oy;
+
+                            mouse-cursor: MouseCursor.pointer;
                 
                             pointer-event(e) => {
                                 if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
                                     self.cid = ScreenCallbacks.there-is-a-point(
                                         self.mouse-x, self.mouse-y, self.width, self.height, 10px
                                         );
+                                    if (self.cid == -1) {
+                                        self.cid = ScreenCallbacks.add-curve-point((self.mouse-x / self.width) * 100.0, 
+                                            Math.clamp(100 - (self.mouse-y * 100 / parent.height), 0, 100));
+                                    }
                                     self.ox = curve_points[self.cid][0];
                                     self.oy = curve_points[self.cid][1];
+                                } else if (e.kind == PointerEventKind.down && e.button == PointerEventButton.right) {
+                                    ScreenCallbacks.remove-curve-point(ScreenCallbacks.there-is-a-point(
+                                        self.mouse-x, self.mouse-y, self.width, self.height, 10px
+                                    ));
                                 } else if (e.kind == PointerEventKind.up) {
                                     self.cid = -1;
                                 }
@@ -168,9 +166,11 @@ component Screen inherits HorizontalBox {
                 
                             moved => {
                                 if (self.cid >= 0 && self.pressed) {
-                                    curve_points[self.cid][0] = Math.clamp(
-                                        self.mouse-x * 100 / parent.width, 0, 100
-                                    );
+                                    if (self.cid != 0 && self.cid != curve_points.length - 1){
+                                        curve_points[self.cid][0] = Math.clamp(
+                                            self.mouse-x * 100 / parent.width, 0, 100
+                                        );
+                                    }
                                     curve_points[self.cid][1] = Math.clamp(
                                         100 - (self.mouse-y * 100 / parent.height), 0, 100
                                     );
@@ -185,10 +185,17 @@ component Screen inherits HorizontalBox {
                 }
                 GridBox {
                     Row {
-                        Button {
-                            text: "Add a point";
-                            clicked => {
-                                ScreenCallbacks.add-curve-point(50.0, 50.0);
+                        HorizontalBox {
+                            Text {
+                                text: "curve type:";
+                                horizontal-alignment: center;
+                            }
+                            curve_type := ComboBox {
+                                model: ["monotone", "smooth"];
+                                current-index: 0;
+                                selected(v) => {
+                                    ScreenCallbacks.set-curve-type(self.current-index)
+                                }
                             }
                         }
                     }

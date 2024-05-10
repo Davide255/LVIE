@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use rayon::prelude::*;
 use LVIElib::hsl::{Hsl, Hsla};
 use LVIElib::linear_srgb::{LinSrgb, LinSrgba};
@@ -54,7 +55,7 @@ pub fn apply_filter(
     image::RgbImage::from_raw(width, height, convolved.get_content().clone()).unwrap()
 }
 
-pub fn build_low_res_preview<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>, nwidth: u32, nheight: u32) -> ImageBuffer<P, Vec<P::Subpixel>> 
+pub fn build_low_res_preview<P>(img: &crate::core::CRgbaImage<P>, nwidth: u32, nheight: u32) -> crate::core::CRgbaImage<P> 
 where P: Pixel + 'static, <P as image::Pixel>::Subpixel: 'static 
 {
     let resized = image::imageops::resize(
@@ -83,7 +84,27 @@ impl Max for u16 {
     const MAX: Self =  u16::MAX;
 }
 
-pub fn collect_histogram_data<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>) -> [HashMap<P::Subpixel, u32>; 3] 
+pub fn collect_histogram_data<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>) -> [Vec<u32>; 3] 
+where 
+    P: Pixel, P::Subpixel: Primitive + std::cmp::Eq + Hash + Max, 
+    std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: ToPrimitive
+{
+    let mut r: Vec<u32> = vec![0; <usize as NumCast>::from(P::Subpixel::MAX).unwrap() + 1];
+    let mut g = r.clone();
+    let mut b = r.clone();
+
+    for pixel in img.pixels() {
+        let channels = pixel.channels();
+        r[<usize as NumCast>::from(channels[0]).unwrap()] += 1;
+        g[<usize as NumCast>::from(channels[1]).unwrap()] += 1;
+        b[<usize as NumCast>::from(channels[2]).unwrap()] += 1;
+    }
+
+    [r, g, b]
+}
+
+pub fn _collect_histogram_data_old<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>) -> [HashMap<P::Subpixel, u32>; 3] 
 where 
     P: Pixel, P::Subpixel: Primitive + std::cmp::Eq + Hash + Max, 
     std::ops::RangeInclusive<P::Subpixel>: IntoIterator,

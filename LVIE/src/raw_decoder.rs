@@ -88,7 +88,7 @@ fn bayer_to_rgb(img: &Vec<u16>, width: usize, height: usize, cfa: rawloader::CFA
     out
 }
 
-pub fn decode<P: AsRef<Path>>(path: P) -> Option<image::RgbaImage> {
+pub fn decode<P: AsRef<Path>>(path: P) -> Option<image::ImageBuffer<image::Rgba<u16>, Vec<u16>>> {
 
     let f = decode_file(path).unwrap();
 
@@ -97,18 +97,18 @@ pub fn decode<P: AsRef<Path>>(path: P) -> Option<image::RgbaImage> {
     if let rawloader::RawImageData::Integer(data) = f.data {
 
         let data = bayer_to_rgb(&data, f.width, f.height, f.cfa);
-        let mut nb: Vec<u8> = Vec::new();
+        let mut nb: Vec<u16> = Vec::new();
 
         let factor = 255.0 / (4.0 * ((*data.iter().max().unwrap() as usize * 255) / u16::MAX as usize) as f32);
 
         for p in 0..(f.width-2)*(f.height-2) {
-            nb.push(((data[3*p] as f32 / f.whitelevels[0] as f32) * wb[0] * factor * 255.0).round() as u8);
-            nb.push(((data[3*p +1] as f32 / f.whitelevels[1] as f32) * wb[1] * factor * 255.0).round() as u8);
-            nb.push(((data[3*p +2] as f32 / f.whitelevels[2] as f32) * wb[2] * factor * 255.0).round() as u8);
-            nb.push(255 as u8);
+            nb.push(((data[3*p] as f32 / f.whitelevels[0] as f32) * wb[0] * factor * u16::MAX as f32).round() as u16);
+            nb.push(((data[3*p +1] as f32 / f.whitelevels[1] as f32) * wb[1] * factor * u16::MAX as f32).round() as u16);
+            nb.push(((data[3*p +2] as f32 / f.whitelevels[2] as f32) * wb[2] * factor * u16::MAX as f32).round() as u16);
+            nb.push(u16::MAX);
         }
 
-        let img: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = image::ImageBuffer::from_vec(f.width as u32 -2, f.height as u32 -2, nb).unwrap();
+        let img: image::ImageBuffer<image::Rgba<u16>, Vec<u16>> = image::ImageBuffer::from_vec(f.width as u32 -2, f.height as u32 -2, nb).unwrap();
         return Some(img);
     }
     None

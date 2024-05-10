@@ -5,6 +5,7 @@ use crate::{
     oklab::{Oklab, OklabImage},
 };
 use std::ops::RangeInclusive;
+use num_traits::NumCast;
 use rayon::prelude::*;
 use image::{Rgb, Rgba, RgbImage, RgbaImage};
 use std::sync::{Arc, Mutex};
@@ -258,4 +259,61 @@ pub fn convert_rgba_to_rgb(img: &image::RgbaImage) -> image::RgbImage {
     });
 
     Arc::try_unwrap(out).unwrap().into_inner().unwrap()
+}
+
+use plotters::prelude::*;
+
+pub enum GraphColor {
+    RED,
+    GREEN, 
+    BLUE
+}
+
+pub fn graph<X: Primitive, Y: Primitive, S: plotters::style::SizeDesc + num_traits::NumCast>(
+    buf: &mut [u8], 
+    size: (u32, u32),
+    x: &Vec<&Vec<X>>, y: &Vec<&Vec<Y>>,
+    x_max: &X, y_max: &Y,
+    color: &Vec<GraphColor>,
+    margins: (S, S, S, S),
+) -> Result<(), Box<dyn std::error::Error>>{
+
+    let root = BitMapBackend::with_buffer(buf, size).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let mut builder = ChartBuilder::on(&root);
+    let m = margins;
+    builder
+        .margin_top(m.0)
+        .margin_right(m.1)
+        .margin_bottom(m.2)
+        .margin_left(m.3);
+
+    let mut chart = builder.build_cartesian_2d(
+        0f32..NumCast::from(*x_max).unwrap(), 
+        0f32..NumCast::from(*y_max).unwrap()
+    )?;
+
+    chart.configure_mesh().draw()?;
+    
+    for serie in 0..x.len() {
+        let s_color = {
+            match color[serie] {
+                GraphColor::RED => RED,
+                GraphColor::GREEN => GREEN,
+                GraphColor::BLUE => BLUE
+            }
+        };
+        
+        chart.draw_series(
+            AreaSeries::new(
+                x[serie].iter().map(|x| <f32 as NumCast>::from(*x).unwrap())
+                    .zip(y[serie].iter().map(|y| <f32 as NumCast>::from(*y).unwrap())),
+                0f32,
+                &s_color.mix(0.6),
+            ).border_style(&s_color)
+        )?;
+    }
+
+    Ok(())
 }

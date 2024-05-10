@@ -96,3 +96,15 @@ impl<P: Pixel, Container: Clone + DerefMut + Deref<Target = [P::Subpixel]>> Pixe
         self
     }
 }
+
+//pub trait IntoRGBA16 {
+//    fn into_rgba16(&self) -> image::Rgba<u16> {
+//        image::Rgba<u16>
+//    }
+//}
+//
+//pub trait IntoRGBA8 {
+//    fn into_rgba8(&self) {
+//
+//    }
+//}

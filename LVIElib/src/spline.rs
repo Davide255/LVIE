@@ -194,7 +194,8 @@ pub fn create_plot_view<S: plotters::style::SizeDesc + num_traits::NumCast>(
     buf: &mut [u8], 
     size: (u32, u32), 
     xs: &Vec<f32>, ys: &Vec<f32>,
-    margins: Option<(S, S, S, S)>,
+    x_max: Option<std::ops::Range<f32>>, y_max: Option<std::ops::Range<f32>>,
+    margins: (S, S, S, S),
     coefficients: Option<&Vec<[f32; 4]>>
 ) -> Result<(), Box<dyn std::error::Error>> {
 
@@ -202,16 +203,17 @@ pub fn create_plot_view<S: plotters::style::SizeDesc + num_traits::NumCast>(
     root.fill(&WHITE)?;
     
     let mut builder = ChartBuilder::on(&root);
-    if margins.is_some(){
-        let m = margins.unwrap();
-        builder
-            .margin_top(m.0)
-            .margin_right(m.1)
-            .margin_bottom(m.2)
-            .margin_left(m.3);
-    };
+    let m = margins;
+    builder
+        .margin_top(m.0)
+        .margin_right(m.1)
+        .margin_bottom(m.2)
+        .margin_left(m.3);
 
-    let mut chart = builder.build_cartesian_2d(0f32..*xs.last().unwrap() / 100.0, 0f32..*ys.last().unwrap() / 100.0)?;
+    let mut chart = builder.build_cartesian_2d(
+        x_max.unwrap_or(0f32..*xs.last().unwrap() / 100.0), 
+        y_max.unwrap_or(0f32..*ys.last().unwrap() / 100.0)
+    )?;
 
     chart.configure_mesh().draw()?;
 

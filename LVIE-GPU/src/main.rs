@@ -5,14 +5,10 @@ pub mod shader_compiler;
 use image::{GenericImageView, Primitive, RgbaImage};
 use shader_compiler::build;
 use wgpu::util::DeviceExt;
-use image::{Rgb, Pixel};
-use LVIElib::oklab::*;
 use LVIElib::matrix::convolution::laplacian_of_gaussian;
 use LVIE_GPU::GPU;
 
 use std::time::Instant;
-
-//use LVIElib::{generic_color::PixelMapping, utils::{convert_hsl_to_rgb, convert_rgb_to_hsl, norm_range_f32}};
 
 fn compute_work_group_count(
     (width, height): (u32, u32),

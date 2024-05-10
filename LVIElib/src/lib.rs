@@ -6,6 +6,7 @@ pub mod math;
 pub mod matrix;
 pub mod utils;
 pub mod blurs;
+pub mod traits;
 
 use rustfft::FftDirection;
 pub type FFTDirection = FftDirection;

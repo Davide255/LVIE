@@ -5,23 +5,22 @@ use i_slint_backend_winit::WinitWindowAccessor;
 
 use slint::ComponentHandle;
 use image::{ImageBuffer, Pixel, Primitive};
+use LVIElib::traits::ScaleImage;
 use crate::raw_decoder::{decode, supported_formats};
-use img_processing::{collect_histogram_data, Max};
+use img_processing::{collect_histogram_data, Max, _collect_histogram_data_old};
 use slint::{Image, Model, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
 use num_traits::NumCast;
 
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
-use rfd::FileDialog;
-
-use itertools::Itertools;
+use itertools::{max, Itertools};
 
 mod img_processing;
 mod raw_decoder;
 
 mod core;
-use crate::core::{Rendering, Data, FilterType, PreviewData};
+use crate::core::{Rendering, Data, FilterType, CRgbaImage};
 
 mod settings;
 use crate::settings::{load_settings, keyboard_shortcuts};
@@ -44,23 +43,81 @@ build_shortcuts!(
 --"rotate-90-deg":(|Window: LVIE, _args: &[&str]| Window.global::<ToolbarCallbacks>().invoke_rotate_90_deg())
 );
 
-//fn handle_shortcut_action(ww: Weak<LVIE>, action: Vec<&'static str>, settingsref: &mut crate::settings::keyboard_shortcuts::EditorActions) {
-//    let Window = ww.unwrap();
-//    let function = settingsref
-//    .get_options_mut().get_mut(&action[1]).unwrap().remove(&action[2]).unwrap();
-//
-//    function(Window, &action[2..]);
-//
-//    settingsref.get_options_mut().get_mut(&action[1]).unwrap().insert(&action[2], function);
-//}
+use LVIElib::utils::{graph, GraphColor};
 
-fn _create_svg_path<P>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3] 
+fn _create_hist<P>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [slint::Image; 4]
+where
+    P: Pixel, P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash,
+    std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: num_traits::ToPrimitive
+{
+    let hist = collect_histogram_data(&buff);
+
+    let r: (Vec<u32>, Vec<u32>) = ((0..hist[0].len() as u32).collect_vec(), hist[0].clone());
+    let g: (Vec<u32>, Vec<u32>) = ((0..hist[1].len() as u32).collect_vec(), hist[1].clone());
+    let b: (Vec<u32>, Vec<u32>) = ((0..hist[2].len() as u32).collect_vec(), hist[2].clone());
+
+    let size: (u32, u32) = (300, 300);
+
+    let max = max([
+        r.1.iter()
+        .max_by(|x, y| x.partial_cmp(&y).unwrap())
+        .unwrap(),
+        g.1.iter()
+        .max_by(|x, y| x.partial_cmp(&y).unwrap())
+        .unwrap(),
+        b.1.iter()
+        .max_by(|x, y| x.partial_cmp(&y).unwrap())
+        .unwrap(),
+    ]).unwrap();
+
+    let mut r_b = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
+    graph(
+        r_b.make_mut_bytes(), 
+        size, &vec![&r.0], &vec![&r.1],
+        &255, max,
+        &vec![GraphColor::RED],
+        (0, 0, 0, 0)
+    ).expect("Failed to build the graph (R)");
+
+    let mut g_b = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
+    graph(
+        g_b.make_mut_bytes(), 
+        size, &vec![&g.0], &vec![&g.1],
+        &255, max,
+        &vec![GraphColor::GREEN],
+        (0, 0, 0, 0)
+    ).expect("Failed to build the graph (G)");
+
+    let mut b_b = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
+    graph(
+        b_b.make_mut_bytes(), 
+        size, &vec![&b.0], &vec![&b.1], 
+        &255, max,
+        &vec![GraphColor::BLUE],
+        (0, 0, 0, 0)
+    ).expect("Failed to build the graph (B)");
+
+    let mut all3 = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
+    graph(
+        all3.make_mut_bytes(), size, 
+        &vec![&r.0, &g.0, &b.0], &vec![&r.1, &g.1, &b.1], 
+        &255, max,
+        &vec![GraphColor::RED, GraphColor::GREEN, GraphColor::BLUE], 
+        (0, 0, 0, 0)
+    ).expect("Failed to build the graph (RGB)");
+
+    [slint::Image::from_rgb8(r_b), slint::Image::from_rgb8(g_b), 
+    slint::Image::from_rgb8(b_b), slint::Image::from_rgb8(all3)]
+}
+
+fn _create_svg_path<P: Pixel>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3] 
 where 
     P: Pixel, P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash + std::cmp::Ord,
     std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
     <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: num_traits::ToPrimitive
 {
-    let hist = collect_histogram_data(&buff);
+    let hist = _collect_histogram_data_old(&buff);
     let mut _v: Vec<SharedString> = Vec::new();
     for cmp in hist {
         let scale_factor: u32 = 1;
@@ -118,25 +175,25 @@ fn main() {
 
     let DATA = Arc::new(Mutex::new(d));
 
-    let preview = Arc::new(Mutex::new(PreviewData::new(None, None, None)));
+    //let preview = Arc::new(Mutex::new(PreviewData::new(None, None, None)));
 
     // CALLBACKS:
     // open image:
     let data_weak = DATA.clone();
-    let prev_w = preview.clone();
+    //let prev_w = preview.clone();
     let Window_weak = Window.as_weak();
     Window
         .global::<ToolbarCallbacks>()
         .on_open_file(move || {
             // get the file with native file dialog
-            let fd = FileDialog::new()
+            let fd = rfd::FileDialog::new()
                 .add_filter("all image formats", 
                 &[supported_formats().as_slice(), ["jpg", "jpeg", "png"].as_slice()].concat())
                 .pick_file();
             if fd.is_none() { return; }
             let binding = fd.unwrap();
 
-            let img: image::RgbaImage;
+            let img: CRgbaImage<image::Rgba<u8>>;
 
             if supported_formats().contains(&binding.as_path().extension().unwrap().to_str().unwrap().to_uppercase().as_str()) {
                 let buff = decode(binding.as_path());
@@ -144,7 +201,7 @@ fn main() {
                     println!("Cannot decode file {}", binding.as_path().display());
                     return; 
                 }
-                img = buff.unwrap();
+                img = buff.unwrap().scale_image::<image::Rgba<u16>, image::Rgba<u8>>();
             } else {
                 let buff = image::open(binding.as_path().to_str().unwrap());
                 if buff.is_err() {
@@ -154,17 +211,17 @@ fn main() {
                 img = buff.unwrap().to_rgba8();
             }
 
-            let (real_w, real_h) = img.dimensions();
+            //let (real_w, real_h) = img.dimensions();
 
             let mut data = data_weak.lock().unwrap();
 
             // load the image
             data.load_image(img.clone());
 
-            let nw: u32 = Window_weak.unwrap().get_image_space_size_width().round() as u32;
-            let nh: u32 = (real_h * nw) / real_w;
+            //let nw: u32 = Window_weak.unwrap().get_image_space_size_width().round() as u32;
+            //let nh: u32 = (real_h * nw) / real_w;
 
-            *prev_w.lock().unwrap() = data.generate_preview(nw, nh);
+            //*prev_w.lock().unwrap() = data.generate_preview(nw, nh);
 
             //let lpw = prev_w.clone();
             Window_weak
@@ -179,9 +236,9 @@ fn main() {
                     // create the histogram and update the UI
                     let ww = Window.as_weak();
                     thread::spawn(move || {
-                        let path = _create_svg_path(&img);
                         ww.upgrade_in_event_loop(move |window| {
-                            window.set_svg_path(path.into());
+                            let path = _create_hist(&img);
+                            window.set_new_histogram(path.into());
                         })
                         .expect("Failed to run in event loop");
                     });
@@ -222,10 +279,6 @@ fn main() {
             slint::quit_event_loop().expect("Failed to stop the event loop");
         });
 
-    Window.on_to_lowercase(move |s: SharedString| {
-        s.to_lowercase().into()
-    });
-
     let ww = Window.as_weak();
     let sw =  SETTINGS.clone();
     Window.on_handle_shortcut(move |kvalue: SharedString, alt: bool, ctrl: bool, shift: bool| {
@@ -252,7 +305,6 @@ fn main() {
 
     //reset
     let data_weak = DATA.clone();
-    let prev_w = preview.clone();
     let Window_weak = Window.as_weak();
     Window.global::<ScreenCallbacks>().on_reset(move || {
         let mut data = data_weak.lock().expect("Failed to lock data");
@@ -262,20 +314,13 @@ fn main() {
 
         // restore all the previews to the original image
         let img = data.full_res_preview.clone();
-        let (real_w, real_h) = img.dimensions();
 
-        let lpw = prev_w.clone();
-        let dw = data_weak.clone();
         Window_weak.upgrade_in_event_loop(move |Window: LVIE| {
             Window.set_image(
                 Image::from_rgba8(
             SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&img, img.width(), img.height())));
 
-            // re-build the preview based on the effective screen sizes
-            let nw: u32 = Window.get_image_space_size_width().round() as u32;
-            let nh: u32 = (real_h * nw) / real_w;
-                    
-            *lpw.lock().unwrap() = dw.lock().unwrap().generate_preview(nw, nh);
+            //*lpw.lock().unwrap() = dw.lock().unwrap().generate_preview(nw, nh);
 
             let ww = Window.as_weak();
             thread::spawn(move || {
@@ -313,10 +358,12 @@ fn main() {
     let ww = Window.as_weak();
     Window.global::<ScreenCallbacks>().on_add_curve_point(move |x: f32, y: f32| {
         let mut d = dw.lock().unwrap();
-        d.curve.add_point([x, y]).expect("Failed to add a point");
+        let i = d.curve.add_point([x, y]).expect("Failed to add a point");
         let Window = ww.unwrap();
         Window.set_curve(d.curve.to_image((300, 300)));
         Window.set_curve_points(d.curve.into_rc_model());
+
+        return i.try_into().unwrap();
     });
 
     let d_w = DATA.clone();
@@ -338,6 +385,31 @@ fn main() {
         }
 
         return p_number;
+    });
+
+    let d_w = DATA.clone();
+    let ww = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_remove_curve_point(move |index: i32| {
+        let mut d = d_w.lock().unwrap();
+        if d.curve.remove_point(index as usize).is_ok() {
+            let Window = ww.unwrap();
+            Window.set_curve(d.curve.to_image((300, 300)));
+            Window.set_curve_points(d.curve.into_rc_model());
+        }
+    });
+
+    let d_w = DATA.clone();
+    let ww = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_set_curve_type(move |curve_type: i32| {
+        let mut d = d_w.lock().unwrap();
+        d.curve.set_curve_type({
+            match curve_type {
+                0 => core::CurveType::MONOTONE,
+                1 => core::CurveType::SMOOTH,
+                _ => unimplemented!(),
+            }
+        });
+        ww.unwrap().set_curve(d.curve.to_image((300,300)));
     });
 
     // apply filters
@@ -450,7 +522,7 @@ mod tests {
 
         let filters = FilterArray::new(Some(vec![filter!(FilterType::WhiteBalance, fromtemp, fromtint, totemp, totint)]));
 
-        let img = image::open("C:\\Users\\david\\Documents\\workspaces\\original.jpg").unwrap().to_rgba8();
+        let img = image::open("original.jpg").unwrap().to_rgba8();
 
         cpu.render_data(&img, &filters).unwrap().save("prova_cpu.jpg").expect("Failed to save the image");
         gpu.render_data(&img, &filters).unwrap().save("prova_gpu.jpg").expect("Failed to save the image");
