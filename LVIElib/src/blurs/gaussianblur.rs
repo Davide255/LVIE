@@ -1,7 +1,9 @@
 use image::{RgbImage, RgbaImage};
 //use image::{Rgb, GenericImageView, Pixel};
 
-use crate::blurs::boxblur::{FastBoxBlur, FastBoxBlur_rgba};
+use crate::traits::Scale;
+
+use super::boxblur::{FastBoxBlur, FastBoxBlur_rgba, FastBoxBlur_rgb, CRgbaImage};
 
 fn boxesForGauss(sigma: f32, n: f32) -> Vec<u16> // standard deviation, number of boxes
 {
@@ -25,14 +27,14 @@ fn boxesForGauss(sigma: f32, n: f32) -> Vec<u16> // standard deviation, number o
     return sizes;
 }
 
-pub fn FastGaussianBlur(img: &RgbImage, sigma: f32, n: u8) -> RgbImage {
+pub fn FastGaussianBlur_rgb(img: &RgbImage, sigma: f32, n: u8) -> RgbImage {
     let bxs = boxesForGauss(sigma, n as f32);
 
-    let mut out = FastBoxBlur(img, ((bxs[0]-1u16)/2u16) as u32);
+    let mut out = FastBoxBlur_rgb(img, ((bxs[0]-1u16)/2u16) as u32);
 
     for pass in 0..n as usize
     {
-        out = FastBoxBlur(img, ((bxs[pass]-1u16)/2u16) as u32);
+        out = FastBoxBlur_rgb(img, ((bxs[pass]-1u16)/2u16) as u32);
     }
 
     out
@@ -46,6 +48,25 @@ pub fn FastGaussianBlur_rgba(img: &RgbaImage, sigma: f32, n: u8) -> RgbaImage {
     for pass in 0..n as usize
     {
         out = FastBoxBlur_rgba(img, ((bxs[pass]-1u16)/2u16) as u32);
+    }
+
+    out
+}
+
+use image::{Pixel, Primitive};
+
+pub fn FastGaussianBlur<P>(img: &CRgbaImage<P>, sigma: f32, n: u8) -> CRgbaImage<P> 
+where 
+    P: Pixel + Send + Sync + 'static + std::fmt::Debug,
+    P::Subpixel: Scale + Primitive + std::fmt::Debug + Send + Sync
+{
+    let bxs = boxesForGauss(sigma, n as f32);
+
+    let mut out = FastBoxBlur(img, ((bxs[0]-1u16)/2u16) as u32);
+
+    for pass in 0..n as usize
+    {
+        out = FastBoxBlur(img, ((bxs[pass]-1u16)/2u16) as u32);
     }
 
     out

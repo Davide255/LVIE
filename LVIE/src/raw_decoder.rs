@@ -89,7 +89,7 @@ fn bayer_to_rgb(img: &Vec<u16>, width: usize, height: usize, cfa: rawloader::CFA
 }
 
 pub fn decode<P: AsRef<Path>>(path: P) -> Option<image::ImageBuffer<image::Rgba<u16>, Vec<u16>>> {
-
+    
     let f = decode_file(path).unwrap();
 
     let wb = f.neutralwb();

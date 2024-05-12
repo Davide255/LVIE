@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 pub mod contrast;
-pub mod generic_color;
 pub mod math;
 pub mod matrix;
 pub mod utils;

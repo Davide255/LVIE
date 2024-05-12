@@ -3,7 +3,7 @@
 use image::{ImageBuffer, Luma, LumaA, Pixel, Primitive, Rgb, Rgba};
 use std::ops::{Deref, DerefMut};
 
-use crate::generic_color::{AsFloat, Enlargeable};
+use crate::traits::AsFloat;
 
 use crate::linear_srgb::{LinSrgb, LinSrgba};
 use crate::matrix::Matrix;
@@ -199,7 +199,7 @@ impl DerefMut for Oklab {
     }
 }
 
-fn rgb_to_oklab<T: Enlargeable + Primitive + AsFloat>(rgb: &Rgb<T>) -> Oklab {
+fn rgb_to_oklab<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Oklab {
     let linsrgb = LinSrgb::from(*rgb);
     linsrgb_to_oklab(&linsrgb)
 }
@@ -323,7 +323,7 @@ impl From<Oklab> for Rgb<f32> {
     }
 }
 
-impl<T: Primitive + Enlargeable + AsFloat> From<Rgb<T>> for Oklab {
+impl<T: Primitive + AsFloat> From<Rgb<T>> for Oklab {
     fn from(rgb: Rgb<T>) -> Self {
         rgb_to_oklab(&rgb)
     }
@@ -537,7 +537,7 @@ impl DerefMut for Oklaba {
     }
 }
 
-fn rgba_to_oklaba<T: Enlargeable + Primitive + AsFloat>(rgb: &Rgba<T>) -> Oklaba {
+fn rgba_to_oklaba<T: Primitive + AsFloat>(rgb: &Rgba<T>) -> Oklaba {
     let linsrgb = LinSrgba::from(*rgb);
     linsrgba_to_oklaba(&linsrgb)
 }
@@ -661,7 +661,7 @@ impl From<Oklaba> for Rgba<f32> {
     }
 }
 
-impl<T: Primitive + Enlargeable + AsFloat> From<Rgba<T>> for Oklaba {
+impl<T: Primitive + AsFloat> From<Rgba<T>> for Oklaba {
     fn from(rgb: Rgba<T>) -> Self {
         rgba_to_oklaba(&rgb)
     }

@@ -1,10 +1,12 @@
-import { Slider } from "std-widgets.slint";
+import { Filter } from "filter.slint";
 export component Example inherits Window {
     width: 200px;
-    height: 25px;
-    Slider {
-        width: parent.width;
-        height: parent.height;
-        value: 42;
+    height: 100px;
+    Filter {
+        name: "Prova";
+        minimum: -5.0;
+        maximum: 5.0;
+        decimals: 3;
+        percent: true;
     }
 }

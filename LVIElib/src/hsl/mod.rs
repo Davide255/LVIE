@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::utils::{norm_range_f32, _max, _min};
-use crate::generic_color::{AsFloat, Enlargeable};
+use crate::traits::AsFloat;
 
 
 /// # HSL Color Space:
@@ -404,7 +404,7 @@ impl From<Hsl> for Rgb<f32> {
     }
 }
 
-impl<T: Primitive + Enlargeable + AsFloat> From<Rgb<T>> for Hsl {
+impl<T: Primitive + AsFloat> From<Rgb<T>> for Hsl {
     fn from(rgb: Rgb<T>) -> Self {
         rgb_to_hsl(&rgb)
     }
@@ -821,7 +821,7 @@ impl From<Hsla> for Rgba<f32> {
     }
 }
 
-impl<T: Primitive + Enlargeable + AsFloat> From<Rgba<T>> for Hsla {
+impl<T: Primitive + AsFloat> From<Rgba<T>> for Hsla {
     fn from(rgb: Rgba<T>) -> Self {
         rgba_to_hsla(&rgb)
     }

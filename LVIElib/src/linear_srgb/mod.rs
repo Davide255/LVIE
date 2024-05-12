@@ -4,7 +4,7 @@ use image::{ImageBuffer, Luma, LumaA, Pixel, Primitive, Rgb, Rgba};
 use num_traits::NumCast;
 use std::ops::{Deref, DerefMut};
 
-use crate::generic_color::{AsFloat, Enlargeable};
+use crate::traits::AsFloat;
 
 #[derive(PartialEq, Clone, Debug, Copy, Default)]
 #[repr(C)]
@@ -306,7 +306,7 @@ impl From<LinSrgb> for Rgb<f32> {
     }
 }
 
-impl<T: Primitive + Enlargeable + AsFloat> From<Rgb<T>> for LinSrgb {
+impl<T: Primitive + AsFloat> From<Rgb<T>> for LinSrgb {
     fn from(rgb: Rgb<T>) -> Self {
         rgb_to_srgb(&rgb)
     }
@@ -630,7 +630,7 @@ impl From<LinSrgba> for Rgba<f32> {
     }
 }
 
-impl<T: Primitive + Enlargeable + AsFloat> From<Rgba<T>> for LinSrgba {
+impl<T: Primitive + AsFloat> From<Rgba<T>> for LinSrgba {
     fn from(rgb: Rgba<T>) -> Self {
         rgba_to_srgba(&rgb)
     }

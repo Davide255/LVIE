@@ -1,7 +1,17 @@
 #![allow(non_snake_case)]
+use std::any::TypeId;
+
 use image::Primitive;
 use pollster::FutureExt;
 use wgpu::util::DeviceExt;
+use image::Pixel;
+
+use LVIElib::traits::Scale;
+
+#[allow(type_alias_bounds)]
+pub type CRgbaImage<P: Pixel> = image::ImageBuffer<P, Vec<P::Subpixel>>;
+
+pub use bytemuck::Pod;
 
 #[derive(Debug)]
 pub enum GPUError {
@@ -61,8 +71,8 @@ fn compute_work_group_count(
     (x, y)
 }
 
-fn padded_bytes_per_row(width: u32) -> usize {
-    let bytes_per_row = width as usize * 4;
+fn padded_bytes_per_row<T: Primitive>(width: u32) -> usize {
+    let bytes_per_row = width as usize * 4 * std::mem::size_of::<T>();
     let padding = (256 - bytes_per_row % 256) % 256;
     bytes_per_row + padding
 }
@@ -203,38 +213,60 @@ impl GPU {
         self.shaders = vec![exposition, saturation, grayscale, whitebalance];
     }
 
-    pub fn create_texture(&mut self, img: &image::RgbaImage) {
+    #[allow(unreachable_code)]
+    pub fn create_texture<P>(&mut self, img: &CRgbaImage<P>) -> Result<(), GPUError> 
+    where 
+        P: Pixel + Send + Sync + 'static,
+        P::Subpixel: Scale + Primitive + std::fmt::Debug + bytemuck::Pod
+    {   
         let texture_size = wgpu::Extent3d {
             width: img.width(),
             height: img.height(),
             depth_or_array_layers: 1,
         };
-
+    
         let input_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("input texture"),
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: {
+                if TypeId::of::<P::Subpixel>() == TypeId::of::<u8>() {
+                    wgpu::TextureFormat::Rgba8Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<u16>() {
+                    panic!("This type is still not supported for GPU rendering, please use CPU rendering mode");
+                    wgpu::TextureFormat::Rgba16Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<f32>() {
+                    panic!("This type is still not supported for GPU rendering, please use CPU rendering mode");
+                    wgpu::TextureFormat::Rgba32Float
+                } else {
+                    return Err(GPUError::RENDERINGERROR())
+                }
+            },
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         });
-
+    
         self.queue.write_texture(
             input_texture.as_image_copy(),
             bytemuck::cast_slice(img.as_raw()),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * img.width()),
+                bytes_per_row: std::num::NonZeroU32::new(4* (std::mem::size_of::<P::Subpixel>() as u32) * img.width()),
                 rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
             },
             texture_size,
-        );
-
-        self.texture = Some((input_texture, texture_size))
+        );        
+        self.texture = Some((input_texture, texture_size));
+        Ok(())
     }
 
-    pub fn render<T: Primitive + bytemuck::Pod>(&mut self, shader: &GPUShaderType, parameters: &Vec<T>) -> Result<image::RgbaImage, GPUError> {
+    pub fn render<T, P>(&mut self, shader: &GPUShaderType, parameters: &Vec<T>) -> Result<CRgbaImage<P>, GPUError> 
+    where 
+        P: Pixel + Send + Sync + 'static,
+        P::Subpixel: Scale + Primitive + std::fmt::Debug + bytemuck::Pod,
+        T: Primitive + bytemuck::Pod
+    {
         
         if self.shaders.len() == 0 { return Err(GPUError::SHADERSNOTCOMPILED()); }
         
@@ -255,7 +287,17 @@ impl GPU {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: {
+                if TypeId::of::<P::Subpixel>() == TypeId::of::<u8>() {
+                    wgpu::TextureFormat::Rgba8Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<u16>() {
+                    wgpu::TextureFormat::Rgba16Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<f32>() {
+                    wgpu::TextureFormat::Rgba32Float
+                } else {
+                    return Err(GPUError::RENDERINGERROR())
+                }
+            },
             usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::STORAGE_BINDING,
         });
 
@@ -302,10 +344,10 @@ impl GPU {
             compute_pass.dispatch_workgroups(dispatch_with, dispatch_height, 1);
         }
 
-        let padded_bytes_per_row = padded_bytes_per_row(texture_size.width);
-        let unpadded_bytes_per_row = texture_size.width as usize * 4;
+        let padded_bytes_per_row = padded_bytes_per_row::<P::Subpixel>(texture_size.width);
+        let unpadded_bytes_per_row = texture_size.width as usize * 4 * std::mem::size_of::<P::Subpixel>();
 
-        let mut pixels: Vec<u8> = vec![0; padded_bytes_per_row * texture_size.height as usize];
+        let mut pixels: Vec<P::Subpixel> = vec![P::Subpixel::DEFAULT_MIN_VALUE; padded_bytes_per_row * texture_size.height as usize];
 
         let out_buffer: wgpu::Buffer = self.device.create_buffer(&wgpu::BufferDescriptor { 
             label: Some("out buff"), 
@@ -345,10 +387,10 @@ impl GPU {
             .chunks_exact(padded_bytes_per_row)
             .zip(pixels.chunks_exact_mut(unpadded_bytes_per_row))
         {
-            pixels.copy_from_slice(&padded[..unpadded_bytes_per_row]);
+            pixels.copy_from_slice(bytemuck::cast_slice(&padded[..unpadded_bytes_per_row]));
         }
 
-        if let Some(output_image) = image::ImageBuffer::<image::Rgba<u8>, Vec<u8>>::from_raw(texture_size.width, texture_size.height, (&pixels[..]).to_vec())
+        if let Some(output_image) = CRgbaImage::<P>::from_raw(texture_size.width, texture_size.height, (&pixels[..]).to_vec())
         {
             Ok(output_image)
         } else {

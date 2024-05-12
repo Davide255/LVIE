@@ -129,8 +129,6 @@ where
     [r, g, b]
 }
 
-use LVIElib::utils::norm_range_f32;
-
 //pub fn saturate(img: &RgbImage, value: f32) -> RgbImage {
 //    let mut hsl_image = convert_rgb_to_hsl(img);
 //    for (_, _, pixel) in hsl_image.enumerate_pixels_mut() {
@@ -142,7 +140,7 @@ use LVIElib::utils::norm_range_f32;
 pub fn saturate_rgba(img: &RgbaImage, value: f32) -> RgbaImage {
     let mut hsl_image = convert_rgba_to_hsla(img);
     for (_, _, pixel) in hsl_image.enumerate_pixels_mut() {
-        *pixel.saturation_mut() = norm_range_f32(0.0..=1.0, *pixel.saturation() + value / 2f32);
+        *pixel.saturation_mut() = *pixel.saturation() + value / 2f32;
     }
     convert_hsla_to_rgba(&hsl_image)
 }

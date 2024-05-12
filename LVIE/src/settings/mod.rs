@@ -11,10 +11,12 @@ const DEFAULT: &str = r"<LVIESettings>
 #[derive(Deserialize, Debug)]
 struct LVIESettings {
     pub backend: String,
+    pub start_maximized: bool,
 }
 
 pub struct Settings {
     pub backend: crate::core::RenderingBackends,
+    pub start_maximized: bool,
     pub keyboard_shortcuts: keyboard_shortcuts::Keyboard,
 }
 
@@ -49,6 +51,7 @@ pub fn load_settings(fd: Option<String>) -> std::io::Result<Settings> {
                     _ => unimplemented!() 
                 }
             },
+            start_maximized: s.start_maximized,
             keyboard_shortcuts: {
                 let ks = keyboard_shortcuts::load_from_file(None)?;
                 if ks.is_err() {

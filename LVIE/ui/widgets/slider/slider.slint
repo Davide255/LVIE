@@ -5,6 +5,8 @@ export component CustomSlider inherits Rectangle {
     in-out property<float> minimum: -1.0;
     in-out property<float> value: 0;
 
+    in-out property <string> name: "none";
+
     in-out property <brush> bgcolor <=> self.background;
 
     callback on-click <=> touch.clicked;
@@ -23,7 +25,7 @@ export component CustomSlider inherits Rectangle {
 
     handle := Rectangle {
         width: self.height;
-        height: 15px;
+        height: parent.height * 270%;
         border-width: 1px;
         border-radius: self.height / 2;
         background: #ffffff;
@@ -32,6 +34,7 @@ export component CustomSlider inherits Rectangle {
     }
     touch := TouchArea {
         property <float> pressed-value;
+        property <length> old_x;
         height: handle.height;
         pointer-event(event) => {
             if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
@@ -42,7 +45,7 @@ export component CustomSlider inherits Rectangle {
             if (self.enabled && self.pressed) {
                 root.value = max(root.minimum, min(root.maximum,
                     self.pressed-value + (touch.mouse-x - touch.pressed-x) * (root.maximum - root.minimum) / (root.width - handle.width)));
-            
+                
                 if (abs(root.value - parent.old_v) >= 0.05) {
                     parent.on-move();
                     parent.old_v = root.value;

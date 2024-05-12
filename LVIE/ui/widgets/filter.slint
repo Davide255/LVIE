@@ -1,0 +1,87 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Palette } from "../color/palette.slint";
+import { CustomSlider } from "slider/slider.slint";
+export component Filter inherits VerticalBox {
+    in-out property <string> name;
+    in-out property <float> minimum: -1.0;
+    in-out property <float> maximum: 1.0;
+    in-out property <float> value <=> s.value;
+    in-out property <brush> background: Palette.Dark.Dark-400;
+
+    in property <bool> percent: false;
+
+    in-out property <int> decimals: 2;
+    property <int> s_factor: Math.pow(10, decimals);
+
+    callback on_move();
+    property <length> text_height: root.height *35%;
+
+    height: self.width * 30% >= 40px ? self.width * 30% : 40px;
+
+    HorizontalBox {
+        spacing: 0px;
+        width: parent.width;
+        height: text_height;
+        padding: 0px;
+
+        Text {
+            text: name + ":";
+            height: text_height;
+            font-size: root.height * 20%;
+            font-weight: 10;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            width: parent.width * 50%;
+        }
+
+        Rectangle {
+            border-radius: 5px;
+            border-width: 1px;
+            border-color: Palette.Dark.Dark-100;
+            height: text_height;
+            width: parent.width * 3/10;
+            background: Palette.Dark.Dark-400;
+
+            TextInput {
+                property <float> nv;
+                text: "\{round(s.value*s_factor)/s_factor}";
+                vertical-alignment: center;
+                horizontal-alignment: center;
+                font-size: root.height * 20%;
+                font-weight: 10;
+                height: text_height;
+                width: parent.width - 5px;
+                edited => {
+                    if (self.text.is-float()) {
+                        self.nv = self.text.to-float();
+                        if (self.nv <= root.maximum && self.nv >= root.minimum) {
+                            s.value = self.nv;
+                            root.on_move();
+                        }
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: (percent ? "%" : "");
+            font-size: root.height * 20%;
+            font-weight: 10;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+            height: text_height;
+            width: parent.width / 10;
+        }
+    }
+
+    s := CustomSlider {
+        height: 4px;
+        bgcolor: background;
+        name: name;
+        minimum: minimum;
+        maximum: maximum;
+        on-move => {
+            on-move();
+        }
+    }
+}

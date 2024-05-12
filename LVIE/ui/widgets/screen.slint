@@ -1,6 +1,7 @@
 import { HorizontalBox , VerticalBox, Slider , Button , ScrollView, ComboBox , GridBox} from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
 import { CustomSlider } from "slider/slider.slint";
+import { Filter } from "filter.slint";
 
 global ScreenCallbacks {
     callback add-box-blur(int);
@@ -78,23 +79,23 @@ component Screen inherits HorizontalBox {
         ScrollView {
             width: parent.width;
             padding: 2px;
+            viewport-width: parent.width - 4px;
             x: 0px;
 
             VerticalBox {
-                //height: auto;
-                width: parent.width;
+                width: parent.width - 4px;
                 spacing: 5px;
                 padding: 2px;
-                alignment: start;
+
                 h_choice := ComboBox {
-                    model: ["R", "G", "B", "all"];
+                    model: ["R", "G", "B", "All"];
                     current-index: 0;
                     width: 100px;
                     height: 30px;                 
                 }
                 Rectangle {
-                    width: parent.width - 30px;
-                    height: (root.height - 30px) / 3;
+                    width: parent.width - parent.width * 5%;
+                    height: self.width;
                     //x: 5px;
                     //y: 30px;
                     background: transparent;
@@ -106,20 +107,15 @@ component Screen inherits HorizontalBox {
                         height: parent.height - 5px;
                         source: new_histogram[h-choice.current-index];
                     }
-                    //Path {
-                    //    width: parent.width - 5px;
-                    //    height: parent.height - 5px;
-                    //    commands: histogram[h-choice.current-index];
-                    //    stroke: h-color[h-choice.current-index];
-                    //    stroke-width: 1px;
-                    //    fill: self.stroke;
-                    //}
                 }
+
                 Rectangle {                
                     background: transparent;
                     border-radius: 7px;
                     border-width: 2px;
                     border-color: black;
+                    width: parent.width - parent.width * 5%;
+                    height: self.width;
                     plot := Image {
                         image-fit: fill;
                         width: parent.width -5px;
@@ -183,59 +179,40 @@ component Screen inherits HorizontalBox {
                         }
                     }
                 }
-                GridBox {
-                    Row {
-                        HorizontalBox {
-                            Text {
-                                text: "curve type:";
-                                horizontal-alignment: center;
-                            }
-                            curve_type := ComboBox {
-                                model: ["monotone", "smooth"];
-                                current-index: 0;
-                                selected(v) => {
-                                    ScreenCallbacks.set-curve-type(self.current-index)
-                                }
-                            }
-                        }
+                
+                HorizontalBox {
+                    width: parent.width - parent.width * 5%;
+                    Text {
+                        text: "Curve Type:";
+                        vertical-alignment: center;
+                        horizontal-alignment: left;
+                        font-size: parent.width * 7%;
+                        font-weight: 10;
+
                     }
-                    Row {
-                        VerticalBox {
-                            padding: 5px;
-                            Text {
-                                text: "temp: \{round(temp.value*100)/100}";
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                                font-size: 10px;
-                            }
-                            temp := CustomSlider {
-                                height: 4px;
-                                background: @linear-gradient(90deg, #0011ff 0%, #ffffff 50%, #f9ff56 100%);
-                                on-move => {
-                                    send-applyfilters();
-                                }
-                            }
-                        }
-                    }
-                    Row {
-                        VerticalBox {
-                            padding: 5px;
-                            Text {
-                                text: "tint: \{round(tint.value*100)/100}";
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                                font-size: 10px;
-                            }
-                            tint := CustomSlider {
-                                height: 4px;
-                                background: @linear-gradient(90deg, #f660f9 0%, #66ff00 100%);
-                                on-move => {
-                                    send-applyfilters();
-                                }
-                            }
+                    curve_type := ComboBox {
+                        model: ["monotone", "smooth"];
+                        width: parent.width * 50%;
+                        current-index: 0;
+                        selected(v) => {
+                            ScreenCallbacks.set-curve-type(self.current-index)
                         }
                     }
                 }
+            
+            
+                temp := Filter {
+                    name: "Temperature";
+                    background: @linear-gradient(90deg, #0011ff 0%, #ffffff 50%, #f9ff56 100%);
+                    on_move => { send-applyfilters(); }
+                }
+            
+                tint := Filter {
+                    name: "Tint";
+                    background: @linear-gradient(90deg, #f660f9 0%, #66ff00 100%);
+                    on_move => { send-applyfilters(); }
+                }
+                
             }
             //viewport-height: (self.width - 10px) * 3;
         }
@@ -292,105 +269,66 @@ component Screen inherits HorizontalBox {
         Rectangle {
             background: Palette.Dark.Dark-300;
             border-radius: 7px;
-            GridBox {
-                Row {
-                    VerticalBox {
-                        padding: 5px;
-                        Text {
-                            text: "saturation: \{round(saturation.value*100)/100}";
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 10px;
-                        }
-                        saturation := CustomSlider {
-                            //width: right-area.width - 10px;
-                            height: 4px;
-                            background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
-                            on-move => {
-                                send-applyfilters();
-                            }
-                        }
+            ScrollView {
+                width: parent.width;
+                height: parent.height;
+                padding: 0px;
+                viewport-width: parent.width - 4px;
+
+                VerticalBox {
+                    width: parent.width - 4px;
+                    spacing: 2px;
+                    saturation := Filter {
+                        name: "Saturation";
+                        background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
+                        on_move => { send-applyfilters(); }
                     }
-                }
-                Row {
-                    VerticalBox {
-                        padding: 5px;
-                        Text {
-                            text: "Sharpening: \{sharpening.value}";
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 10px;
-                        }
-                        sharpening := Slider {
-                            value: 0;
-                            maximum: 1;
-                            minimum: 0;
-                        }
+
+                    sharpening := Filter {
+                        name: "Sharpening";
+                        minimum: 0.0;
+                        maximum: 100.0;
+                        percent: true;
+                        decimals: 0;
+                        on_move => { send-applyfilters(); }
                     }
-                }
-                Row {
-                    VerticalBox {
-                        padding: 5px;
-                        Text {
-                            text: "Gaussian Blur: \{round(gaussian_blur.value)}";
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 10px;
-                        }
-                        gaussian_blur := Slider {
-                            value: 0;
-                            maximum: 30;
-                            minimum: 0;
-                        }
+
+                    gaussian_blur := Filter {
+                        name: "Gaussian Blur";
+                        value: 0;
+                        maximum: 30;
+                        minimum: 0;
+                        decimals: 0;
                     }
-                }
-                Row {
-                    VerticalBox {
-                        padding: 5px;
-                        Text {
-                            text: "Box Blur: \{round(box_blur.value)}";
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 10px;
-                        }
-                        box_blur := Slider {
-                            //width: right-area.width - 10px;
-                            value: 0;
-                            maximum: 30;
-                            minimum: 0;
-                        }
+
+                    box_blur := Filter {
+                        name: "Box Blur";
+                        value: 0;
+                        minimum: 0;
+                        maximum: 30;
+                        decimals: 0;
                     }
-                }
-                Row {
-                    VerticalBox {
-                        padding: 5px;
-                        Text {
-                            text: "exposition: \{exposition.value}";
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 10px;
-                        }
-                        exposition := CustomSlider {
-                            //width: right-area.width - 10px;
-                            height: 4px;
-                            background: @linear-gradient(90deg, #000000 0%, #ffffff 100%);
-                        }
+
+                    exposition := Filter {
+                        name: "Exposition";
+                        background: @linear-gradient(90deg, #000000 0%, #ffffff 100%);
+                        on_move => { send-applyfilters(); }
                     }
-                }
-                Row {
+
                     Button {
                         text: "apply filters";
+                        max-height: 50px;
                         clicked => {
                             ScreenCallbacks.apply-filters(
-                                exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
+                                exposition.value, round(box-blur.value), round(gaussian-blur.value), sharpening.value, 
                                 temp.value, tint.value, saturation.value
                             );
                         }
                     }
-                }
-                Row {
+
                     Button {
                         text: "Reset";
+                        max-height: 50px;
                         clicked => {
                             saturation.value = 0;
                             box-blur.value = 0;
@@ -406,11 +344,27 @@ component Screen inherits HorizontalBox {
                             ScreenCallbacks.reset();
                         }
                     }
-                }
-                Row {
+        
                     HorizontalBox {
-                        tx := TextInput {
-                            text: "prova.jpg";
+                        max-height: 100px;
+                        width: parent.width;
+                        VerticalBox {
+                            width: parent.width / 2;
+                            Text {
+                                text: "File name:";
+                            }
+                            
+                            Rectangle {
+                                border-color: black;
+                                border-radius: 5px;
+                                border-width: 2px;
+                                width: parent.width;
+                                padding: 2px;
+                                tx := TextInput {
+                                    width: parent.width - 4px;
+                                    text: "prova.jpg";
+                                }
+                            }
                         }
                         Button {
                             text: "Save";

@@ -17,6 +17,7 @@ use std::{thread, time};
 use itertools::{max, Itertools};
 
 mod img_processing;
+mod img_processing_generic;
 mod raw_decoder;
 
 mod core;
@@ -211,19 +212,11 @@ fn main() {
                 img = buff.unwrap().to_rgba8();
             }
 
-            //let (real_w, real_h) = img.dimensions();
-
             let mut data = data_weak.lock().unwrap();
 
             // load the image
             data.load_image(img.clone());
 
-            //let nw: u32 = Window_weak.unwrap().get_image_space_size_width().round() as u32;
-            //let nh: u32 = (real_h * nw) / real_w;
-
-            //*prev_w.lock().unwrap() = data.generate_preview(nw, nh);
-
-            //let lpw = prev_w.clone();
             Window_weak
                 .upgrade_in_event_loop(move |Window| {
                     // loading the image into the UI
@@ -420,6 +413,8 @@ fn main() {
             //low res preview
             let mut data = data_weak.lock().expect("Failed to lock");
 
+            if data.image_dimensions() == (0,0) { return; }
+
             data.update_filter(FilterType::Exposition, vec![exposition]);
             data.update_filter(FilterType::Saturation, vec![saturation]);
             data.update_filter(FilterType::Sharpening, vec![sharpening, 5.0]);
@@ -465,7 +460,7 @@ fn main() {
             data_weak
                 .lock()
                 .unwrap()
-                .full_res_preview
+                .export()
                 .save(path.as_str())
                 .expect("Failed to save file");
         });
@@ -473,18 +468,20 @@ fn main() {
     // startup procedure
     let l_weak: Weak<LVIE> = Window.as_weak();
 
-    if WINIT_BACKEND {
-        thread::Builder::new()
-            .name("waiter".to_string())
-            .spawn(move || {
-                thread::sleep(time::Duration::from_millis(100));
-                l_weak
-                    .upgrade_in_event_loop(move |handle| {
-                        maximize_ui(handle);
-                    })
-                    .expect("Failed to call from the main thread");
-            })
-            .expect("Failed to spawn thread");
+    {
+        if WINIT_BACKEND && SETTINGS.lock().unwrap().start_maximized {
+            thread::Builder::new()
+                .name("waiter".to_string())
+                .spawn(move || {
+                    thread::sleep(time::Duration::from_millis(100));
+                    l_weak
+                        .upgrade_in_event_loop(move |handle| {
+                            maximize_ui(handle);
+                        })
+                        .expect("Failed to call from the main thread");
+                })
+                .expect("Failed to spawn thread");
+        }
     }
 
     let _ = Window.show();

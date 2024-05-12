@@ -1,19 +1,19 @@
+use std::fmt::Debug;
+
 use image::{Pixel, Primitive};
-use LVIElib::blurs::{boxblur::FastBoxBlur_rgba, gaussianblur::FastGaussianBlur_rgba};
-use LVIE_GPU::{GPUShaderType, GPU};
+use LVIElib::blurs::{boxblur::FastBoxBlur, gaussianblur::FastGaussianBlur};
+use LVIE_GPU::{GPUShaderType, GPU, Pod};
 
 use LVIElib::traits::*;
 
-#[allow(type_alias_bounds)]
-pub type CRgbaImage<P: Pixel> = image::ImageBuffer<P, Vec<P::Subpixel>>;
-
-use crate::img_processing::{exposition_rgba, saturate_rgba, sharpen_rgba, whitebalance_rgba};
+pub use LVIE_GPU::CRgbaImage;
+use crate::img_processing_generic::{exposition, saturate, sharpen, whitebalance};
 
 #[derive(Debug)]
 pub struct Data<P> 
 where 
-    P: Pixel + Send + Sync,
-    P::Subpixel: Scale + Primitive + std::fmt::Debug
+    P: Pixel + Send + Sync + Debug + ToHsl,
+    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat
 {
     rendering: Rendering,
     pub full_res_preview: CRgbaImage<P>,
@@ -26,8 +26,8 @@ where
 
 impl<P> Data<P>
 where 
-    P: Pixel + Send + Sync + 'static,
-    P::Subpixel: Scale + Primitive + std::fmt::Debug
+    P: Pixel + Send + Sync + 'static + Debug + ToHsl,
+    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat
 {
     pub fn new(
         rendering: Rendering,
@@ -62,15 +62,6 @@ where
         self.loaded_filters = FilterArray::new(None);
     }
 
-    //pub fn generate_preview(&mut self, nwidth: u32, nheight: u32) -> PreviewData {
-    //    let prev = PreviewData::new(
-    //        Some(self.rendering.clone()),
-    //        Some(build_low_res_preview(&self.full_res_preview, nwidth, nheight)), 
-    //        Some(self.loaded_filters.filters.clone())
-    //    );
-    //    prev
-    //}
-
     pub fn update_image(&mut self) -> image::RgbaImage {
         let mut filters = &self.filters - &self.loaded_filters;
         filters.update_filter(
@@ -99,65 +90,22 @@ where
         self.loaded_filters = FilterArray::new(None)
     }
 
+    pub fn export(&mut self) -> CRgbaImage<P>{
+        let mut filters = self.filters.clone();
+        filters.update_filter(
+            FilterType::WhiteBalance, 
+            vec![6500.0, 0.0].into_iter()
+                .chain(
+                    filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
+                )
+                .collect()
+            );
+        println!("{:?}", filters);
+        return self.rendering.render_data(&self.full_res_preview, &filters).unwrap();
+    }
+
 }
 
-//pub struct PreviewData<P: Pixel> {
-//    rendering: Option<Rendering>,
-//    pub preview: CRgbaImage<P>,
-//    filters: FilterArray,
-//    loaded_filters: FilterArray,
-//    zoom: (f32, f32, f32)
-//}
-//
-//impl<P: Pixel> PreviewData<P> {
-//    pub fn new(
-//        rendering: Option<Rendering>,
-//        preview: Option<CRgbaImage<P>>,
-//        filters_to_load: Option<Vec<Filter>>
-//    ) -> PreviewData {
-//        PreviewData {
-//            rendering,
-//            preview: {
-//                if preview.is_some() {
-//                    preview.unwrap()
-//                } else {
-//                    image::RgbaImage::new(0, 0)
-//                }
-//            },
-//            filters: FilterArray::new(filters_to_load),
-//            loaded_filters: FilterArray::new(None),
-//            zoom: (0.0, 0.0, 1.0)
-//        }
-//    }
-//
-//    pub fn update_image(&mut self) -> image::RgbaImage {
-//        let mut filters = &self.filters - &self.loaded_filters;
-//        filters.update_filter(
-//            FilterType::WhiteBalance, 
-//            self.loaded_filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
-//                .chain(
-//                    filters.get_filter(FilterType::WhiteBalance).clone().into_iter()
-//                )
-//                .collect()
-//            );
-//        let out = self.rendering.as_mut().unwrap().render_data(&self.preview, &filters).unwrap();
-//        self.preview = out.clone();
-//        self.loaded_filters = &self.loaded_filters + &filters;
-//        out
-//    }
-//
-//    pub fn update_filter(&mut self, filtertype: FilterType, parameters: Vec<f32>) {
-//        self.filters.update_filter(filtertype, parameters);
-//    }
-//
-//    pub fn zoom(&self) -> &(f32, f32, f32) {
-//        &self.zoom
-//    }
-//
-//    pub fn set_zoom(&mut self, zoom: (f32, f32, f32)) {
-//        self.zoom = zoom;
-//    }
-//}
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -417,6 +365,8 @@ impl std::ops::Sub for &FilterArray {
         out.filters[4].parameters[0] -= rhs.filters[4].parameters[0];
 
         // Gaussian Blur and box blur cannot be trasformed
+        out.filters[5].parameters[0] -= rhs.filters[5].parameters[0];
+        out.filters[6].parameters[0] -= rhs.filters[6].parameters[0];
 
         out
     }
@@ -445,6 +395,8 @@ impl std::ops::Add for &FilterArray {
         out.filters[4].parameters[0] += rhs.filters[4].parameters[0];
 
         // Gaussian Blur and box blur cannot be trasformed
+        out.filters[5].parameters[0] += rhs.filters[5].parameters[0];
+        out.filters[6].parameters[0] += rhs.filters[6].parameters[0];
 
         out
     }
@@ -470,7 +422,11 @@ impl Rendering {
         Rendering { backend, gpu: Some(gpu) }
     }
 
-    pub fn render_data(&mut self, img: &image::RgbaImage, filters: &FilterArray) -> Result<image::RgbaImage, crate::core::RenderingError> {
+    pub fn render_data<P>(&mut self, img: &CRgbaImage<P>, filters: &FilterArray) -> Result<CRgbaImage<P>, crate::core::RenderingError> 
+    where 
+        P: Pixel + Send + Sync + 'static + Debug + ToHsl,
+        P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat
+    {
         let mut out = img.clone();
 
         for filter in filters {
@@ -497,22 +453,22 @@ impl Rendering {
                 } else {
                     match filter.filtertype {
                         FilterType::Saturation => {
-                            out = saturate_rgba(&out, filter.parameters[0]);
+                            out = saturate(&out, filter.parameters[0]);
                         }
                         FilterType::Exposition => {
-                            out = exposition_rgba(&out, filter.parameters[0]);
+                            out = exposition(&out, filter.parameters[0]);
                         }
                         FilterType::Boxblur => {
-                            out = FastBoxBlur_rgba(&out, filter.parameters[0] as u32);
+                            out = FastBoxBlur(&out, filter.parameters[0] as u32);
                         }
                         FilterType::Sharpening => {
-                            out = sharpen_rgba(&out, filter.parameters[0], filter.parameters[1] as usize)
+                            out = sharpen(&out, filter.parameters[0], filter.parameters[1] as usize)
                         }
                         FilterType::GaussianBlur => {
-                            out = FastGaussianBlur_rgba(&out, filter.parameters[0], filter.parameters[1] as u8)
+                            out = FastGaussianBlur(&out, filter.parameters[0], filter.parameters[1] as u8)
                         }
                         FilterType::WhiteBalance => {
-                            out = whitebalance_rgba(&out, filter.parameters[0], filter.parameters[1], filter.parameters[2], filter.parameters[3]);                       }
+                            out = whitebalance(&out, filter.parameters[0], filter.parameters[1], filter.parameters[2], filter.parameters[3]);                       }
                         _ => unimplemented!()
                     }
                 }
