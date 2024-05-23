@@ -176,7 +176,7 @@ fn main() {
 
     let DATA = Arc::new(Mutex::new(d));
 
-    //let preview = Arc::new(Mutex::new(PreviewData::new(None, None, None)));
+    let CLOCK = Arc::new(Mutex::new(slint::Timer::default()));
 
     // CALLBACKS:
     // open image:
@@ -408,9 +408,9 @@ fn main() {
     // apply filters
     let data_weak = DATA.clone();
     let Window_weak = Window.as_weak();
+    let clock_w = CLOCK.clone();
     Window.global::<ScreenCallbacks>().on_apply_filters(
         move |exposition:f32, box_blur: f32, gaussian_blur: f32, sharpening: f32, temp: f32, tint: f32, saturation: f32| {
-            //low res preview
             let mut data = data_weak.lock().expect("Failed to lock");
 
             if data.image_dimensions() == (0,0) { return; }
@@ -440,6 +440,16 @@ fn main() {
                 ww.upgrade_in_event_loop(|Window| Window.set_svg_path(path.into()) )
                     .expect("Cannot update the histogram");
             });
+
+            let clock = clock_w.lock().unwrap();
+            if clock.running() {
+                clock.restart();
+            } else {
+                let dw = data_weak.clone();
+                clock.start(slint::TimerMode::SingleShot, std::time::Duration::from_secs(1), move || {
+                    dw.lock().unwrap().update_all_color_spaces();
+                });
+            }
     });
 
     //set_Alert_Message

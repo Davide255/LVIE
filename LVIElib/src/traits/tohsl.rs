@@ -53,7 +53,7 @@ impl ToHsl for Hsla {
 use image::GenericImageView;
 use num_traits::ToPrimitive;
 
-pub trait ImageToHsla 
+pub trait ImageToHsla
 where
     Self: GenericImageView + Sized,
     <Self as GenericImageView>::Pixel: ToHsl,

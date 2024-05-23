@@ -9,7 +9,6 @@ use std::{
 use crate::utils::{norm_range_f32, _max, _min};
 use crate::traits::AsFloat;
 
-
 /// # HSL Color Space:
 ///
 /// Hsl is the acronim of Hue-Saturation-Luminance,

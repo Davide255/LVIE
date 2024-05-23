@@ -1,13 +1,139 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::{Arc, Mutex}};
 
 use image::{Pixel, Primitive};
-use LVIElib::blurs::{boxblur::FastBoxBlur, gaussianblur::FastGaussianBlur};
+use LVIElib::{blurs::{boxblur::FastBoxBlur, gaussianblur::FastGaussianBlur}, hsl::HslaImage, oklab::OklabaImage};
 use LVIE_GPU::{GPUShaderType, GPU, Pod};
 
 use LVIElib::traits::*;
 
+use rayon::prelude::*;
+
 pub use LVIE_GPU::CRgbaImage;
 use crate::img_processing_generic::{exposition, saturate, sharpen, whitebalance};
+
+#[derive(Debug)]
+pub struct ImageBuffers<P> 
+where
+    P: Pixel + Send + Sync + Debug + ToHsl,
+    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat
+{
+    rgb: CRgbaImage<P>,
+    hsl: HslaImage,
+    oklab: OklabaImage,
+    enbled: [bool; 3],
+    updated: [bool; 3]
+}
+
+impl<P> ImageBuffers<P>
+where 
+    P: Pixel + Send + Sync + Debug + ToHsl,
+    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat
+{
+
+    pub fn new() -> ImageBuffers<P>{
+        ImageBuffers {
+            rgb: CRgbaImage::<P>::default(),
+            hsl: HslaImage::default(),
+            oklab: OklabaImage::default(),
+            enbled: [false; 3],
+            updated: [true; 3],
+        }
+    }
+
+    pub fn from_rgb(img: CRgbaImage<P>) -> ImageBuffers<P> {
+        ImageBuffers {
+            rgb: img,
+            hsl: HslaImage::default(),
+            oklab: OklabaImage::default(),
+            enbled: [true, false, false],
+            updated: [true; 3],
+        }
+    }
+
+    pub fn from_hsl(img: HslaImage) -> ImageBuffers<P> {
+        ImageBuffers {
+            rgb: CRgbaImage::<P>::default(),
+            hsl: img,
+            oklab: OklabaImage::default(),
+            enbled: [false, true, false],
+            updated: [true; 3]
+        }
+    }
+
+    pub fn from_oklab(img: OklabaImage) -> ImageBuffers<P> {
+        ImageBuffers {
+            rgb: CRgbaImage::<P>::default(),
+            hsl: HslaImage::default(),
+            oklab: img,
+            enbled: [false, false, true],
+            updated: [true; 3]
+        }
+    }
+
+    pub fn set_updates(&mut self, rgb: bool, hsl: bool) {
+        self.enbled = [rgb, hsl, false];
+    }
+
+    pub fn get_rgb(&self) -> &CRgbaImage<P> { &self.rgb }
+    pub fn get_hsl(&self) -> &HslaImage { &self.hsl }
+    pub fn get_oklab(&self) -> &OklabaImage { &self.oklab }
+
+    pub fn update_rgb(&mut self, new_rgb: CRgbaImage<P>) {
+        self.rgb = new_rgb;
+        self.updated = [true, false, false];
+    }
+
+    pub fn update_hsl(&mut self, new_hsl: HslaImage) {
+        self.hsl = new_hsl;
+        self.updated = [false, true, false];
+    }
+
+    pub fn update_oklab(&mut self, new_oklab: OklabaImage) {
+        unimplemented!();
+        self.oklab = new_oklab;
+        self.updated = [false, false, true];
+    }
+
+    pub fn update(&mut self) {
+        if self.updated[0] {
+            let s = std::time::Instant::now();
+            self.hsl = HslaImage::from_vec(
+                self.rgb.width(), self.rgb.height(), 
+                {
+                let out = Arc::new(
+                    Mutex::new(
+                        vec![0f32; (self.rgb.width()*self.rgb.height()*4) as usize]
+                    )
+                );
+
+                self.rgb.rows().par_bridge().for_each(|row| {
+                    let mut r = Vec::<f32>::new();
+                    for p in row {
+                        r.append(&mut p.to_hsla().channels().to_vec());
+                    }
+
+                    out.lock().unwrap().append(&mut r);
+                });
+                
+                Arc::try_unwrap(out).unwrap().into_inner().unwrap()
+            }
+            ).unwrap();
+
+            println!("Conversion to hsl done in {}ms", s.elapsed().as_millis());
+        }
+        else if self.updated[2] {
+            
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.rgb = CRgbaImage::<P>::default();
+        self.hsl = HslaImage::default();
+        self.oklab = OklabaImage::default();
+        self.updated = [true; 3];
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Data<P> 
@@ -20,6 +146,7 @@ where
     filters: FilterArray,
     loaded_filters: FilterArray,
     loaded_image: CRgbaImage<P>,
+    imagebuffers: ImageBuffers<P>,
     pub curve: Curve,
     pub zoom: (u32, u32, f32)
 }
@@ -41,15 +168,23 @@ where
                 image_to_load.unwrap()
             }
         };
+        let mut imagebuffers = ImageBuffers::from_rgb(img.clone());
+        imagebuffers.set_updates(true, true);
+
         Data {
             rendering,
             full_res_preview: img.clone(),
             filters: FilterArray::new(filters_to_load),
             loaded_filters: FilterArray::new(None),
+            imagebuffers,
             loaded_image: img,
             zoom: (0,0, 1.0),
             curve: Curve::new(CurveType::MONOTONE)
         }
+    }
+
+    pub fn update_all_color_spaces(&mut self) {
+        self.imagebuffers.update();
     }
 
     pub fn image_dimensions(&self) -> (u32, u32) {
@@ -58,6 +193,8 @@ where
 
     pub fn load_image(&mut self, img: CRgbaImage<P>) {
         self.loaded_image = img.clone();
+        self.imagebuffers.update_rgb(img.clone());
+        self.imagebuffers.update();
         self.full_res_preview = img;
         self.loaded_filters = FilterArray::new(None);
     }
@@ -77,6 +214,7 @@ where
         ).unwrap();
         self.full_res_preview = out.scale_image::<image::Rgba<u8>, P>();
         self.loaded_filters = &self.loaded_filters + &filters;
+        self.imagebuffers.update_rgb(self.full_res_preview.clone());
         out
     }
 
@@ -87,7 +225,8 @@ where
     pub fn reset(&mut self) {
         self.full_res_preview = self.loaded_image.clone();
         self.filters = FilterArray::new(None);
-        self.loaded_filters = FilterArray::new(None)
+        self.loaded_filters = FilterArray::new(None);
+        self.imagebuffers.reset();
     }
 
     pub fn export(&mut self) -> CRgbaImage<P>{
@@ -443,7 +582,7 @@ impl Rendering {
 
                 if self.backend == RenderingBackends::GPU && gpu_filter.is_some(){
                     let gpu = self.gpu.as_mut().unwrap();
-                    gpu.create_texture(&out);
+                    gpu.create_texture(&out).expect("Failed to create a texture!");
                     let res = gpu.render(&gpu_filter.unwrap(), &filter.parameters);
                     if res.is_err() {
                         return Err(RenderingError::GPUERROR(res.unwrap_err()));

@@ -76,7 +76,6 @@ pub fn convert_rgb_to_hsl(img: &RgbImage) -> HslImage {
     let out_v = Arc::new(Mutex::new(HslImage::new(img.width(), img.height())));
     
     let out_w = out_v.clone();
-    
     (0..img.height()).into_par_iter().for_each(|y| {
         let mut buff: Vec<Hsl> = Vec::new();
         for x in 0..img.width() {
@@ -89,7 +88,9 @@ pub fn convert_rgb_to_hsl(img: &RgbImage) -> HslImage {
         }
     });
 
-    return out_v.lock().unwrap().clone();
+    drop(out_w);
+
+    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
 }
 
 pub fn convert_rgba_to_hsla(img: &RgbaImage) -> HslaImage {
@@ -109,7 +110,9 @@ pub fn convert_rgba_to_hsla(img: &RgbaImage) -> HslaImage {
         }
     });
 
-    return out_v.lock().unwrap().clone();
+    drop(out_w);
+
+    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
 }
 
 pub fn convert_hsl_to_rgb(img: &HslImage) -> RgbImage {
@@ -129,7 +132,9 @@ pub fn convert_hsl_to_rgb(img: &HslImage) -> RgbImage {
         }
     });
 
-    return out_v.lock().unwrap().clone();
+    drop(out_w);
+
+    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
 }
 
 pub fn convert_hsla_to_rgba(img: &HslaImage) -> RgbaImage {
@@ -149,7 +154,9 @@ pub fn convert_hsla_to_rgba(img: &HslaImage) -> RgbaImage {
         }
     });
 
-    return out_v.lock().unwrap().clone();
+    drop(out_w);
+
+    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
 }
 
 pub fn convert_rgb_to_oklab(img: &RgbImage) -> OklabImage {
@@ -169,7 +176,9 @@ pub fn convert_rgb_to_oklab(img: &RgbImage) -> OklabImage {
         }
     });
 
-    return out_v.lock().unwrap().clone();
+    drop(out_w);
+
+    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
 }
 
 pub fn convert_oklab_to_rgb(img: &OklabImage) -> RgbImage {
@@ -189,7 +198,9 @@ pub fn convert_oklab_to_rgb(img: &OklabImage) -> RgbImage {
         }
     });
 
-    return out_v.lock().unwrap().clone();
+    drop(out_w);
+
+    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
 }
 use image::Primitive;
 
@@ -245,7 +256,7 @@ pub fn convert_rgb_to_rgba(img: &image::RgbImage) -> image::RgbaImage {
     img.enumerate_pixels().par_bridge().for_each(move |(x, y, pixel)| {
         out_w.lock().unwrap().put_pixel(x, y, image::Rgba([pixel.0[0], pixel.0[1], pixel.0[2], 255]));
     });
-
+    
     Arc::try_unwrap(out).unwrap().into_inner().unwrap()
 }
 
