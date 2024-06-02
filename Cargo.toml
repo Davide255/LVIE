@@ -5,6 +5,6 @@ members = [
     "LVIElib",
     "LVIE-GPU",
     "Tests"
-]
+, "image_generator"]
 
 resolver = "2"

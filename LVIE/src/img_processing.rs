@@ -142,7 +142,7 @@ pub fn saturate_rgba(img: &RgbaImage, value: f32) -> RgbaImage {
     for (_, _, pixel) in hsl_image.enumerate_pixels_mut() {
         *pixel.saturation_mut() = *pixel.saturation() + value / 2f32;
     }
-    convert_hsla_to_rgba(&hsl_image)
+    unsafe{convert_hsla_to_rgba(&hsl_image).unwrap()}
 }
 
 #[allow(dead_code)]

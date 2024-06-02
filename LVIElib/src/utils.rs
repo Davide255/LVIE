@@ -1,14 +1,14 @@
 use crate::{
-    hsl::{Hsl, Hsla, HslImage, HslaImage},
+    hsl::{Hsl, HslImage, Hsla, HslaImage},
     linear_srgb::LinSrgb,
     matrix::{convolution::split3, Matrix},
-    oklab::{Oklab, OklabImage},
+    oklab::{Oklab, OklabImage, OklabaImage}, traits::{Scale, ToHsl, ToOklab},
 };
 use std::ops::RangeInclusive;
 use half::f16;
 use num_traits::NumCast;
 use rayon::prelude::*;
-use image::{Rgb, Rgba, RgbImage, RgbaImage};
+use image::{ImageBuffer, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
 use std::sync::{Arc, Mutex};
 
 pub fn norm_range<T: Primitive + PartialOrd>(r: RangeInclusive<T>, value: T) -> T {
@@ -123,28 +123,6 @@ pub fn convert_hsl_to_rgb(img: &HslImage) -> RgbImage {
     
     (0..img.height()).into_par_iter().for_each(|y| {
         let mut buff: Vec<Rgb<u8>> = Vec::new();
-        for x in 0..img.width() {
-            buff.push((*img.get_pixel(x, y)).into());
-        }
-    
-        let mut out = out_w.lock().unwrap();
-        for x in 0..img.width() { 
-            out.put_pixel(x, y, buff[x as usize]);
-        }
-    });
-
-    drop(out_w);
-
-    return Arc::try_unwrap(out_v).unwrap().into_inner().unwrap();
-}
-
-pub fn convert_hsla_to_rgba(img: &HslaImage) -> RgbaImage {
-    let out_v = Arc::new(Mutex::new(RgbaImage::new(img.width(), img.height())));
-    
-    let out_w = out_v.clone();
-    
-    (0..img.height()).into_par_iter().for_each(|y| {
-        let mut buff: Vec<Rgba<u8>> = Vec::new();
         for x in 0..img.width() {
             buff.push((*img.get_pixel(x, y)).into());
         }
@@ -345,4 +323,56 @@ pub fn f32_vec_to_f16_vec(src: &Vec<f32>, size: (u32, u32)) -> Vec<f16> {
 
     Arc::try_unwrap(vt).unwrap().into_inner().unwrap()
 
+}
+
+pub unsafe fn convert_hsla_to_rgba<P>(img: &HslaImage) -> Option<ImageBuffer<P, Vec<P::Subpixel>>>
+where 
+    P: Pixel + Send + Sync + 'static + std::fmt::Debug + ToHsl,
+    P::Subpixel: Scale + Send + Sync + Primitive + std::fmt::Debug + std::fmt::Debug
+{
+    // if target is not rgb we cannot cast it
+    if P::COLOR_MODEL != "RGBA" {
+        return None;
+    }
+
+    let out = Arc::new(Mutex::new(vec![P::Subpixel::DEFAULT_MIN_VALUE; img.len()]));
+
+    img.enumerate_rows().par_bridge().for_each(|r| {
+        let mut row: Vec<P::Subpixel> = Vec::new();
+        for (_, _, p) in r.1 {
+            let rgb = p.to_rgba();
+            let cmp = rgb.channels();
+            // We know what type is it but we have to return a generic, so we transmute it
+            row.append(&mut vec![cmp[0].scale(), cmp[1].scale(), cmp[2].scale(), cmp[3].scale()]);
+        }
+        out.lock().unwrap()[(r.0*img.width()*4) as usize .. (r.0*img.width()*4 + img.width()*4) as usize].clone_from_slice(&row);
+    });
+
+    ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(img.width(), img.height(), Arc::try_unwrap(out).unwrap().into_inner().unwrap())
+}
+
+pub unsafe fn convert_oklaba_to_rgba<P>(img: &OklabaImage) -> Option<ImageBuffer<P, Vec<P::Subpixel>>>
+where 
+    P: Pixel + Send + Sync + 'static + std::fmt::Debug + ToOklab,
+    P::Subpixel: Scale + Send + Sync + Primitive + std::fmt::Debug + std::fmt::Debug
+{
+    // if target is not rgb we cannot cast it
+    if P::COLOR_MODEL != "RGBA" {
+        return None;
+    }
+
+    let out = Arc::new(Mutex::new(vec![P::Subpixel::DEFAULT_MIN_VALUE; img.len()]));
+
+    img.enumerate_rows().par_bridge().for_each(|r| {
+        let mut row: Vec<P::Subpixel> = Vec::new();
+        for (_, _, p) in r.1 {
+            let rgb = p.to_rgba();
+            let cmp = rgb.channels();
+            // We know what type is it but we have to return a generic, so we transmute it
+            row.append(&mut vec![cmp[0].scale(), cmp[1].scale(), cmp[2].scale(), cmp[3].scale()]);
+        }
+        out.lock().unwrap()[(r.0*img.width()*4) as usize .. (r.0*img.width()*4 + img.width()*4) as usize].clone_from_slice(&row);
+    });
+
+    ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(img.width(), img.height(), Arc::try_unwrap(out).unwrap().into_inner().unwrap())
 }
