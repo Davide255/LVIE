@@ -1,13 +1,10 @@
 #![allow(non_snake_case)]
 
-pub mod shader_compiler;
-
 use half::f16;
 use image::{GenericImageView, RgbaImage};
-use shader_compiler::build;
 use LVIElib::hsl::Hsla;
 
-use std::time::Instant;
+use std::{fs::read_to_string, time::Instant};
 
 const WORKGROUP_SIZE: (u32, u32) = (32, 32);
 
@@ -86,7 +83,7 @@ fn convert_to_hsl_gpu(img: RgbaImage) -> Vec<f16>{
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Saturation shader"),
-        source: wgpu::ShaderSource::Wgsl(build("LVIE-GPU/shaders/conversions/rgb_to_hsl_f16.wgsl").into()),
+        source: wgpu::ShaderSource::Wgsl(read_to_string("LVIE-GPU/shaders/conversions/rgb_to_hsl_f16.wgsl").unwrap().into()),
     });
 
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -251,7 +248,7 @@ fn main() {
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Saturation shader"),
-        source: wgpu::ShaderSource::Wgsl(build("LVIE-GPU/shaders/conversions/hsl_to_rgb.wgsl").into()),
+        source: wgpu::ShaderSource::Wgsl(read_to_string("LVIE-GPU/shaders/conversions/hsl_to_rgb.wgsl").unwrap().into()),
     });
 
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {

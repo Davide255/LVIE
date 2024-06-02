@@ -154,10 +154,11 @@ where
 #[allow(unreachable_code)]
 fn main() {
     const WINIT_BACKEND: bool = if cfg!(windows) { true } else { false };
+    const INTERNAL_CLOCK_TIME: u64 = 2;
 
     let s: crate::settings::Settings = load_settings(None).unwrap();
 
-    let CORE: Rendering = Rendering::init(s.backend);
+    let CORE: Rendering<image::Rgba<u8>> = Rendering::init(s.backend);
 
     let SETTINGS = Arc::new(Mutex::new(s));
 
@@ -441,14 +442,16 @@ fn main() {
                     .expect("Cannot update the histogram");
             });
 
-            let clock = clock_w.lock().unwrap();
-            if clock.running() {
-                clock.restart();
-            } else {
-                let dw = data_weak.clone();
-                clock.start(slint::TimerMode::SingleShot, std::time::Duration::from_secs(1), move || {
-                    dw.lock().unwrap().update_all_color_spaces();
-                });
+            if !cfg!(debug_assertions) {
+                let clock = clock_w.lock().unwrap();
+                if clock.running() {
+                    clock.restart();
+                } else {
+                    let dw = data_weak.clone();
+                    clock.start(slint::TimerMode::SingleShot, std::time::Duration::from_secs(INTERNAL_CLOCK_TIME), move || {
+                        dw.lock().unwrap().update_all_color_spaces();
+                    });
+                }
             }
     });
 
@@ -497,41 +500,4 @@ fn main() {
     let _ = Window.show();
     slint::run_event_loop().expect("Failed to create the event loop");
     let _ = Window.hide();
-}
-
-#[cfg(test)]
-#[macro_use]
-mod tests {
-    use crate::core::*;
-
-    macro_rules! filter {
-        ($ty:expr, $($param:expr), *) => {{
-            let mut parameters = Vec::new();
-            $(
-                parameters.push($param);
-            )*
-            crate::core::Filter {
-                filtertype: $ty,
-                parameters
-            }}
-        };
-    }
-
-    #[test]
-    fn white_balance(){
-        let fromtemp = 6500.0;
-        let fromtint = 0.0;
-        let totemp = 9900.0;
-        let totint = 1.23;
-
-        let mut cpu = Rendering::init(crate::core::RenderingBackends::CPU);
-        let mut gpu = Rendering::init(crate::core::RenderingBackends::GPU);
-
-        let filters = FilterArray::new(Some(vec![filter!(FilterType::WhiteBalance, fromtemp, fromtint, totemp, totint)]));
-
-        let img = image::open("original.jpg").unwrap().to_rgba8();
-
-        cpu.render_data(&img, &filters).unwrap().save("prova_cpu.jpg").expect("Failed to save the image");
-        gpu.render_data(&img, &filters).unwrap().save("prova_gpu.jpg").expect("Failed to save the image");
-    }
 }

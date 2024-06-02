@@ -6,7 +6,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::utils::{norm_range_f32, _max, _min};
+use crate::utils::{norm_range, _max, _min};
 use crate::traits::AsFloat;
 
 /// # HSL Color Space:
@@ -315,6 +315,9 @@ pub fn hslf32_to_rgb16(h: f32, s: f32, l: f32) -> Rgb<u16> {
 }
 
 pub fn hslf32_to_rgbf32(h: f32, s: f32, l: f32) -> Rgb<f32> {
+    let l = norm_range(0.0..=1.0, l);
+    let s = norm_range(0.0..=1.0, s);
+
     let c = s * (1f32 - ((2f32 * l) - 1f32).abs());
     let x = c * (1f32 - (((h / 60f32) % 2f32) - 1f32).abs());
     let m = l - (c / 2f32);
@@ -352,12 +355,12 @@ fn rgb_to_hsl<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Hsl {
     let (cmax, cmaxindex) = _max(c);
     let (cmin, _) = _min(c);
 
-    cmp[2] = norm_range_f32(0.0..=1.0, (cmax + cmin) / 2f32);
+    cmp[2] = norm_range(0.0..=1.0, (cmax + cmin) / 2f32);
 
     let delta = cmax - cmin;
 
     if delta != Zero::zero() {
-        cmp[1] = norm_range_f32(0.0..=1.0, delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()));
+        cmp[1] = norm_range(0.0..=1.0, delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()));
 
         if cmaxindex == 0 {
             cmp[0] = ((c[1] - c[2]) / delta) % 6f32;
@@ -769,12 +772,12 @@ fn rgba_to_hsla<T: Primitive + AsFloat>(rgb: &Rgba<T>) -> Hsla {
     let (cmax, cmaxindex) = _max(c);
     let (cmin, _) = _min(c);
 
-    cmp[2] = norm_range_f32(0.0..=1.0, (cmax + cmin) / 2f32);
+    cmp[2] = norm_range(0.0..=1.0, (cmax + cmin) / 2f32);
 
     let delta = cmax - cmin;
 
     if delta != Zero::zero() {
-        cmp[1] = norm_range_f32(0.0..=1.0, delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()));
+        cmp[1] = norm_range(0.0..=1.0, delta / (1f32 - ((2f32 * cmp[2]) - 1f32).abs()));
 
         if cmaxindex == 0 {
             cmp[0] = ((c[1] - c[2]) / delta) % 6f32;

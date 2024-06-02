@@ -423,7 +423,7 @@ impl Pixel for Oklaba {
     #[allow(unreachable_code, unused_variables)]
     fn from_slice(slice: &[f32]) -> &Oklaba {
         //panic!("This function is currently broken because it corrupts some memory!");
-        assert_eq!(slice.len(), 3);
+        assert_eq!(slice.len(), 4);
         /*unsafe {
             &std::mem::replace(
                 &mut Oklab::new(0.0, 0.0, 0.0),

@@ -3,23 +3,19 @@ use std::any::TypeId;
 
 use image::Primitive;
 use pollster::FutureExt;
+use texturebuffers::TexturesBuffer;
 use wgpu::util::DeviceExt;
 use image::Pixel;
 
+pub mod errors;
+mod texturebuffers;
+
+use errors::GPUError;
+
 use LVIElib::traits::Scale;
 
-#[allow(type_alias_bounds)]
-pub type CRgbaImage<P: Pixel> = image::ImageBuffer<P, Vec<P::Subpixel>>;
-
 pub use bytemuck::Pod;
-
-#[derive(Debug)]
-pub enum GPUError {
-    ADAPTERNOTFOUND(),
-    REQUESTDEVICEERROR(wgpu::RequestDeviceError),
-    RENDERINGERROR(),
-    SHADERSNOTCOMPILED()
-}
+pub use texturebuffers::CRgbaImage;
 
 #[allow(non_camel_case_types)]
 pub enum GPUBackens {
@@ -53,7 +49,8 @@ pub struct GPU {
     device: wgpu::Device,
     queue: wgpu::Queue,
     shaders: Vec<wgpu::ShaderModule>,
-    texture: Option<(wgpu::Texture, wgpu::Extent3d)>
+    texture: Option<(wgpu::Texture, wgpu::Extent3d)>,
+    textures: TexturesBuffer
 }
 
 pub struct AdapterInfo {
@@ -78,7 +75,6 @@ fn padded_bytes_per_row<T: Primitive>(width: u32) -> usize {
 }
 
 impl GPU {
-
     pub fn list_GPUs(backend: Option<GPUBackens>) -> Vec<AdapterInfo>{
         let wgpu_backend: wgpu::Backends;
         match backend {
@@ -140,6 +136,7 @@ impl GPU {
         }
 
         let (device, queue) = dev_and_qu.unwrap();
+        let textures = TexturesBuffer::create_texture(&device, (0, 0), 1)?;
 
         Ok(GPU {
             instance,
@@ -147,13 +144,13 @@ impl GPU {
             device, 
             queue,
             shaders: Vec::new(),
-            texture: None
+            texture: None,
+            textures
         })
         
     }
 
     pub fn clone_from(gpu: &GPU) -> Result<GPU, GPUError> {
-
         let instance = wgpu::Instance::new(gpu.adapter.get_info().backend.into());
         
         let mut adapter: wgpu::Adapter = instance.request_adapter(&wgpu::RequestAdapterOptionsBase { power_preference: 
@@ -176,13 +173,16 @@ impl GPU {
 
         let (device, queue) = dev_and_qu.unwrap();
 
+        let textures = TexturesBuffer::create_texture(&device, (gpu.textures.texture_size.width, gpu.textures.texture_size.height), gpu.textures.type_size)?;
+
         Ok(GPU {
             instance,
             adapter,
             device, 
             queue,
             shaders: Vec::new(),
-            texture: None
+            texture: None,
+            textures
         })
     }
 
@@ -214,7 +214,7 @@ impl GPU {
     }
 
     #[allow(unreachable_code)]
-    pub fn create_texture<P>(&mut self, img: &CRgbaImage<P>) -> Result<(), GPUError> 
+    pub fn create_rgb_texture<P>(&mut self, img: &CRgbaImage<P>) -> Result<(), GPUError> 
     where 
         P: Pixel + Send + Sync + 'static,
         P::Subpixel: Scale + Primitive + std::fmt::Debug + bytemuck::Pod
@@ -398,4 +398,41 @@ impl GPU {
         }
     }
     
+}
+
+
+impl Clone for GPU {
+    fn clone(&self) -> Self {
+        let instance = wgpu::Instance::new(self.adapter.get_info().backend.into());
+        
+        let mut adapter: wgpu::Adapter = instance.request_adapter(&wgpu::RequestAdapterOptionsBase { power_preference: 
+            wgpu::PowerPreference::HighPerformance, 
+            force_fallback_adapter: false, compatible_surface: None })
+            .block_on().unwrap();
+
+        for a in instance.enumerate_adapters(self.adapter.get_info().backend.into()) {
+            if a.get_info().name == self.adapter.get_info().name {
+                adapter = a;
+            }
+        }
+
+        let dev_and_qu = adapter
+        .request_device(&Default::default(),None).block_on();
+
+        let (device, queue) = dev_and_qu.unwrap();
+
+        let textures = TexturesBuffer::create_texture(
+            &device, (self.textures.texture_size.width, self.textures.texture_size.height), self.textures.type_size
+        ).unwrap_or(TexturesBuffer::create_texture(&device, (0, 0), 1).unwrap());
+
+        GPU {
+            instance,
+            adapter,
+            device, 
+            queue,
+            shaders: Vec::new(),
+            texture: None,
+            textures
+        }
+    }
 }

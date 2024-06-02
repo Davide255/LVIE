@@ -47,11 +47,13 @@ use num_traits::cast;
 
 use std::any::{TypeId, Any};
 
+use crate::utils::norm_range;
+
 pub trait Scale
 where 
-    Self: Bounded + FromPrimitive + NumCast + Copy + Any
+    Self: Bounded + FromPrimitive + NumCast + Copy + Any + PartialOrd
 {
-    fn scale<To: FromPrimitive + Bounded + NumCast + ?Sized + Any>(&self) -> To {
+    fn scale<To: PartialOrd + FromPrimitive + Bounded + NumCast + ?Sized + Any>(&self) -> To {
         if TypeId::of::<Self>() == TypeId::of::<To>() { 
             cast(*self).unwrap()
         } else if TypeId::of::<To>() == TypeId::of::<f32>() || TypeId::of::<To>() == TypeId::of::<f64>() {
@@ -60,7 +62,8 @@ where
             ).unwrap()
         } else {
             cast::<f64, To>(
-                <f64 as NumCast>::from(*self).unwrap() * <f64 as NumCast>::from(To::max_value()).unwrap() / <f64 as NumCast>::from(Self::max_value()).unwrap()
+                norm_range(NumCast::from(To::min_value()).unwrap()..=NumCast::from(To::max_value()).unwrap(),
+                 <f64 as NumCast>::from(*self).unwrap() * <f64 as NumCast>::from(To::max_value()).unwrap() / <f64 as NumCast>::from(Self::max_value()).unwrap())
             ).unwrap()
         }
     }
@@ -69,12 +72,13 @@ where
 impl Scale for u8 {}
 impl Scale for u16 {}
 impl Scale for f32 {
-    fn scale<To: FromPrimitive + Bounded + NumCast + ?Sized + Any>(&self) -> To {
+    fn scale<To: PartialOrd + FromPrimitive + Bounded + NumCast + ?Sized + Any>(&self) -> To {
         if TypeId::of::<Self>() == TypeId::of::<To>() { 
             cast(*self).unwrap()
         } else {
             cast::<f64, To>(
-                <f64 as NumCast>::from(*self).unwrap() * <f64 as NumCast>::from(To::max_value()).unwrap() / 1.0
+                norm_range(NumCast::from(To::min_value()).unwrap()..=NumCast::from(To::max_value()).unwrap(),
+                 <f64 as NumCast>::from(*self).unwrap() * <f64 as NumCast>::from(To::max_value()).unwrap() / 1.0)
             ).unwrap()
         }
     }

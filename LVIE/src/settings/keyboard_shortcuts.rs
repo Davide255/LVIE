@@ -116,10 +116,10 @@ pub fn load_from_xml(content: String) -> Result<Keyboard, quick_xml::DeError> {
     quick_xml::de::from_str(&content)
 }
 
-fn _prettify_xml(content: &mut String) {
-    *content = content.replace("<key", "\n\t<key");
-    *content = content.replace("<binding", "\n\t\t<binding");
-    *content = content.replace("</key>", "\n\t</key>\n");
+pub fn prettify_keyboard_xml(content: String) -> String{
+    return content.replace("<key", "\n\t<key")
+        .replace("<binding", "\n\t\t<binding")
+        .replace("</key>", "\n\t</key>\n");
 }
 
 #[macro_export]
@@ -139,4 +139,25 @@ macro_rules! build_shortcuts {
             }
         }
     };
+}
+
+impl Default for Keyboard {
+    fn default() -> Self {
+        Keyboard {
+            keys: vec![
+                Key {
+                    value: String::from("o"),
+                    bindings: vec![ Binding { action: "editor.file.open".into(), modifiers: vec![MODIFIER::CTRL]} ]
+                },
+                Key {
+                    value: String::from("e"),
+                    bindings: vec![ Binding { action: "editor.file.close".into(), modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT]} ]
+                },
+                Key {
+                    value: String::from("r"),
+                    bindings: vec![ Binding { action: "editor.image.rotate-90-deg".into(), modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT]} ]
+                }
+            ]
+        }
+    }
 }

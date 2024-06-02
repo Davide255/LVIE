@@ -5,12 +5,13 @@ use crate::{
     oklab::{Oklab, OklabImage},
 };
 use std::ops::RangeInclusive;
+use half::f16;
 use num_traits::NumCast;
 use rayon::prelude::*;
 use image::{Rgb, Rgba, RgbImage, RgbaImage};
 use std::sync::{Arc, Mutex};
 
-pub fn norm_range_f32(r: RangeInclusive<f32>, value: f32) -> f32 {
+pub fn norm_range<T: Primitive + PartialOrd>(r: RangeInclusive<T>, value: T) -> T {
     if r.start() <= &value && &value <= r.end() {
         return value;
     } else if &value < r.start() {
@@ -327,4 +328,21 @@ pub fn graph<X: Primitive, Y: Primitive, S: plotters::style::SizeDesc + num_trai
     }
 
     Ok(())
+}
+
+pub fn f32_vec_to_f16_vec(src: &Vec<f32>, size: (u32, u32)) -> Vec<f16> {
+    let vt = Arc::new(Mutex::new(vec![f16::default(); (size.0*size.1) as usize]));
+
+    // parallel compute many rows at a single time
+    (0..size.1).into_par_iter().for_each(|x| {
+        let mut r: Vec<f16> = Vec::new();
+        for k in &src[(x*size.0) as usize..(x*size.0 + size.0) as usize] {
+            r.push(NumCast::from(*k).unwrap());
+        }
+
+        vt.lock().unwrap()[(x*size.0) as usize..(x*size.0 + size.0) as usize].copy_from_slice(&r);
+    });
+
+    Arc::try_unwrap(vt).unwrap().into_inner().unwrap()
+
 }

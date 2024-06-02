@@ -226,6 +226,13 @@ component Screen inherits HorizontalBox {
             viewport-width: self.width;
             img := Image {
                 image-fit: ImageFit.contain;
+                image-rendering: pixelated; //{
+                    //if (self.source-clip-width*1px > self.width || self.source-clip-height*1px > self.height){
+                    //    ImageRendering.smooth
+                    //} else { 
+                    //    ImageRendering.pixelated
+                    //}
+                //};
                 width: parent.viewport-width;
                 height: parent.viewport-height;
             }  
