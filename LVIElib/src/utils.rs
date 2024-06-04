@@ -8,7 +8,7 @@ use std::ops::RangeInclusive;
 use half::f16;
 use num_traits::NumCast;
 use rayon::prelude::*;
-use image::{ImageBuffer, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
+use image::{ImageBuffer, Pixel, Rgb, RgbImage, RgbaImage};
 use std::sync::{Arc, Mutex};
 
 pub fn norm_range<T: Primitive + PartialOrd>(r: RangeInclusive<T>, value: T) -> T {

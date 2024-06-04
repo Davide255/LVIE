@@ -43,20 +43,20 @@ enum FillMode {
         color: String
     },
     Gradient {
-        points: Vec<String>
+        points: Vec<String>,
+        #[arg(short)]
+        angle: f32
     }
 }
 
 fn main() {
     let args = Args::parse();
 
-    println!("{}x{}, {:?}, {:?}", args.width, args.height, args.fillmode, args.color_space);
-
     match args.fillmode {
-        FillMode::Gradient { points } => {
+        FillMode::Gradient { points, angle } => {
             linear_gradient(
                 args.width, args.height, args.color_space, 
-                Color(points[0].clone()), Color(points[1].clone()), 0.0
+                Color(points[0].clone()), Color(points[1].clone()), angle
             )
             .save(&args.path.unwrap_or(format!("generated_{}x{}.png", args.width, args.height).into()))
             .expect("Failed to save");
