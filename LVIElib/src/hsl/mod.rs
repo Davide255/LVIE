@@ -735,6 +735,8 @@ pub fn hslaf32_to_rgba16(h: f32, s: f32, l: f32, a: f32) -> Rgba<u16> {
 }
 
 pub fn hslaf32_to_rgbaf32(h: f32, s: f32, l: f32, a:f32) -> Rgba<f32> {
+    let h = ((h % 360.0) + 360.0) % 360.0;
+
     let c = s * (1f32 - ((2f32 * l) - 1f32).abs());
     let x = c * (1f32 - (((h / 60f32) % 2f32) - 1f32).abs());
     let m = l - (c / 2f32);

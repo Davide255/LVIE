@@ -1,4 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
+
+use image::{ImageBuffer, Pixel};
+use num_traits::NumCast;
+
+use crate::traits::Scale;
 
 pub fn normalize_2d(x: f32, y: f32) -> (f32, f32) {
     let norm = (x * x + y * y).sqrt();
@@ -17,6 +22,121 @@ pub fn cumulative_distribution(data: &HashMap<u8, u32>) -> HashMap<u8, u32> {
     }
 
     output
+}
+
+pub fn linear_gradient<P>(size: (u32, u32), colors: Vec<(P, f32)>, angle: f32) -> ImageBuffer<P, Vec<P::Subpixel>> 
+where 
+    P: Pixel + 'static,
+    P::Subpixel: Scale + Debug
+{
+    let (width, height) = size;
+
+    let f = colors[0].0.channels();
+    let t = colors[1].0.channels();
+
+    let angle = angle % 360.0;
+
+    let flip = {
+        if 0.0 < angle && angle <= 90.0 { (false, false) }
+        else if 90.0 < angle && angle <= 180.0 { (true, false) }
+        else if 180.0 < angle && angle <= 270.0 { (true, true) }
+        else { (false, true) }
+    };
+
+    let angle = angle % 90.0;
+    
+    if angle == 0.0 {
+        let steps: [f32; 4] = [
+            {
+                if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
+                    if  <f32 as NumCast>::from(f[0]-t[0]).unwrap().abs() < <f32 as NumCast>::from(f[0] - t[0] + NumCast::from(360.0).unwrap()).unwrap().abs() {
+                        <f32 as NumCast>::from(f[0] - t[0]).unwrap()
+                    } else {
+                        // going backwards on the color wheel is smoother
+                        <f32 as NumCast>::from(f[0] - t[0]).unwrap() + 360.0
+                    }
+                } else {
+                    NumCast::from(f[0] - t[0]).unwrap()
+                }
+            } / <f32 as NumCast>::from(width).unwrap(), 
+            (<f32 as NumCast>::from(f[1]).unwrap() - <f32 as NumCast>::from(t[1]).unwrap()) / <f32 as NumCast>::from(width).unwrap(),
+            (<f32 as NumCast>::from(f[2]).unwrap() - <f32 as NumCast>::from(t[2]).unwrap()) / <f32 as NumCast>::from(width).unwrap(),
+            (<f32 as NumCast>::from(f[3]).unwrap() - <f32 as NumCast>::from(t[3]).unwrap()) / <f32 as NumCast>::from(width).unwrap()
+        ];
+
+        let row = vec![0f32; (width as usize)*4].into_iter().enumerate().map(|(i, _)| {
+            if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
+                NumCast::from(<f32 as NumCast>::from(f[i % 4]).unwrap() - steps[i % 4]*((i / 4) as f32).floor() % 360.0).unwrap()
+            } else {
+                NumCast::from(<f32 as NumCast>::from(f[i % 4]).unwrap() - steps[i % 4]*((i / 4) as f32).floor()).unwrap()
+            }
+        }).collect::<Vec<P::Subpixel>>();
+
+        let mut img: Vec<P::Subpixel> = Vec::new();
+        for _ in 0..height { img.append(&mut row.clone()) };
+        let mut image_buff = ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(width, height, img).unwrap();
+
+        if flip.0 { image_buff = image::imageops::flip_horizontal(&image_buff); }
+        image_buff
+    
+    } else {
+        let mut image_buff = ImageBuffer::<P, Vec<P::Subpixel>>::new(width, height);
+        let r = [-angle.to_radians().tan(), 1.0];
+
+        let a = -1.0/r[0];
+        let b = 1f32;
+        let c = -a*width as f32 - height as f32;
+
+        let w = ((r[1] * c) / (r[0] * b - a * r[1])) / angle.to_radians().cos();
+        let steps: [f32; 4] = [
+            {
+                if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
+                    if  <f32 as NumCast>::from(f[0]-t[0]).unwrap().abs() < <f32 as NumCast>::from(f[0] - t[0] + NumCast::from(360.0).unwrap()).unwrap().abs() {
+                        <f32 as NumCast>::from(f[0] - t[0]).unwrap()
+                    } else {
+                        // going backwards on the color wheel is smoother
+                        <f32 as NumCast>::from(f[0] - t[0]).unwrap() + 360.0
+                    }
+                } else {
+                    NumCast::from(f[0] - t[0]).unwrap()
+                }
+            }, 
+            <f32 as NumCast>::from(f[1]).unwrap() - <f32 as NumCast>::from(t[1]).unwrap(),
+            <f32 as NumCast>::from(f[2]).unwrap() - <f32 as NumCast>::from(t[2]).unwrap(),
+            <f32 as NumCast>::from(f[3]).unwrap() - <f32 as NumCast>::from(t[3]).unwrap()
+        ];
+
+        for (x, y, pixel) in image_buff.enumerate_pixels_mut() {
+            let a = -1.0/r[0];
+            let b = 1f32;
+            let c = -a*x as f32 - height as f32 + y as f32;
+
+            let s = ((r[1] * c) / (r[0] * b - a * r[1])) / angle.to_radians().cos();
+
+            let channels = [
+                {
+                    if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
+                        NumCast::from((<f32 as NumCast>::from(f[0]).unwrap() - steps[0] * s/w + 360.0) % 360.0).unwrap()
+                    } else {
+                        NumCast::from(<f32 as NumCast>::from(f[0]).unwrap() - steps[0] * s/w).unwrap()
+                    }
+                }, 
+                NumCast::from(<f32 as NumCast>::from(f[1]).unwrap() - steps[1] * s/w).unwrap(),
+                NumCast::from(<f32 as NumCast>::from(f[2]).unwrap() - steps[2] * s/w).unwrap(),
+                NumCast::from(<f32 as NumCast>::from(f[3]).unwrap() - steps[3] * s/w).unwrap()
+            ];
+            
+            *pixel = *P::from_slice(channels.as_slice());
+        }
+
+        if flip.0 {
+            image_buff = image::imageops::flip_horizontal(&image_buff);
+        }
+        if flip.1 {
+            image_buff = image::imageops::flip_vertical(&image_buff);
+        }
+        image_buff
+    }
 }
 
 #[cfg(test)]

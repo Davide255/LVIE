@@ -44,13 +44,46 @@ enum FillMode {
     },
     Gradient {
         points: Vec<String>,
-        #[arg(short)]
+        #[arg(short, default_value_t = 0.0, required = false)]
         angle: f32
     }
 }
 
+fn get_color_at(v: &Vec<f32>, p: &Vec<f32>, size: f32, pos: f32) -> Option<f32>{
+    let mut i = p.len() + 1;
+    for k in 0..p.len() {
+        if size*p[k]/100.0 <= pos && pos < size*p[k+1]/100.0 {
+            i = k;
+            break;
+        }
+    }
+
+    if i > p.len() { return None; }
+    let d = size*p[i+1]/100.0 - size*p[i]/100.0;
+    let np = pos - size*p[i]/100.0;
+
+    Some(v[i] - (v[i]-v[i+1])*np/d)
+}
+
 fn main() {
+
+    let values: Vec<f32> = vec![0.0, 10.0, 5.0, 7.0];
+    let positions: Vec<f32> = vec![0.0, 20.0, 80.0, 100.0];
+
+    let steps = 20;
+
+    let mut gradient = vec![];
+
+    for k in 0..steps {
+        gradient.push(get_color_at(&values, &positions, steps as f32, k as f32).unwrap())
+    }
+
+    println!("{:?}", gradient);
+
+    std::process::exit(0);
     let args = Args::parse();
+
+    println!("colors: {:?}", args.fillmode);
 
     match args.fillmode {
         FillMode::Gradient { points, angle } => {
