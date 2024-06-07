@@ -29,7 +29,7 @@ struct Args {
     #[command(subcommand, help = "select how the image will be filled")]
     fillmode: FillMode,
 
-    #[arg(long, value_enum, help = "select which color space should be used")]
+    #[arg(long, default_value_t=ColorSpace::RGB, value_enum, help = "select which color space should be used")]
     color_space: ColorSpace,
 
     #[arg(long, help = "the path where the image will be saved")]
@@ -100,7 +100,7 @@ fn parse_color(s: Vec<String>) -> Result<Vec<(Color, f32)>, Error> {
         let k = &out[i];
         if k.1 == -1.0 {
             let mut c = 1;
-            let mut t = -1.0;
+            let mut t = out.get(i+c).unwrap_or(&(Color("000000".into()), 100.0)).1;
             while t == -1.0 {
                 c += 1;
                 t = out.get(i+c).unwrap_or(&(Color("000000".into()), 100.0)).1;
