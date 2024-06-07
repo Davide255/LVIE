@@ -21,13 +21,15 @@ impl Color {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+    #[arg(help="the width of the image")]
     width: u32,
+    #[arg(help="the height of the image")]
     height: u32,
 
-    #[command(subcommand)]
+    #[command(subcommand, help = "select how the image will be filled")]
     fillmode: FillMode,
 
-    #[arg(long, value_enum, help = "select which color space should be used between RGB, RGBA, HSL, HSLA, OKLAB, OKLABA")]
+    #[arg(long, value_enum, help = "select which color space should be used")]
     color_space: ColorSpace,
 
     #[arg(long, help = "the path where the image will be saved")]
@@ -41,12 +43,17 @@ enum ColorSpace {
 
 #[derive(Subcommand, Debug)]
 enum FillMode {
+    #[command(about = "fill with a color")]
     Solid {
+        #[arg(help="select the color by copying his hex value")]
         color: String
     },
+    #[command(about = "fill with a gradient of colors", 
+    long_about = "This command creates a linear gradient over the image, you can choose which colors should be used and their position (%)")]
     Gradient {
+        #[arg(help="input a bunch of colors: the format should be:\n(the color in hex values) \"xxxxxx\" (optionally the position in percentage) [0] \"xxxxxx\" [15] ... \nmissing percentages will be calculated automatically")]
         points: Vec<String>,
-        #[arg(short, default_value_t = 0.0, required = false)]
+        #[arg(short, default_value_t = 0.0, required = false, help = "the angle of the linear gradient")]
         angle: f32
     }
 }
