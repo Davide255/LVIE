@@ -44,3 +44,11 @@ we can also add more colors and set intervals between them:
 in this example we are taking 3 colors and creating a gradient: the first is at the start (0%) the second is at 40% of the width and the third is at the end (100%)
 
 ![generated_500x200](https://github.com/Davide255/LVIE/assets/80689057/cd89038c-8e53-4c7a-ab48-17463d8886f3)
+
+now we can specify the angle of the gradient:
+
+<code>image_generator.exe 500 200 --color-space rgb --path angled_gradient.png gradient 59C173 a17fe0 40 5D26C1 -a 15</code>
+
+this is the same gradient as before but with an angle of 15 deg
+
+![angled_gradient](https://github.com/Davide255/LVIE/assets/80689057/d6ceff8f-c9e1-4917-a693-ae732891016a)
