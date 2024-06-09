@@ -1,5 +1,5 @@
 mod generator;
-use std::fmt::Error;
+use std::{fmt::Error, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use generator::{linear_gradient, solid_fill};
@@ -33,7 +33,7 @@ struct Args {
     color_space: ColorSpace,
 
     #[arg(long, help = "the path where the image will be saved")]
-    path: Option<String>
+    path: Option<PathBuf>
 }
 
 #[derive(Debug, Clone, ValueEnum, Copy)]
