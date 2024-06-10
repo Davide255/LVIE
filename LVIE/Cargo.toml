@@ -5,10 +5,10 @@ build = "build.rs"
 edition = "2021"
 
 [dependencies]
-slint = "1.5.0"
+slint = "1.6.0"
+i-slint-backend-winit = "=1.6.0"
 image = "0.24.7"
 winit = {version = "0.28.6", features = ["x11"]}
-i-slint-backend-winit = "=1.5.0"
 rfd = "0.11.4"
 LVIElib = {path = "../LVIElib"}
 LVIE-GPU = {path = "../LVIE-GPU"}
@@ -20,4 +20,4 @@ quick-xml = {version="0.31.0", features=["serialize"]}
 serde = { version = "1.0", features = ["derive"] }
 
 [build-dependencies]
-slint-build = "1.5.0"
+slint-build = "1.6.0"

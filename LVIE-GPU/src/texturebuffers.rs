@@ -1,4 +1,5 @@
 use half::f16;
+use wgpu::Features;
 use LVIElib::{oklab::OklabImage, utils::f32_vec_to_f16_vec};
 use LVIElib::traits::Scale;
 use LVIElib::hsl::HslaImage;
@@ -15,7 +16,8 @@ pub struct TexturesBuffer {
     hsl: wgpu::Texture,
     oklab: wgpu::Texture,
     pub texture_size: wgpu::Extent3d,
-    pub type_size: usize
+    pub type_size: usize,
+    _F32Support: bool
 }
 
 impl TexturesBuffer {
@@ -46,6 +48,19 @@ impl TexturesBuffer {
                     return Err(GPUError::RENDERINGERROR())
                 }
             },
+            view_formats: &[{
+                if type_size == 1 {
+                    wgpu::TextureFormat::Rgba8Unorm
+                } else if type_size == 2 {
+                    panic!("This type is still not supported for GPU rendering, please use CPU rendering mode");
+                    wgpu::TextureFormat::Rgba16Unorm
+                } else if type_size == 4 {
+                    panic!("This type is still not supported for GPU rendering, please use CPU rendering mode");
+                    wgpu::TextureFormat::Rgba32Float
+                } else {
+                    return Err(GPUError::RENDERINGERROR())
+                }
+            }],
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         });
 
@@ -56,6 +71,7 @@ impl TexturesBuffer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba16Float,
+            view_formats: &[wgpu::TextureFormat::Rgba16Float],
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         }); 
         let oklab = device.create_texture(&wgpu::TextureDescriptor {
@@ -65,11 +81,12 @@ impl TexturesBuffer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba16Float,
+            view_formats: &[wgpu::TextureFormat::Rgba16Float],
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        }); 
+        });
 
         Ok(TexturesBuffer {
-            rgb, hsl, oklab, texture_size, type_size
+            rgb, hsl, oklab, texture_size, type_size, _F32Support: device.features().contains(Features::FLOAT32_FILTERABLE)
         })
     }
 
@@ -84,7 +101,7 @@ impl TexturesBuffer {
                 bytemuck::cast_slice(img.as_raw()),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4* (std::mem::size_of::<P::Subpixel>() as u32) * img.width()),
+                    bytes_per_row: Some(4* (std::mem::size_of::<P::Subpixel>() as u32) * img.width()),
                     rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
                 },
                 self.texture_size,
@@ -102,7 +119,7 @@ impl TexturesBuffer {
                 bytemuck::cast_slice(&f32_vec_to_f16_vec(img.as_raw(), img.dimensions())),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4* (std::mem::size_of::<f16>() as u32) * img.width()),
+                    bytes_per_row: Some(4* (std::mem::size_of::<f16>() as u32) * img.width()),
                     rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
                 },
                 self.texture_size,
@@ -120,7 +137,7 @@ impl TexturesBuffer {
                 bytemuck::cast_slice(&f32_vec_to_f16_vec(img.as_raw(), img.dimensions())),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4* (std::mem::size_of::<f16>() as u32) * img.width()),
+                    bytes_per_row: Some(4* (std::mem::size_of::<f16>() as u32) * img.width()),
                     rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
                 },
                 self.texture_size,

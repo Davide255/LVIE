@@ -314,8 +314,6 @@ fn main() {
                 Image::from_rgba8(
             SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&img, img.width(), img.height())));
 
-            //*lpw.lock().unwrap() = dw.lock().unwrap().generate_preview(nw, nh);
-
             let ww = Window.as_weak();
             thread::spawn(move || {
                 let path = _create_svg_path(&img);

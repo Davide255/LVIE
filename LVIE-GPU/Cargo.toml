@@ -15,7 +15,7 @@ path = "src/GPU.rs"
 bytemuck = { version = "1.12", features = [ "derive" ] }
 image = "0.24.7"
 pollster = "0.2"
-wgpu = "0.14"
+wgpu = "0.20"
 half = {version = "2.4.1", features= ["bytemuck"]}
 rayon = "1.8.1"
 LVIElib = {path = "../LVIElib"}

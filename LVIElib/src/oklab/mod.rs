@@ -199,9 +199,100 @@ impl DerefMut for Oklab {
     }
 }
 
+fn rgb_to_oklab_faster<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Oklab {
+    let (r, g, b) = (
+        rgb.0[0].as_float().powf(2.2),
+        rgb.0[1].as_float().powf(2.2),
+        rgb.0[2].as_float().powf(2.2)
+    );
+
+    fn srgb_to_linear(c: f32) -> f32 {
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    }
+
+    // Conversione da RGB a linear RGB
+    let (lr, lg, lb) = (
+        srgb_to_linear(r / 255.0),
+        srgb_to_linear(g / 255.0),
+        srgb_to_linear(b / 255.0),
+    );
+
+    // Conversione da linear RGB a spazio colore XYZ
+    let (x, y, z) = (
+        0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb,
+        0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb,
+        0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb,
+    );
+
+    // Conversione da XYZ a OKLAB
+    let l = 0.2104542553 * x + 0.7936177850 * y - 0.0040720468 * z;
+    let m = 1.9779984951 * x - 2.4285922050 * y + 0.4505937099 * z;
+    let s = 0.0259040371 * x + 0.7827717662 * y - 0.8086757660 * z;
+
+    let l_ = l.cbrt();
+    let m_ = m.cbrt();
+    let s_ = s.cbrt();
+
+    let l = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
+    let a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
+    let b = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
+
+    Oklab::from_components([l, a, b])
+}
+
 fn rgb_to_oklab<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Oklab {
-    let linsrgb = LinSrgb::from(*rgb);
-    linsrgb_to_oklab(&linsrgb)
+    let (r, g, b) = (
+        rgb.0[0].as_float().powf(2.2),
+        rgb.0[1].as_float().powf(2.2),
+        rgb.0[2].as_float().powf(2.2)
+    );
+
+    let m1 = Matrix::new(
+        vec![
+            0.4122214708f32,
+            0.5363325363f32,
+            0.0514459929f32,
+            0.2119034982f32,
+            0.6806995451f32,
+            0.1073969566f32,
+            0.0883024619f32,
+            0.2817188376f32,
+            0.6299787005f32,
+        ],
+        3,
+        3,
+    );
+    let m2 = Matrix::new(
+        vec![
+            0.2104542553f32,
+            0.7936177850f32,
+            -0.0040720468f32,
+            1.9779984951f32,
+            -2.4285922050f32,
+            0.4505937099f32,
+            0.0259040371f32,
+            0.7827717662f32,
+            -0.8086757660f32,
+        ],
+        3,
+        3,
+    );
+
+    let v = (m1 * Matrix::new(vec![r, g, b], 3, 1)).unwrap();
+    let vc = v.get_content();
+
+    let (l, m, s) = (vc[0].cbrt(), vc[1].cbrt(), vc[2].cbrt());
+
+    let lab = (m2 * Matrix::new(vec![l, m, s], 3, 1))
+        .unwrap()
+        .get_content()
+        .clone();
+
+    Oklab::from_components([lab[0], lab[1], lab[2]])
 }
 
 fn linsrgb_to_oklab(srgb: &LinSrgb) -> Oklab {
@@ -325,7 +416,7 @@ impl From<Oklab> for Rgb<f32> {
 
 impl<T: Primitive + AsFloat> From<Rgb<T>> for Oklab {
     fn from(rgb: Rgb<T>) -> Self {
-        rgb_to_oklab(&rgb)
+        rgb_to_oklab_faster(&rgb)
     }
 }
 

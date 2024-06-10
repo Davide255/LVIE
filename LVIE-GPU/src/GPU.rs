@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use std::any::TypeId;
+use std::{any::TypeId, path::{Path, PathBuf}};
 
 use image::Primitive;
 use pollster::FutureExt;
@@ -17,12 +17,18 @@ use LVIElib::traits::Scale;
 pub use bytemuck::Pod;
 pub use texturebuffers::CRgbaImage;
 
+fn COMPILER_PATH() -> (PathBuf, PathBuf) {
+(
+    PathBuf::from(file!()).ancestors().collect::<Vec<&Path>>()[2].join("shaders").join("compiler").join("dxil.dll"),
+    PathBuf::from(file!()).ancestors().collect::<Vec<&Path>>()[2].join("shaders").join("compiler").join("dxcompiler.dll")
+)
+}
+
 #[allow(non_camel_case_types)]
 pub enum GPUBackens {
     VULCAN,
     METAL,
     BRAWSER_WGPU,
-    DX11,
     DX12,
     GL
 }
@@ -79,14 +85,20 @@ impl GPU {
         let wgpu_backend: wgpu::Backends;
         match backend {
             Some(GPUBackens::BRAWSER_WGPU) => wgpu_backend = wgpu::Backends::BROWSER_WEBGPU,
-            Some(GPUBackens::DX11) => wgpu_backend = wgpu::Backends::DX11,
             Some(GPUBackens::DX12) => wgpu_backend = wgpu::Backends::DX12,
             Some(GPUBackens::GL) => wgpu_backend = wgpu::Backends::GL,
             Some(GPUBackens::METAL) => wgpu_backend = wgpu::Backends::METAL,
             Some(GPUBackens::VULCAN) => wgpu_backend = wgpu::Backends::VULKAN,
             None => wgpu_backend = wgpu::Backends::all(),
         }
-        let instance = wgpu::Instance::new(wgpu_backend);
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor { 
+            backends: wgpu_backend, flags: wgpu::InstanceFlags::default(),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Dxc { 
+                dxil_path: Some(COMPILER_PATH().0), 
+                dxc_path: Some(COMPILER_PATH().1) 
+            }, 
+            gles_minor_version: wgpu::Gles3MinorVersion::default() 
+        });
         let adapters = instance.enumerate_adapters(wgpu_backend);
 
         let mut infos: Vec<AdapterInfo> = Vec::new();
@@ -106,14 +118,20 @@ impl GPU {
         let wgpu_backend: wgpu::Backends;
         match backend {
             Some(GPUBackens::BRAWSER_WGPU) => wgpu_backend = wgpu::Backends::BROWSER_WEBGPU,
-            Some(GPUBackens::DX11) => wgpu_backend = wgpu::Backends::DX11,
             Some(GPUBackens::DX12) => wgpu_backend = wgpu::Backends::DX12,
             Some(GPUBackens::GL) => wgpu_backend = wgpu::Backends::GL,
             Some(GPUBackens::METAL) => wgpu_backend = wgpu::Backends::METAL,
             Some(GPUBackens::VULCAN) => wgpu_backend = wgpu::Backends::VULKAN,
             None => wgpu_backend = wgpu::Backends::all(),
         }
-        let instance = wgpu::Instance::new(wgpu_backend);
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor { 
+            backends: wgpu_backend, flags: wgpu::InstanceFlags::default(),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Dxc { 
+                dxil_path: Some(COMPILER_PATH().0), 
+                dxc_path: Some(COMPILER_PATH().1) 
+            }, 
+            gles_minor_version: wgpu::Gles3MinorVersion::default() 
+        });
 
         let a: wgpu::Adapter;
         if adapter.is_none() {    
@@ -136,7 +154,7 @@ impl GPU {
         }
 
         let (device, queue) = dev_and_qu.unwrap();
-        let textures = TexturesBuffer::create_texture(&device, (0, 0), 1)?;
+        let textures = TexturesBuffer::create_texture(&device, (1, 1), 1)?;
 
         Ok(GPU {
             instance,
@@ -151,7 +169,14 @@ impl GPU {
     }
 
     pub fn clone_from(gpu: &GPU) -> Result<GPU, GPUError> {
-        let instance = wgpu::Instance::new(gpu.adapter.get_info().backend.into());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor { 
+            backends: gpu.adapter.get_info().backend.into(), flags: wgpu::InstanceFlags::default(),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Dxc { 
+                dxil_path: Some(COMPILER_PATH().0), 
+                dxc_path: Some(COMPILER_PATH().1) 
+            }, 
+            gles_minor_version: wgpu::Gles3MinorVersion::default() 
+        });
         
         let mut adapter: wgpu::Adapter = instance.request_adapter(&wgpu::RequestAdapterOptionsBase { power_preference: 
             wgpu::PowerPreference::HighPerformance, 
@@ -244,6 +269,19 @@ impl GPU {
                     return Err(GPUError::RENDERINGERROR())
                 }
             },
+            view_formats: &[{
+                if TypeId::of::<P::Subpixel>() == TypeId::of::<u8>() {
+                    wgpu::TextureFormat::Rgba8Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<u16>() {
+                    panic!("This type is still not supported for GPU rendering, please use CPU rendering mode");
+                    wgpu::TextureFormat::Rgba16Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<f32>() {
+                    panic!("This type is still not supported for GPU rendering, please use CPU rendering mode");
+                    wgpu::TextureFormat::Rgba32Float
+                } else {
+                    return Err(GPUError::RENDERINGERROR())
+                }
+            }],
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         });
     
@@ -252,7 +290,7 @@ impl GPU {
             bytemuck::cast_slice(img.as_raw()),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4* (std::mem::size_of::<P::Subpixel>() as u32) * img.width()),
+                bytes_per_row: Some(4* (std::mem::size_of::<P::Subpixel>() as u32) * img.width()),
                 rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
             },
             texture_size,
@@ -279,6 +317,7 @@ impl GPU {
             layout: None, //Some(&pipeline_layout),
             module: shader,
             entry_point: "shader_main",
+            compilation_options: wgpu::PipelineCompilationOptions::default()
         });
 
         let output_texture = self.device.create_texture(&wgpu::TextureDescriptor {
@@ -298,6 +337,17 @@ impl GPU {
                     return Err(GPUError::RENDERINGERROR())
                 }
             },
+            view_formats: &[{
+                if TypeId::of::<P::Subpixel>() == TypeId::of::<u8>() {
+                    wgpu::TextureFormat::Rgba8Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<u16>() {
+                    wgpu::TextureFormat::Rgba16Unorm
+                } else if TypeId::of::<P::Subpixel>() == TypeId::of::<f32>() {
+                    wgpu::TextureFormat::Rgba32Float
+                } else {
+                    return Err(GPUError::RENDERINGERROR())
+                }
+            }],
             usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::STORAGE_BINDING,
         });
 
@@ -338,6 +388,7 @@ impl GPU {
                     (texture_size.width, texture_size.height), (16, 16));
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("Compute pass"),
+                timestamp_writes: None,
             });
             compute_pass.set_pipeline(&pipeline);
             compute_pass.set_bind_group(0, &texture_bind_group, &[]);
@@ -367,8 +418,8 @@ impl GPU {
                 buffer: &out_buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(padded_bytes_per_row as u32),
-                    rows_per_image: std::num::NonZeroU32::new(texture_size.height),
+                    bytes_per_row: Some(padded_bytes_per_row as u32),
+                    rows_per_image: Some(texture_size.height),
                 },
             },
             *texture_size,
@@ -403,7 +454,14 @@ impl GPU {
 
 impl Clone for GPU {
     fn clone(&self) -> Self {
-        let instance = wgpu::Instance::new(self.adapter.get_info().backend.into());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor { 
+            backends: self.adapter.get_info().backend.into(), flags: wgpu::InstanceFlags::default(),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Dxc { 
+                dxil_path: Some(COMPILER_PATH().0), 
+                dxc_path: Some(COMPILER_PATH().1)
+            }, 
+            gles_minor_version: wgpu::Gles3MinorVersion::default() 
+        });
         
         let mut adapter: wgpu::Adapter = instance.request_adapter(&wgpu::RequestAdapterOptionsBase { power_preference: 
             wgpu::PowerPreference::HighPerformance, 

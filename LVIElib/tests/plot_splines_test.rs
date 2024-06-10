@@ -1,7 +1,6 @@
 use plotters::prelude::*;
-use plotters::prelude::full_palette::ORANGE_400;
-use plotters::style::full_palette::{ORANGE_800};
-use LVIElib::spline::{apply_1st_derivative, apply_2nd_derivative, apply_curve, monotone_spline_coefficients, spline_coefficients, SplineConstrains};
+use plotters::style::full_palette::ORANGE_800;
+use LVIElib::spline::{apply_curve, monotone_spline_coefficients, spline_coefficients, SplineConstrains};
 
 #[test]
 fn plot() -> Result<(), Box<dyn std::error::Error>> {

@@ -3,7 +3,7 @@
 @group(0) @binding(1) var output_texture : texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(2) var <storage, read> parameters : array<f32>;
 
-let WP_U = array<f32, 6>(
+const WP_U: array<f32, 6> = array<f32, 6>(
     0.860117757, 
     0.000154118254, 
     0.000000128641212, 
@@ -12,7 +12,7 @@ let WP_U = array<f32, 6>(
     0.000000708145163
 );
 
-let WP_V = array<f32, 6>(
+const WP_V: array<f32, 6> = array<f32, 6>(
     0.317398726, 
     0.0000422806245, 
     0.0000000420481691, 
@@ -101,24 +101,24 @@ fn uv_white_point(temp: f32, tint: f32) -> vec2<f32> {
         / (WP_V[3] + WP_V[4] * temp + WP_V[5] * temp * temp);
 
     // derivatives of the parametric equations, for calculating the normal vector and moving on the isothermal line
-    let a = WP_U[0];
-    let b = WP_U[1];
-    let c = WP_U[2];
-    let d = WP_U[3];
-    let f = WP_U[4];
-    let g = WP_U[5];
-    let t = temp;
+    var a = WP_U[0];
+    var b = WP_U[1];
+    var c = WP_U[2];
+    var d = WP_U[3];
+    var f = WP_U[4];
+    var g = WP_U[5];
+    var t = temp;
 
     var du = pow((-a * (f + 2.0 * g * t) + b * (d - g * t * t) + c * t * (2.0 * d + f * t))
         / (d + t * (f + g * t)), 2.0);
 
-    let a = WP_V[0];
-    let b = WP_V[1];
-    let c = WP_V[2];
-    let d = WP_V[3];
-    let f = WP_V[4];
-    let g = WP_V[5];
-    let t = temp;
+    a = WP_V[0];
+    b = WP_V[1];
+    c = WP_V[2];
+    d = WP_V[3];
+    f = WP_V[4];
+    g = WP_V[5];
+    t = temp;
 
     var dv = pow((-a * (f + 2.0 * g * t) + b * (d - g * t * t) + c * t * (2.0 * d + f * t))
         / (d + t * (f + g * t)), 2.0);
@@ -159,18 +159,18 @@ fn xy_white_point(temp: f32) -> vec2<f32> {
 
 fn xyz_wb_matrix(fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> mat3x3<f32> {
 
-    let uv = uv_white_point(fromtemp, fromtint);
-    let xy = uv_to_xy(uv[0], uv[1]);
-    let x = xy[0];
-    let y = xy[1];
+    var uv = uv_white_point(fromtemp, fromtint);
+    var xy = uv_to_xy(uv[0], uv[1]);
+    var x = xy[0];
+    var y = xy[1];
     //let (x, y) = (0.31271, 0.32902);
     let fromwp_xyz = Xyz(x / y, 1.0, (1.0 - x - y) / y);
     let fromwp = xyz_to_lms(fromwp_xyz);
 
-    let uv = uv_white_point(totemp, totint);
-    let xy = uv_to_xy(uv[0], uv[1]);
-    let x = xy[0];
-    let y = xy[1];
+    uv = uv_white_point(totemp, totint);
+    xy = uv_to_xy(uv[0], uv[1]);
+    x = xy[0];
+    y = xy[1];
     //let (x, y) = (0.28315, 0.29711);
     let towp_xyz = Xyz(x / y, 1.0, (1.0 - x - y) / y);
     let towp = xyz_to_lms(towp_xyz);
@@ -202,7 +202,7 @@ fn shader_main(
   @builtin(global_invocation_id) global_id : vec3<u32>,
 ) {
     let dimensions = textureDimensions(input_texture);
-    let coords = vec2<i32>(global_id.xy);
+    let coords = vec2<u32>(global_id.xy);
 
     if(coords.x >= dimensions.x || coords.y >= dimensions.y) {
         return;
