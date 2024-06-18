@@ -1,7 +1,7 @@
 //standard widgets
 import { VerticalBox, Button , HorizontalBox } from "std-widgets.slint";
 //custom widget and theme colors
-import { Screen, ScreenCallbacks } from "widgets/screen.slint";
+import { Screen, ScreenCallbacks, Linespace } from "widgets/screen.slint";
 import { Palette } from "color/palette.slint";
 import { Toolbar, ToolbarCallbacks, Spacer, AlertType } from "widgets/toolbar.slint";
 
@@ -23,7 +23,13 @@ component LVIE inherits Window {
 
     in-out property <image> image <=> content.image;
     in-out property <image> curve <=> content.curve;
+    
     in-out property <[[float]]> curve_points <=> content.curve_points;
+    in-out property <[[float]]> mask_points <=> content.mask_points;
+    in-out property <[[float]]> bezier_control_points <=> content.bezier_control_points;
+    in-out property <[[float]]> connection_line_points <=> content.connection_line;
+    in-out property <[[float]]> control_point_connection_line <=> content.control_point_connection_line;
+
     in-out property <physical-length> image-space-size-width: content.image-space-size-width;
 
     callback handle-shortcut(string, bool, bool, bool);
@@ -69,4 +75,4 @@ component LVIE inherits Window {
     }
 }
 
-export { LVIE, ToolbarCallbacks, ScreenCallbacks, AlertType }
+export { LVIE, ToolbarCallbacks, ScreenCallbacks, Linespace }

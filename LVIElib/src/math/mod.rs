@@ -252,6 +252,31 @@ where
     }
 }
 
+pub fn bezier_cubic_curve(points: [[f32;2]; 4], stpes: usize) -> Vec<[f32; 2]> {
+    fn decasteljau(t: f32, c: &(f32, f32, f32, f32)) -> f32 {
+        let t2 = t * t;
+        let t3 = t2 * t;
+        let mt = 1.0 - t;
+        let mt2 = mt * mt;
+        let mt3 = mt2 * mt;
+        return c.0*mt3 + 3.0*c.1*mt2*t + 3.0*c.2*mt*t2 + c.3*t3
+    }
+
+    let x = (points[0][0], points[1][0], points[2][0], points[3][0]);
+    let y = (points[0][1], points[1][1], points[2][1], points[3][1]);
+
+    let mut out = Vec::new();
+
+    for k in 0..stpes {
+        out.push([
+            decasteljau(k as f32 / stpes as f32, &x),
+            decasteljau(k as f32 / stpes as f32, &y)
+        ]);
+    }
+
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

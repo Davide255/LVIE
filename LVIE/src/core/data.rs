@@ -10,6 +10,8 @@ use super::rendering::*;
 use super::ImageBuffers;
 use super::filters::*;
 
+use super::masks::Mask;
+
 #[derive(Debug)]
 pub struct Data<P> 
 where 
@@ -22,7 +24,8 @@ where
     loaded_filters: FilterArray,
     loaded_image: CRgbaImage<P>,
     pub curve: Curve,
-    pub zoom: (u32, u32, f32)
+    pub zoom: (u32, u32, f32),
+    pub masks: Vec<Mask>
 }
 
 impl<P> Data<P>
@@ -52,7 +55,8 @@ where
             loaded_filters: FilterArray::new(None),
             loaded_image: img,
             zoom: (0,0, 1.0),
-            curve: Curve::new(CurveType::MONOTONE)
+            curve: Curve::new(CurveType::MONOTONE),
+            masks: vec![Mask::new()]
         };
 
         data.rendering.attach_image_buffers(imagebuffers);

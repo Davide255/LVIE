@@ -359,7 +359,7 @@ fn main() {
     });
 
     let d_w = DATA.clone();
-    Window.global::<ScreenCallbacks>().on_there_is_a_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {
+    Window.global::<ScreenCallbacks>().on_there_is_a_curve_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {
         let mut p_number = -1;
 
         let data = d_w.try_lock().unwrap();
@@ -402,6 +402,135 @@ fn main() {
             }
         });
         ww.unwrap().set_curve(d.curve.to_image((300,300)));
+    });
+
+    let dw = DATA.clone();
+    let ww = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_add_mask_point(move |x: f32, y: f32| {
+        let mut d = dw.lock().unwrap();
+        let i = d.masks[0].add_point([x, y]);
+        let Window = ww.unwrap();
+        Window.set_mask_points(d.masks[0].into_rc_model());
+        Window.set_connection_line_points(d.masks[0].generate_line_for_slint());
+        Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
+        Window.set_control_point_connection_line(d.masks[0].generate_control_point_connection_lines_for_slint());
+        return i.try_into().unwrap();
+    });
+
+    let d_w = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_there_is_a_mask_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {        
+        let mut p_number = -1;
+
+        let data = d_w.try_lock().unwrap();
+
+        let cps = data.masks[0].get_points();
+
+        for (i, coords) in cps.iter().enumerate() {
+            let xr = width * coords[0] / 100.0 - size / 2.0;
+            let yr = height * (100.0 - coords[1]) / 100.0 - size / 2.0;
+
+            if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
+                p_number = i as i32;
+                break;
+            }
+        }
+
+        return p_number;
+    });
+
+    let d_w = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_there_is_a_control_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {        
+        let mut p_number = -1;
+
+        let data = d_w.try_lock().unwrap();
+
+        let cps = data.masks[0].get_control_points();
+
+        for (k, coords) in cps.iter().enumerate() {
+            for (i, coord) in coords.iter().enumerate() {
+                let xr = width * coord[0] / 100.0 - size / 2.0;
+                let yr = height * (100.0 - coord[1]) / 100.0 - size / 2.0;
+
+                if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
+                    p_number = (k*10 + i) as i32;
+                    break;
+                }
+            }
+        }
+
+        return p_number;
+    });
+
+    let ww = Window.as_weak();
+    let dw = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_update_mask(move |points: slint::ModelRc<slint::ModelRc<f32>>| {
+        let mut mask: Vec<[f32; 2]> = Vec::new();
+
+        for point in points.iter() {
+            let p: Vec<f32> = point.iter().collect();
+            mask.push([p[0], p[1]]);
+        }
+
+        let mut data = dw.lock().unwrap();
+        data.masks[0].update_points(mask);
+
+        let W = ww.unwrap();
+        W.set_mask_points(data.masks[0].into_rc_model());
+        W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
+        W.set_connection_line_points(data.masks[0].generate_line_for_slint());
+        W.set_control_point_connection_line(data.masks[0].generate_control_point_connection_lines_for_slint());
+    });
+
+    let ww = Window.as_weak();
+    let dw = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_update_mask_point(move |index: i32, x: f32, y:f32| {
+        let mut data = dw.lock().unwrap();
+        if data.masks[0].update_point(index as usize, [x, y]).is_ok() {
+            let W = ww.unwrap();
+            W.set_mask_points(data.masks[0].into_rc_model());
+            W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
+            W.set_connection_line_points(data.masks[0].generate_line_for_slint());
+            W.set_control_point_connection_line(data.masks[0].generate_control_point_connection_lines_for_slint());
+        }
+    });
+
+    let ww = Window.as_weak();
+    let dw = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_update_control_point(move |index: i32, x: f32, y:f32| {
+        let mut data = dw.lock().unwrap();
+        if data.masks[0].update_control_point([index as usize / 10, index as usize % 10], [x, y]).is_ok() {
+            let W = ww.unwrap();
+            W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
+            W.set_connection_line_points(data.masks[0].generate_line_for_slint());
+            W.set_control_point_connection_line(data.masks[0].generate_control_point_connection_lines_for_slint());
+        }
+    });
+
+    let d_w = DATA.clone();
+    let ww = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_remove_mask_point(move |index: i32| {
+        let mut d = d_w.lock().unwrap();
+        if d.masks[0].remove_point(index as usize).is_ok() {
+            let Window = ww.unwrap();
+            Window.set_mask_points(d.masks[0].into_rc_model());
+            Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
+            Window.set_connection_line_points(d.masks[0].generate_line_for_slint());
+            Window.set_control_point_connection_line(d.masks[0].generate_control_point_connection_lines_for_slint());
+        }
+    });
+
+    let d_w = DATA.clone();
+    let ww = Window.as_weak();
+    Window.global::<ScreenCallbacks>().on_close_mask_path(move || {
+        let mut d = d_w.lock().unwrap();
+        if !d.masks[0].is_closed() {
+            d.masks[0].close();
+            let Window = ww.unwrap();
+            Window.set_mask_points(d.masks[0].into_rc_model());
+            Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
+            Window.set_connection_line_points(d.masks[0].generate_line_for_slint());
+            Window.set_control_point_connection_line(d.masks[0].generate_control_point_connection_lines_for_slint());
+        }
     });
 
     // apply filters
@@ -451,6 +580,21 @@ fn main() {
                     });
                 }
             }
+    });
+
+    Window.global::<Linespace>().on_create_line(move |from_x: f32, from_y: f32, to_x: f32, to_y: f32, steps: i32| {
+        let mut out: Vec<slint::ModelRc<f32>> = Vec::new();
+
+        let s = (
+            (to_x - from_x) / steps as f32,
+            (to_y - from_y) / steps as f32
+        );
+
+        for k in 0..steps {
+            out.push(slint::ModelRc::new(slint::VecModel::from(vec![from_x + s.0*k as f32, from_y + s.1*k as f32])));
+        }
+
+        slint::ModelRc::new(slint::VecModel::from(out))
     });
 
     //set_Alert_Message
