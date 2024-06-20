@@ -376,3 +376,62 @@ where
 
     ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(img.width(), img.height(), Arc::try_unwrap(out).unwrap().into_inner().unwrap())
 }
+
+use std::collections::VecDeque;
+
+pub fn boundary_fill<P>(
+    track: &ImageBuffer<P, Vec<P::Subpixel>>,
+    x: Option<isize>,
+    y: Option<isize>,
+    img: &ImageBuffer<P, Vec<P::Subpixel>>,
+    boundary_color: &P,
+    opposite: bool,
+) -> ImageBuffer<P, Vec<P::Subpixel>> 
+where 
+    P: image::Pixel + std::fmt::Debug + 'static + Send + Sync,
+    P::Subpixel: image::Primitive + std::fmt::Debug + Send + Sync + Default + super::traits::Scale + Send + Sync
+{
+    let mut out: ImageBuffer<P, Vec<<P as Pixel>::Subpixel>> = {
+        if opposite {
+            img.clone()
+        } else { 
+            ImageBuffer::new(track.width(), track.height())
+        }
+    };
+
+    let black = vec![0u8.scale(); P::CHANNEL_COUNT as usize];
+
+    let mut stack: VecDeque<(isize, isize)> = VecDeque::new();
+    stack.push_back((x.unwrap_or_default(), y.unwrap_or_default()));
+
+    while let Some((x, y)) = stack.pop_back() {
+        if x >= 0 && x < track.width() as isize && y >= 0 && y < track.height() as isize {
+            if track.get_pixel(x as u32, y as u32).channels() != boundary_color.channels()
+                && out.get_pixel(x as u32, y as u32).channels() != {
+                    if opposite {
+                        black.as_slice()
+                    } else {
+                        img.get_pixel(x as u32, y as u32).channels()
+                    }
+                }
+            {
+                out.put_pixel(x as u32, y as u32, {
+                    if opposite {
+                        *P::from_slice(&vec![0u8.scale(); P::CHANNEL_COUNT as usize])
+                    } else {
+                        *img.get_pixel(x as u32, y as u32)
+                    }});
+                stack.push_back((x + 1, y));
+                stack.push_back((x - 1, y));
+                stack.push_back((x, y + 1));
+                stack.push_back((x, y - 1));
+                stack.push_back((x + 1, y + 1));
+                stack.push_back((x - 1, y - 1));
+                stack.push_back((x + 1, y - 1));
+                stack.push_back((x - 1, y + 1));
+            } 
+        }
+    }
+
+    out
+}

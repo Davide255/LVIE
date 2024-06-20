@@ -404,6 +404,12 @@ fn main() {
         ww.unwrap().set_curve(d.curve.to_image((300,300)));
     });
 
+    let d_w = DATA.clone();
+    Window.global::<ScreenCallbacks>().on_apply_mask(move || {
+        let d = d_w.lock().unwrap();
+        d.masks[0].apply_to_image(&d.full_res_preview).expect("Mask not closed").save("applyed_mask.png").expect("Failed to save");
+    });
+
     let dw = DATA.clone();
     let ww = Window.as_weak();
     Window.global::<ScreenCallbacks>().on_add_mask_point(move |x: f32, y: f32| {

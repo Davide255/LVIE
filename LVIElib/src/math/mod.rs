@@ -252,7 +252,7 @@ where
     }
 }
 
-pub fn bezier_cubic_curve(points: [[f32;2]; 4], stpes: usize) -> Vec<[f32; 2]> {
+pub fn bezier_cubic_curve(points: [[f32;2]; 4], steps: Option<usize>) -> Vec<[f32; 2]> {
     fn decasteljau(t: f32, c: &(f32, f32, f32, f32)) -> f32 {
         let t2 = t * t;
         let t3 = t2 * t;
@@ -262,15 +262,28 @@ pub fn bezier_cubic_curve(points: [[f32;2]; 4], stpes: usize) -> Vec<[f32; 2]> {
         return c.0*mt3 + 3.0*c.1*mt2*t + 3.0*c.2*mt*t2 + c.3*t3
     }
 
+    fn compute_required_points(points: &[[f32; 2]; 4]) -> usize {
+        let endpoints_distance = ((points[3][0] - points[0][0]).powi(2) + (points[3][1] - points[0][1]).powi(2)).sqrt();
+        (
+            endpoints_distance * (
+                1.0 + (
+                    (points[1][0].powi(2) + points[1][1].powi(2)).sqrt() + (points[2][0].powi(2) + points[2][1].powi(2)).sqrt()
+                ) / (2.0 * endpoints_distance)
+            )
+        ).ceil() as usize
+    }
+
     let x = (points[0][0], points[1][0], points[2][0], points[3][0]);
     let y = (points[0][1], points[1][1], points[2][1], points[3][1]);
 
     let mut out = Vec::new();
 
-    for k in 0..stpes {
+    let steps = steps.unwrap_or_else(|| compute_required_points(&points));
+
+    for k in 0..steps {
         out.push([
-            decasteljau(k as f32 / stpes as f32, &x),
-            decasteljau(k as f32 / stpes as f32, &y)
+            decasteljau(k as f32 / steps as f32, &x),
+            decasteljau(k as f32 / steps as f32, &y)
         ]);
     }
 

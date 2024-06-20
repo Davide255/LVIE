@@ -29,6 +29,7 @@ global ScreenCallbacks {
     callback update-control-point(int, float, float);
     callback update-mask([[float]]);
     callback close-mask-path();
+    callback apply-mask();
 
     callback reset();
     callback set-Warning-Message(string);
@@ -282,16 +283,16 @@ component Screen inherits HorizontalBox {
                     height: parent.height;
                     padding: 0;
 
-                    for point in control_point_connection_line:
-                    Rectangle {
-                        width: 1px;
-                        height: 1px;
-
-                        background: gray;
-
-                        x: parent.width * point[0] / 100 - self.width / 2;
-                        y: parent.height * (100 - point[1]) / 100 - self.height / 2;
-                    }
+                    //for point in control_point_connection_line:
+                    //Rectangle {
+                    //    width: 1px;
+                    //    height: 1px;
+//
+                    //    background: gray;
+//
+                    //    x: parent.width * point[0] / 100 - self.width / 2;
+                    //    y: parent.height * (100 - point[1]) / 100 - self.height / 2;
+                    //}
 
                     for point in connection_line:
                     Rectangle {
@@ -515,6 +516,14 @@ component Screen inherits HorizontalBox {
                                 exposition.value, round(box-blur.value), round(gaussian-blur.value), sharpening.value, 
                                 temp.value, tint.value, saturation.value
                             );
+                        }
+                    }
+
+                    Button {
+                        text: "apply mask";
+                        max-height: 50px;
+                        clicked => {
+                            ScreenCallbacks.apply-mask();
                         }
                     }
 

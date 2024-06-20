@@ -1,5 +1,9 @@
+use LVIElib::{traits::Scale, utils::boundary_fill};
+
+#[derive(Debug)]
 pub enum MaskError {
-    PointNotFound
+    PointNotFound,
+    MaskNotClosed
 }
 
 #[derive(Debug, Default)]
@@ -73,7 +77,7 @@ impl Mask {
                     }
                 }, 
                 self.mask_points[i+1]
-            ], 1000);
+            ], Some(500));
             for k in curve {
                 line.push(std::rc::Rc::new(slint::VecModel::from(vec![k[0], k[1]])).into())
             }
@@ -103,7 +107,7 @@ impl Mask {
                         k
                     }
                 }, self.mask_points[0]
-            ], 1000);
+            ], Some(500));
             for k in curve {
                 line.push(std::rc::Rc::new(slint::VecModel::from(vec![k[0], k[1]])).into())
             }
@@ -147,32 +151,157 @@ impl Mask {
         slint::ModelRc::new(slint::VecModel::from(line))
     }
 
-    pub fn generate_line(&self) -> Vec<[f32; 2]> {
+    pub fn generate_line(&self, width: f32, height: f32) -> Vec<[f32; 2]> {
         let mut line: Vec<[f32; 2]> = Vec::new();
 
-        for i in 1..self.mask_points.len() {
-            let mut curve = LVIElib::math::bezier_cubic_curve([
-                self.mask_points[i-1], self.bezier_control_points[i-1][0], 
-                self.bezier_control_points[i-1][1], self.mask_points[i]
-            ], 1000);
-            line.append(&mut curve);
+        let mp: Vec<[f32; 2]> = (&self.mask_points).into_iter().map(|x| {
+            if *x != [-1.0, -1.0] {
+                [x[0]*width / 100.0, (100.0 - x[1])*height / 100.0]
+            } else {
+                *x
+            }
+        }).collect();
+
+        let bcp: Vec<[[f32; 2]; 2]> = (&self.bezier_control_points).into_iter().map(|k| {
+            let m: Vec<[f32;2]> = k.into_iter().map(|x|  {
+                if *x != [-1.0, -1.0] {
+                    [x[0]*width / 100.0, (100.0 - x[1])*height / 100.0]
+                } else {
+                    *x
+                }
+            }).collect();
+            [m[0], m[1]]
+        }).collect();
+
+        for i in 0..mp.len() - 1 {
+            let curve = LVIElib::math::bezier_cubic_curve([
+                mp[i], {
+                    let k = bcp[i][0];
+                    if k[0] == -1.0 {
+                        let l = mp[i];
+                        let dx = mp[i+1][0] - l[0];
+                        let dy = mp[i+1][1] - l[1];
+                        [l[0] + (dx / 3.0), l[1] + (dy / 3.0)]
+                    } else {
+                        k
+                    }
+                }, 
+                {
+                    let k = bcp[i][1];
+                    if k[0] == -1.0 {
+                        let l = mp[i];
+                        let dx = mp[i+1][0] - l[0];
+                        let dy = mp[i+1][1] - l[1];
+                        [l[0] + (2.0*dx / 3.0), l[1] + (2.0*dy / 3.0)]
+                    } else {
+                        k
+                    }
+                }, 
+                mp[i+1]
+            ], None);
+            for k in curve {
+                line.push(k);
+            }
         }
 
         if self.closed {
             let curve = LVIElib::math::bezier_cubic_curve([
-                *self.mask_points.last().unwrap(), self.bezier_control_points.last().unwrap()[0],
-                self.bezier_control_points.last().unwrap()[1], self.mask_points[0]
-            ], 1000);
+                *mp.last().unwrap(), {
+                    let k = bcp.last().unwrap()[0];
+                    if k[0] == -1.0 {
+                        let l = mp.last().unwrap();
+                        let dx = mp[0][0] - l[0];
+                        let dy = mp[0][1] - l[1];
+                        [l[0] + (dx / 3.0), l[1] + (dy / 3.0)]
+                    } else {
+                        k
+                    }
+                }, 
+                {
+                    let k = bcp.last().unwrap()[1];
+                    if k[0] == -1.0 {
+                        let l = mp.last().unwrap();
+                        let dx = mp[0][0] - l[0];
+                        let dy = mp[0][1] - l[1];
+                        [l[0] + (2.0*dx / 3.0), l[1] + (2.0*dy / 3.0)]
+                    } else {
+                        k
+                    }
+                }, mp[0]
+            ], None);
             for k in curve {
-                line.push(k)
+                line.push(k);
             }
         }
 
         line
     }
 
-    pub fn apply_to_image(&self) {
-        todo!()
+    fn generate_track<P>(&self, width: u32, height: u32) -> Result<image::ImageBuffer<P, Vec<P::Subpixel>>, MaskError> 
+    where 
+        P: image::Pixel + std::fmt::Debug + LVIElib::traits::ToHsl + 'static,
+        P::Subpixel: image::Primitive + std::fmt::Debug + Send + Sync + Default + LVIElib::traits::Scale
+    {
+        if !self.closed { 
+            Err(MaskError::MaskNotClosed)
+        } else {
+            let mut points = vec![P::Subpixel::default(); (width*height) as usize];
+
+            for k in self.generate_line(width as f32, height as f32) {
+                let x = k[0].round() as isize;
+                let y = k[1].round() as isize;
+
+                for i in -1..=1 {
+                    for j in -1..=1 {
+                        points[width as usize *(y + j) as usize + (x + i) as usize] = 255u8.scale::<P::Subpixel>();
+                    }
+                }
+            }
+
+            let out = image::ImageBuffer::from_vec(width, height, {
+                let mut out: Vec<P::Subpixel> = Vec::new();
+
+                for k in &points {
+                    let mut channels = vec![*k; P::CHANNEL_COUNT as usize];
+                    out.append(&mut channels);
+                }
+
+                out
+            }).unwrap();
+
+            image::ImageBuffer::<image::Rgb<u8>, Vec<u8>>::from_vec(width, height, {
+                let mut out: Vec<u8> = Vec::new();
+
+                for k in &points {
+                    let channels = [k.scale(); 3];
+                    out.push(channels[0]);
+                    out.push(channels[1]);
+                    out.push(channels[2]);
+                }
+
+                out
+            }).unwrap().save("track.png").expect("Failed to save");
+
+            Ok(out)
+        }
+    }
+
+    pub fn apply_to_image<P>(&self, image: &image::ImageBuffer<P, Vec<P::Subpixel>>) -> Result<image::ImageBuffer<P, Vec<P::Subpixel>>, MaskError>
+    where 
+        P: image::Pixel + std::fmt::Debug + LVIElib::traits::ToHsl + 'static + Send + Sync,
+        P::Subpixel: image::Primitive + std::fmt::Debug + Send + Sync + Default + LVIElib::traits::Scale + Send + Sync
+    {
+        let track: image::ImageBuffer<P, Vec<P::Subpixel>> = self.generate_track(image.width(), image.height())?;
+
+        let out = boundary_fill(
+            &track, 
+            None, None,
+            image,
+            P::from_slice(&vec![255u8.scale(); P::CHANNEL_COUNT as usize]),
+            true
+        );
+
+        Ok(out)
     }
 
     pub fn get_points(&self) -> &Vec<[f32;2]> {
@@ -281,14 +410,14 @@ impl Mask {
 fn generate_linespace(from_x: f32, from_y: f32, to_x: f32, to_y: f32, steps: usize) -> Vec<slint::ModelRc<f32>> {
     let mut out: Vec<slint::ModelRc<f32>> = Vec::new();
 
-        let s = (
-            (to_x - from_x) / steps as f32,
-            (to_y - from_y) / steps as f32
-        );
+    let s = (
+        (to_x - from_x) / steps as f32,
+        (to_y - from_y) / steps as f32
+    );
 
-        for k in 0..steps {
-            out.push(slint::ModelRc::new(slint::VecModel::from(vec![from_x + s.0*k as f32, from_y + s.1*k as f32])));
-        }
+    for k in 0..steps {
+        out.push(slint::ModelRc::new(slint::VecModel::from(vec![from_x + s.0*k as f32, from_y + s.1*k as f32])));
+    }
 
-        out
+    out
 }
