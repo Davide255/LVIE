@@ -1,0 +1,284 @@
+import { ScrollView } from "std-widgets.slint";
+
+global MaskCallbacks {
+    callback add-mask-point(float, float, length, length) -> int;
+    callback there-is-a-mask-point(length, length, length, length, length) -> int;
+    callback there-is-a-control-point(length, length, length, length, length) -> int;
+    callback remove-mask-point(int, length, length);
+    callback update-mask-point(int, float, float, length, length);
+    callback update-control-point(int, float, float, length, length);
+    callback update-mask(length, length);
+    callback close-mask-path(length, length);
+    callback apply-mask();
+}
+
+enum ImageTouchBehaviour {
+    MOVE,
+    MASK
+}
+
+enum PointType {
+    None,
+    MaskMain,
+    MaskControl
+}
+
+component ImageSpace {
+    in-out property <ImageTouchBehaviour> touch_behaviour: ImageTouchBehaviour.MOVE;
+
+    in-out property <image> source <=> img.source;
+
+    in-out property <[[float]]> mask_points;
+    in-out property <[[float]]> bezier_control_points;
+    in-out property <[[float]]> connection_line;
+    in-out property <[[float]]> control_point_connection_line;
+
+    property <color> mask_color: lightblue;
+    property <length> mask_size: 2px;
+
+    property <float> max_scale: 6;
+
+    property <float> scale: 1;
+
+    callback on-zoom-change();
+
+    on-zoom-change => {
+        MaskCallbacks.update-mask(sv.viewport-width, sv.viewport-width);
+    }
+
+    function zoom(x: length, y: length, percent: float) {
+        scale = scale + percent;
+
+        if (scale > max_scale) {
+            scale = max_scale;
+            return;
+        } else if (scale < 0.99) {
+            scale = 1;
+            return;
+        }
+
+        sv.viewport-width = sv.width * scale;
+        sv.viewport-height = sv.height * scale;
+
+        sv.viewport-x = Math.clamp(
+            - (x - sv.viewport-x) * scale / (scale - percent) + x, 
+            sv.width - sv.viewport-width, 0
+            );
+        sv.viewport-y = Math.clamp(
+            - (y - sv.viewport-y) * scale / (scale - percent) + y, 
+            sv.height - sv.viewport-height, 0
+            );
+
+        on-zoom-change();
+    }
+
+    public function zoom-reset() {
+        sv.viewport-x = 0;
+        sv.viewport-y = 0;
+        sv.viewport-height = sv.height;
+        sv.viewport-width = sv.width;
+        scale = 1;
+        scale = 1;
+    }
+
+    Rectangle {
+        sv := ScrollView {
+            height: parent.height;
+            width: parent.width;
+            viewport-height: self.height;
+            viewport-width: self.width;
+            img := Image {
+                image-fit: ImageFit.contain;
+                image-rendering: pixelated;
+                width: parent.viewport-width;
+                height: parent.viewport-height;
+                
+                Rectangle {
+                    width: parent.width;
+                    height: parent.height;
+                    padding: 0;
+
+                    for point in control_point_connection_line:
+                    Rectangle {
+                        width: 1px;
+                        height: 1px;
+
+                        background: gray;
+
+                        x: parent.width * point[0] / 100 - self.width / 2;
+                        y: parent.height * (100 - point[1]) / 100 - self.height / 2;
+                    }
+
+                    for point in connection_line:
+                    Rectangle {
+                        width: mask_size;
+                        height: mask_size;
+
+                        background: mask_color;
+
+                        x: point[0] * 1px - self.width / 2;
+                        y: point[1] * 1px - self.height / 2;
+                    }
+
+                    for cp[index] in bezier_control_points:
+                    Rectangle{
+                        property <int> id: index;
+
+                        x: parent.width * cp[0] / 100 - self.width / 2;
+                        y: parent.height * (100 - cp[1]) / 100 - self.height / 2;
+
+                        height: 10px;
+                        width: 10px;
+                        border-radius: 5px;
+                        border-color: gray;
+                        background: gray;
+                        border-width: 2px;
+                    }
+
+                    for pos[index] in mask_points:
+                    Rectangle {
+                        property <int> id: index;
+                            
+                        x: parent.width * pos[0] / 100 - self.width / 2;
+                        y: parent.height * (100 - pos[1]) / 100 - self.height / 2;
+
+                        height: 10px;
+                        width: 10px;
+                        border-radius: 5px;
+                        border-color: blue;
+                        background: blue;
+                        border-width: 2px;
+                    }
+                }
+
+            }
+        }
+        
+        t := TouchArea {
+            height: parent.height;
+            width: parent.width;
+            
+            property <int> cid: -1;
+            property <PointType> pt: PointType.None;
+            property <length> ovx;
+            property <length> ovy;
+
+            property <float> ox;
+            property <float> oy;
+
+            mouse-cursor: MouseCursor.pointer;
+
+            scroll-event(s) => {
+                if s.delta-y / 1px == 60 {
+                    zoom(self.mouse-x, self.mouse-y, 0.05);
+                } else if s.delta-y / 1px == -60 {
+                    zoom(self.mouse-x, self.mouse-y, -0.05);
+                }
+                EventResult.accept
+            }
+
+            pointer-event(event) => {
+                if (root.touch_behaviour == ImageTouchBehaviour.MOVE) {
+                    if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                        self.ovx = sv.viewport-x;
+                        self.ovy = sv.viewport-y;
+                    }
+                } else if (root.touch_behaviour == ImageTouchBehaviour.MASK) {
+                    if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                        self.cid = MaskCallbacks.there-is-a-mask-point(
+                            self.mouse-x - sv.viewport-x, self.mouse-y - sv.viewport-y, img.width, img.height, 10px
+                            );
+                        if (self.cid == -1) {
+                            self.cid = MaskCallbacks.there-is-a-control-point(
+                                self.mouse-x - sv.viewport-x, self.mouse-y - sv.viewport-y, img.width, img.height, 10px
+                            );
+                            if (self.cid == -1) {
+                                self.cid = MaskCallbacks.add-mask-point(((self.mouse-x - sv.viewport-x) / img.width) * 100.0, 
+                                    Math.clamp(100 - ((self.mouse-y - sv.viewport-y) * 100 / img.height), 0, 100),
+                                    sv.viewport-width, sv.viewport-height
+                                    );
+                                self.pt = PointType.MaskMain;
+                            } else {
+                                self.pt = PointType.MaskControl;
+                            }
+                        } else {
+                            self.pt = PointType.MaskMain;
+                        }
+                        
+                        if (self.cid == 0 && self.pt == PointType.MaskMain && mask_points.length > 1) {
+                            MaskCallbacks.close-mask-path(
+                                sv.viewport-width, sv.viewport-height
+                                );
+                            root.mask_color = Colors.red;
+                            root.mask_size = 2px;
+                        }
+
+                        if (self.pt == PointType.MaskMain) {
+                            self.ox = mask_points[self.cid][0];
+                            self.oy = mask_points[self.cid][1];
+                        } else {
+                            self.ox = bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0];
+                            self.oy = bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1];
+                        }
+                    } else if (event.kind == PointerEventKind.down && event.button == PointerEventButton.right) {
+                        MaskCallbacks.remove-mask-point(MaskCallbacks.there-is-a-mask-point(
+                            self.mouse-x + sv.viewport-x, self.mouse-y + sv.viewport-y, img.width, img.height, 10px
+                        ),
+                        sv.viewport-width, sv.viewport-height
+                        );
+                    } else if (event.kind == PointerEventKind.up) {
+                        self.cid = -1;
+                        self.pt = PointType.None;
+                    }
+                }
+            }
+
+            moved => {
+                if (root.touch_behaviour == ImageTouchBehaviour.MOVE) {
+                    if (self.enabled && self.pressed) {
+                        sv.viewport-x = Math.clamp(self.ovx + self.mouse-x - self.pressed-x, self.width - sv.viewport-width, 0);
+                        sv.viewport-y = Math.clamp(self.ovy + self.mouse-y - self.pressed-y, self.height - sv.viewport-height, 0);
+                    }
+                } else if (root.touch_behaviour == ImageTouchBehaviour.MASK) {
+                    if (self.cid >= 0 && self.pressed) {
+                        if (self.pt == PointType.MaskMain) {
+                            mask_points[self.cid][0] = Math.clamp(
+                                (self.mouse-x - sv.viewport-x) * 100 / img.width, 0, 100
+                            );
+                            mask_points[self.cid][1] = Math.clamp(
+                                100 - ((self.mouse-y - sv.viewport-y) * 100 / img.height), 0, 100
+                            );
+
+                            if (abs(mask_points[self.cid][0] + mask_points[self.cid][1] - self.ox - self.oy) >= 0.01){
+                                MaskCallbacks.update-mask-point(self.cid, mask_points[self.cid][0], mask_points[self.cid][1],
+                                    sv.viewport-width, sv.viewport-height
+                                    );
+                            }
+                        } else {
+                            bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0] = Math.clamp(
+                                (self.mouse-x - sv.viewport-x) * 100 / img.width, 0, 100
+                            );
+                            bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1] = Math.clamp(
+                                100 - ((self.mouse-y - sv.viewport-y) * 100 / img.height), 0, 100
+                            );
+
+                            if (abs(
+                                bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0] 
+                                + bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1] 
+                                - self.ox - self.oy
+                            ) >= 0.01){
+                                MaskCallbacks.update-control-point(self.cid, 
+                                    bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0], 
+                                    bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1],
+                                    sv.viewport-width, sv.viewport-height
+                                    );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export { ImageSpace, ImageTouchBehaviour, PointType, MaskCallbacks }

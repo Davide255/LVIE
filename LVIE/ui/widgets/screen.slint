@@ -3,11 +3,14 @@ import { Palette } from "../color/palette.slint";
 import { CustomSlider } from "slider/slider.slint";
 import { Filter } from "filter.slint";
 import { Linespace } from "canvas/line.slint";
+import { ImageSpace, ImageTouchBehaviour, PointType, MaskCallbacks } from "imagespace.slint";
 
-enum PointType {
-    None,
-    MaskMain,
-    MaskControl
+global CurveCallbacks {
+    callback update-curve([[float]]);
+    callback there-is-a-curve-point(length, length, length, length, length) -> int;
+    callback remove-curve-point(int);
+    callback add-curve-point(float, float) -> int;
+    callback set-curve-type(int);
 }
 
 global ScreenCallbacks {
@@ -15,33 +18,12 @@ global ScreenCallbacks {
     callback add-saturation(float);
     callback apply-filters(float, float, float, float, float, float, float);
 
-    callback update-curve([[float]]);
-    callback there-is-a-curve-point(length, length, length, length, length) -> int;
-    callback remove-curve-point(int);
-    callback add-curve-point(float, float) -> int;
-    callback set-curve-type(int);
-
-    callback add-mask-point(float, float) -> int;
-    callback there-is-a-mask-point(length, length, length, length, length) -> int;
-    callback there-is-a-control-point(length, length, length, length, length) -> int;
-    callback remove-mask-point(int);
-    callback update-mask-point(int, float, float);
-    callback update-control-point(int, float, float);
-    callback update-mask([[float]]);
-    callback close-mask-path();
-    callback apply-mask();
-
     callback reset();
     callback set-Warning-Message(string);
     callback save-file(string);
 
     callback preview-click(length, length, length, length);
     callback keyboard_click(string, bool, bool, bool);
-}
-
-enum ImageTouchBehaviour {
-    MOVE,
-    MASK
 }
 
 component Screen inherits HorizontalBox {
@@ -53,10 +35,10 @@ component Screen inherits HorizontalBox {
     in-out property <image> curve <=> plot.source;
     in-out property <[[float]]> curve_points;
 
-    in-out property <[[float]]> mask_points;
-    in-out property <[[float]]> bezier_control_points;
-    in-out property <[[float]]> connection_line;
-    in-out property <[[float]]> control_point_connection_line;
+    in-out property <[[float]]> mask_points <=> img.mask_points;
+    in-out property <[[float]]> bezier_control_points <=> img.bezier_control_points;
+    in-out property <[[float]]> connection_line <=> img.connection_line;
+    in-out property <[[float]]> control_point_connection_line <=> img.control_point_connection_line;
 
     spacing: 10px;
 
@@ -65,38 +47,6 @@ component Screen inherits HorizontalBox {
             exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
             temp.value, tint.value, saturation.value
             );
-    }
-
-    function zoom-in(x: length, y: length) {
-                
-        if (sv.width / 2.0) - (x + x * (5.0 / 100.0)) <= 0 {
-            sv.viewport-x = 0;
-        }
-        else if (sv.width / 2.0) - (x + x * (5.0 / 100.0)) > sv.width - sv.viewport-width {
-            sv.viewport-x = sv.width - sv.viewport-width;
-        } else {
-            sv.viewport-x = (sv.width / 2.0) - (x + x * (5.0 / 100.0));
-        }
-
-        if (sv.height / 2.0) - (y + y * (5.0 / 100.0)) <= 0 {
-            sv.viewport-y = 0;
-        }
-        else if (sv.height / 2.0) - (y + y * (5.0 / 100.0)) > sv.height - sv.viewport-height {
-            sv.viewport-x = sv.height - sv.viewport-height;
-        }
-        else {
-            sv.viewport-y = (sv.height / 2.0) - (y + y * (5.0 / 100.0));
-        }
-
-        sv.viewport-width += sv.width * 5 / 100;
-        sv.viewport-height += sv.height * 5 / 100;
-    }
-
-    function zoom-out() {
-        sv.viewport-width = sv.width >= sv.viewport-width ? sv.width : sv.viewport-width - sv.width * 5 / 100;
-        sv.viewport-x = Math.clamp(sv.viewport-x + sv.width * 5 / 100, 0, sv.width - sv.viewport-width);
-        sv.viewport-height = sv.height >= sv.viewport-height ? sv.height : sv.viewport-height - sv.height * 5 / 100;
-        sv.viewport-y = Math.clamp(sv.viewport-y + sv.height * 5 / 100, 0, sv.height - sv.viewport-height);
     }
 
     left_area := Rectangle {
@@ -170,17 +120,17 @@ component Screen inherits HorizontalBox {
                 
                             pointer-event(e) => {
                                 if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
-                                    self.cid = ScreenCallbacks.there-is-a-curve-point(
+                                    self.cid = CurveCallbacks.there-is-a-curve-point(
                                         self.mouse-x, self.mouse-y, self.width, self.height, 10px
                                         );
                                     if (self.cid == -1) {
-                                        self.cid = ScreenCallbacks.add-curve-point((self.mouse-x / self.width) * 100.0, 
+                                        self.cid = CurveCallbacks.add-curve-point((self.mouse-x / self.width) * 100.0, 
                                             Math.clamp(100 - (self.mouse-y * 100 / parent.height), 0, 100));
                                     }
                                     self.ox = curve_points[self.cid][0];
                                     self.oy = curve_points[self.cid][1];
                                 } else if (e.kind == PointerEventKind.down && e.button == PointerEventButton.right) {
-                                    ScreenCallbacks.remove-curve-point(ScreenCallbacks.there-is-a-curve-point(
+                                    CurveCallbacks.remove-curve-point(CurveCallbacks.there-is-a-curve-point(
                                         self.mouse-x, self.mouse-y, self.width, self.height, 10px
                                     ));
                                 } else if (e.kind == PointerEventKind.up) {
@@ -200,7 +150,7 @@ component Screen inherits HorizontalBox {
                                     );
 
                                     if (abs(curve_points[self.cid][0] + curve_points[self.cid][1] - self.ox - self.oy) >= 0.01){
-                                        ScreenCallbacks.update-curve(curve_points);
+                                        CurveCallbacks.update-curve(curve_points);
                                     }
                                 }
                             }
@@ -223,7 +173,7 @@ component Screen inherits HorizontalBox {
                         width: parent.width * 50%;
                         current-index: 0;
                         selected(v) => {
-                            ScreenCallbacks.set-curve-type(self.current-index)
+                            CurveCallbacks.set-curve-type(self.current-index)
                         }
                     }
                 }
@@ -258,203 +208,10 @@ component Screen inherits HorizontalBox {
                     }
                 }
             }
-            //viewport-height: (self.width - 10px) * 3;
         }
     }
 
-    Rectangle {
-        sv := ScrollView {
-            height: parent.height;
-            width: parent.width;
-            viewport-height: self.height;
-            viewport-width: self.width;
-            img := Image {
-                property <ImageTouchBehaviour> touch_behaviour: ImageTouchBehaviour.MOVE;
-                property <color> mask_color: lightblue;
-                property <length> mask_size: 2px;
-
-                image-fit: ImageFit.contain;
-                image-rendering: pixelated;
-                width: parent.viewport-width;
-                height: parent.viewport-height;
-                
-                Rectangle {
-                    width: parent.width;
-                    height: parent.height;
-                    padding: 0;
-
-                    //for point in control_point_connection_line:
-                    //Rectangle {
-                    //    width: 1px;
-                    //    height: 1px;
-//
-                    //    background: gray;
-//
-                    //    x: parent.width * point[0] / 100 - self.width / 2;
-                    //    y: parent.height * (100 - point[1]) / 100 - self.height / 2;
-                    //}
-
-                    for point in connection_line:
-                    Rectangle {
-                        width: mask_size;
-                        height: mask_size;
-
-                        background: mask_color;
-
-                        x: parent.width * point[0] / 100 - self.width / 2;
-                        y: parent.height * (100 - point[1]) / 100 - self.height / 2;
-                    }
-
-                    for cp[index] in bezier_control_points:
-                    Rectangle{
-                        property <int> id: index;
-
-                        x: parent.width * cp[0] / 100 - self.width / 2;
-                        y: parent.height * (100 - cp[1]) / 100 - self.height / 2;
-
-                        height: 10px;
-                        width: 10px;
-                        border-radius: 5px;
-                        border-color: gray;
-                        background: gray;
-                        border-width: 2px;
-                    }
-
-                    for pos[index] in mask_points:
-                    Rectangle {
-                        property <int> id: index;
-                            
-                        x: parent.width * pos[0] / 100 - self.width / 2;
-                        y: parent.height * (100 - pos[1]) / 100 - self.height / 2;
-
-                        height: 10px;
-                        width: 10px;
-                        border-radius: 5px;
-                        border-color: blue;
-                        background: blue;
-                        border-width: 2px;
-                    }
-                }
-
-            }
-        }
-        
-        t := TouchArea {
-            height: parent.height;
-            width: parent.width;
-            
-            property <int> cid: -1;
-            property <PointType> pt: PointType.None;
-            property <length> ovx;
-            property <length> ovy;
-
-            property <float> ox;
-            property <float> oy;
-
-            mouse-cursor: MouseCursor.pointer;
-
-            scroll-event(s) => {
-                if s.delta-y / 1px == 60 {
-                    zoom-in(self.mouse-x, self.mouse-y);
-                } else if s.delta-y / 1px == -60 {
-                    zoom-out();
-                }
-                EventResult.accept
-            }
-
-            pointer-event(event) => {
-                if (img.touch_behaviour == ImageTouchBehaviour.MOVE) {
-                    if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
-                        self.ovx = sv.viewport-x;
-                        self.ovy = sv.viewport-y;
-                    }
-                } else if (img.touch_behaviour == ImageTouchBehaviour.MASK) {
-                    if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
-                        self.cid = ScreenCallbacks.there-is-a-mask-point(
-                            self.mouse-x - sv.viewport-x, self.mouse-y - sv.viewport-y, img.width, img.height, 10px
-                            );
-                        if (self.cid == -1) {
-                            self.cid = ScreenCallbacks.there-is-a-control-point(
-                                self.mouse-x - sv.viewport-x, self.mouse-y - sv.viewport-y, img.width, img.height, 10px
-                            );
-                            if (self.cid == -1) {
-                                self.cid = ScreenCallbacks.add-mask-point(((self.mouse-x - sv.viewport-x) / img.width) * 100.0, 
-                                    Math.clamp(100 - ((self.mouse-y - sv.viewport-y) * 100 / img.height), 0, 100));
-                                self.pt = PointType.MaskMain;
-                            } else {
-                                self.pt = PointType.MaskControl;
-                            }
-                        } else {
-                            self.pt = PointType.MaskMain;
-                        }
-                        
-                        if (self.cid == 0 && self.pt == PointType.MaskMain && mask_points.length > 1) {
-                            ScreenCallbacks.close-mask-path();
-                            img.mask_color = Colors.red;
-                            img.mask_size = 2px;
-                        }
-
-                        if (self.pt == PointType.MaskMain) {
-                            self.ox = mask_points[self.cid][0];
-                            self.oy = mask_points[self.cid][1];
-                        } else {
-                            self.ox = bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0];
-                            self.oy = bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1];
-                        }
-                    } else if (event.kind == PointerEventKind.down && event.button == PointerEventButton.right) {
-                        ScreenCallbacks.remove-mask-point(ScreenCallbacks.there-is-a-mask-point(
-                            self.mouse-x + sv.viewport-x, self.mouse-y + sv.viewport-y, img.width, img.height, 10px
-                        ));
-                    } else if (event.kind == PointerEventKind.up) {
-                        self.cid = -1;
-                        self.pt = PointType.None;
-                    }
-                }
-            }
-
-            moved => {
-                if (img.touch_behaviour == ImageTouchBehaviour.MOVE) {
-                    if (self.enabled && self.pressed) {
-                        sv.viewport-x = Math.clamp(self.ovx + self.mouse-x - self.pressed-x, self.width - sv.viewport-width, 0);
-                        sv.viewport-y = Math.clamp(self.ovy + self.mouse-y - self.pressed-y, self.height - sv.viewport-height, 0);
-                    }
-                } else if (img.touch_behaviour == ImageTouchBehaviour.MASK) {
-                    if (self.cid >= 0 && self.pressed) {
-                        if (self.pt == PointType.MaskMain) {
-                            mask_points[self.cid][0] = Math.clamp(
-                                (self.mouse-x - sv.viewport-x) * 100 / img.width, 0, 100
-                            );
-                            mask_points[self.cid][1] = Math.clamp(
-                                100 - ((self.mouse-y - sv.viewport-y) * 100 / img.height), 0, 100
-                            );
-
-                            if (abs(mask_points[self.cid][0] + mask_points[self.cid][1] - self.ox - self.oy) >= 0.01){
-                                ScreenCallbacks.update-mask-point(self.cid, mask_points[self.cid][0], mask_points[self.cid][1]);
-                            }
-                        } else {
-                            bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0] = Math.clamp(
-                                (self.mouse-x - sv.viewport-x) * 100 / img.width, 0, 100
-                            );
-                            bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1] = Math.clamp(
-                                100 - ((self.mouse-y - sv.viewport-y) * 100 / img.height), 0, 100
-                            );
-
-                            if (abs(
-                                bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0] 
-                                + bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1] 
-                                - self.ox - self.oy
-                            ) >= 0.01){
-                                ScreenCallbacks.update-control-point(self.cid, 
-                                    bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][0], 
-                                    bezier_control_points[2*Math.floor(self.cid / 10) + Math.mod(self.cid, 10)][1]
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    img := ImageSpace {}
 
     right_area := VerticalBox {
         width: root.width * 20%;
@@ -523,7 +280,7 @@ component Screen inherits HorizontalBox {
                         text: "apply mask";
                         max-height: 50px;
                         clicked => {
-                            ScreenCallbacks.apply-mask();
+                            MaskCallbacks.apply-mask();
                         }
                     }
 
@@ -537,10 +294,7 @@ component Screen inherits HorizontalBox {
                             tint.value = 0;
                             exposition.value = 0;
 
-                            sv.viewport-x = 0;
-                            sv.viewport-y = 0;
-                            sv.viewport-height = sv.height;
-                            sv.viewport-width = sv.width;
+                            img.zoom-reset();
                             
                             ScreenCallbacks.reset();
                         }
@@ -580,4 +334,4 @@ component Screen inherits HorizontalBox {
     }
 }
 
-export { Screen, ScreenCallbacks, Linespace }
+export { Screen, ScreenCallbacks, Linespace, MaskCallbacks, CurveCallbacks }

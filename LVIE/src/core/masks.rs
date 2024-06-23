@@ -49,35 +49,54 @@ impl Mask {
         std::rc::Rc::new(slint::VecModel::from(c)).into()
     }
 
-    pub fn generate_line_for_slint(&self) -> slint::ModelRc<slint::ModelRc<f32>> {
+    pub fn generate_line_for_slint(&self, width: f32, height: f32) -> slint::ModelRc<slint::ModelRc<f32>> {
         let mut line: Vec<slint::ModelRc<f32>> = Vec::new();
 
-        for i in 0..self.mask_points.len() - 1 {
+        let mp: Vec<[f32; 2]> = (&self.mask_points).into_iter().map(|x| {
+            if *x != [-1.0, -1.0] {
+                [x[0]*width / 100.0, (100.0 - x[1])*height / 100.0]
+            } else {
+                *x
+            }
+        }).collect();
+
+        let bcp: Vec<[[f32; 2]; 2]> = (&self.bezier_control_points).into_iter().map(|k| {
+            let m: Vec<[f32;2]> = k.into_iter().map(|x|  {
+                if *x != [-1.0, -1.0] {
+                    [x[0]*width / 100.0, (100.0 - x[1])*height / 100.0]
+                } else {
+                    *x
+                }
+            }).collect();
+            [m[0], m[1]]
+        }).collect();
+
+        for i in 0..mp.len() - 1 {
             let curve = LVIElib::math::bezier_cubic_curve([
-                self.mask_points[i], {
-                    let k = self.bezier_control_points[i][0];
+                mp[i], {
+                    let k = bcp[i][0];
                     if k[0] == -1.0 {
-                        let l = self.mask_points[i];
-                        let dx = self.mask_points[i+1][0] - l[0];
-                        let dy = self.mask_points[i+1][1] - l[1];
+                        let l = mp[i];
+                        let dx = mp[i+1][0] - l[0];
+                        let dy = mp[i+1][1] - l[1];
                         [l[0] + (dx / 3.0), l[1] + (dy / 3.0)]
                     } else {
                         k
                     }
                 }, 
                 {
-                    let k = self.bezier_control_points[i][1];
+                    let k = bcp[i][1];
                     if k[0] == -1.0 {
-                        let l = self.mask_points[i];
-                        let dx = self.mask_points[i+1][0] - l[0];
-                        let dy = self.mask_points[i+1][1] - l[1];
+                        let l = mp[i];
+                        let dx = mp[i+1][0] - l[0];
+                        let dy = mp[i+1][1] - l[1];
                         [l[0] + (2.0*dx / 3.0), l[1] + (2.0*dy / 3.0)]
                     } else {
                         k
                     }
                 }, 
-                self.mask_points[i+1]
-            ], Some(500));
+                mp[i+1]
+            ], None);
             for k in curve {
                 line.push(std::rc::Rc::new(slint::VecModel::from(vec![k[0], k[1]])).into())
             }
@@ -85,29 +104,29 @@ impl Mask {
 
         if self.closed {
             let curve = LVIElib::math::bezier_cubic_curve([
-                *self.mask_points.last().unwrap(), {
-                    let k = self.bezier_control_points.last().unwrap()[0];
+                *mp.last().unwrap(), {
+                    let k = bcp.last().unwrap()[0];
                     if k[0] == -1.0 {
-                        let l = self.mask_points.last().unwrap();
-                        let dx = self.mask_points[0][0] - l[0];
-                        let dy = self.mask_points[0][1] - l[1];
+                        let l = mp.last().unwrap();
+                        let dx = mp[0][0] - l[0];
+                        let dy = mp[0][1] - l[1];
                         [l[0] + (dx / 3.0), l[1] + (dy / 3.0)]
                     } else {
                         k
                     }
                 }, 
                 {
-                    let k = self.bezier_control_points.last().unwrap()[1];
+                    let k = bcp.last().unwrap()[1];
                     if k[0] == -1.0 {
-                        let l = self.mask_points.last().unwrap();
-                        let dx = self.mask_points[0][0] - l[0];
-                        let dy = self.mask_points[0][1] - l[1];
+                        let l = mp.last().unwrap();
+                        let dx = mp[0][0] - l[0];
+                        let dy = mp[0][1] - l[1];
                         [l[0] + (2.0*dx / 3.0), l[1] + (2.0*dy / 3.0)]
                     } else {
                         k
                     }
-                }, self.mask_points[0]
-            ], Some(500));
+                }, mp[0]
+            ], None);
             for k in curve {
                 line.push(std::rc::Rc::new(slint::VecModel::from(vec![k[0], k[1]])).into())
             }
@@ -404,6 +423,10 @@ impl Mask {
             self.bezier_control_points.remove(index-1);
             Ok(())
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.mask_points.is_empty()
     }
 }
 
