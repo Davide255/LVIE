@@ -20,15 +20,13 @@ const WP_V: [f32; 6] = [
 
 // source: www.image-engineering.de
 pub const LINSRGB_TO_XYZ: [f32; 9] = [
-    0.4124564, 0.3575761, 0.1804375,
-    0.2126729, 0.7151522, 0.0721750,
-    0.0193339, 0.1191920, 0.9503041,
+    0.4124564, 0.3575761, 0.1804375, 0.2126729, 0.7151522, 0.0721750, 0.0193339, 0.1191920,
+    0.9503041,
 ];
 
-pub const XYZ_TO_LINSRGB: [f32; 9] =  [
-    3.2404542, -1.5371385, -0.4985314,
-    -0.9692660, 1.8760108, 0.0415560,
-    0.0556434, -0.2040259, 1.0572252,
+pub const XYZ_TO_LINSRGB: [f32; 9] = [
+    3.2404542, -1.5371385, -0.4985314, -0.9692660, 1.8760108, 0.0415560, 0.0556434, -0.2040259,
+    1.0572252,
 ];
 
 pub fn uv_white_point(temp: f32, tint: f32) -> (f32, f32) {
@@ -79,7 +77,6 @@ pub fn xy_white_point(temp: f32) -> (f32, f32) {
 }
 
 pub fn xyz_wb_matrix(fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> Matrix<f32> {
-
     // source: Wikipedia
     let xyz_to_lms = Matrix::from_rows(vec![
         vec![0.8951, 0.2664, -0.1614],

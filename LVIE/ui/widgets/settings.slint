@@ -1,0 +1,135 @@
+import { Palette } from "../color/palette.slint";
+import { VerticalBox, HorizontalBox, ListView, ComboBox, Button, CheckBox, ScrollView } from "std-widgets.slint";
+
+global SettingsCallbacks {
+    pure callback load-settings() -> {
+        General: {
+            backend: string,
+            start_maximized: bool,
+        }
+    };
+}
+
+component SettingsScreen inherits Rectangle {
+    border-color: black;
+    border-radius: 5px;
+    border-width: 4px;
+    background: Palette.Dark.Dark-300;
+
+    min-width: 400px;
+    min-height: 500px;
+    width: self.min-width;
+    height: self.min-height;
+
+    callback on-validate();
+    callback on-cancel();
+
+    property <int> current: 0;
+
+    in-out property <{General: {
+        backend: string,
+        start_maximized: bool,
+    }}> settings : SettingsCallbacks.load-settings();
+
+    padding: 5px;
+    VerticalBox {
+        height: parent.height;
+        Text {
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            text: "LVIE - Settings";
+            font-size: 20px;
+            height: 30px;
+        }
+        HorizontalBox {
+            height: parent.height - 110px;
+            width: parent.width;
+            Rectangle {
+                border-color: black;
+                border-radius: 5px;
+                border-width: 2px;
+                width: parent.width / 5;
+                ListView {
+                    width: parent.width;
+                    for p[i] in ["General", "Memory"]:
+                    Rectangle {
+                        property <int> id: i;
+                        height: 25px;
+                        background: current == self.id ? Palette.Dark.Dark-400 : Palette.Dark.Dark-300;
+                        border-color: black;
+                        border-radius: 5px;
+                        border-width: 2px;
+                        Text {
+                            text: p;
+                        }
+
+                        TouchArea {
+                            clicked => {
+                                current = parent.id;
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                border-color: black;
+                border-radius: 5px;
+                border-width: 2px;
+                width: parent.width *4 / 5 - 40px;
+                Rectangle {
+                    property <int> id: 0;
+                    visible: current == self.id;
+                    VerticalBox {
+                        HorizontalBox {
+                            height: 30px;
+                            padding: 2.5px;
+                            Text { 
+                                text: "Backend: ";
+                                font-size: 10px;
+                                vertical-alignment: center;
+                                width: self.min-width;
+                            }
+                            ComboBox {
+                                height: parent.height - 5px;
+                                model: ["GPU", "CPU"];
+                                width: 100px;
+                                current-value: settings.General.backend;
+                            }
+                        }
+                        HorizontalBox {
+                            height: 30px;
+                            Text { 
+                                text: "Start maximized: ";
+                                font-size: 10px;
+                                vertical-alignment: center;
+                                width: self.min-width;
+                            }
+                            CheckBox {
+                                checked: settings.General.start-maximized;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            height: 30px;
+            Button {
+                x: parent.width * 5/6;
+                text: "OK";
+                clicked => {
+                    root.on-validate()
+                }
+            }
+            Button {
+                x: parent.width * 5/6 - 5px - self.width;
+                text: "Cencel";
+                clicked => {
+                    root.on-cancel()
+                }
+            }
+        }
+    }
+}
+
+export { SettingsScreen, SettingsCallbacks }

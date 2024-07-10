@@ -24,41 +24,53 @@ pub fn cumulative_distribution(data: &HashMap<u8, u32>) -> HashMap<u8, u32> {
     output
 }
 
-fn get_color_at<T: Scale + Debug>(v: &Vec<T>, p: &Vec<f32>, size: f32, pos: f32, hsl: bool) -> Option<T>{
+fn get_color_at<T: Scale + Debug>(
+    v: &Vec<T>,
+    p: &Vec<f32>,
+    size: f32,
+    pos: f32,
+    hsl: bool,
+) -> Option<T> {
     let mut i = p.len() + 1;
     for k in 0..p.len() {
-        if size*p[k]/100.0 <= pos && pos < size*p[k+1]/100.0 {
+        if size * p[k] / 100.0 <= pos && pos < size * p[k + 1] / 100.0 {
             i = k;
             break;
         }
     }
 
-    if i > p.len() { return None; }
-    let d = size*p[i+1]/100.0 - size*p[i]/100.0;
-    let np = pos - size*p[i]/100.0;
+    if i > p.len() {
+        return None;
+    }
+    let d = size * p[i + 1] / 100.0 - size * p[i] / 100.0;
+    let np = pos - size * p[i] / 100.0;
 
-    let step =  {
+    let step = {
         if hsl {
-            if (v[i].scale::<f32>() - v[i+1].scale::<f32>()).abs() < (v[i].scale::<f32>() - v[i+1].scale::<f32>() + 360.0).abs() {
-                v[i].scale::<f32>() - v[i+1].scale::<f32>()
+            if (v[i].scale::<f32>() - v[i + 1].scale::<f32>()).abs()
+                < (v[i].scale::<f32>() - v[i + 1].scale::<f32>() + 360.0).abs()
+            {
+                v[i].scale::<f32>() - v[i + 1].scale::<f32>()
             } else {
                 // going backwards on the color wheel is smoother
-                v[i].scale::<f32>() - v[i+1].scale::<f32>() + 360.0
+                v[i].scale::<f32>() - v[i + 1].scale::<f32>() + 360.0
             }
         } else {
-            v[i].scale::<f32>() - v[i+1].scale::<f32>()
+            v[i].scale::<f32>() - v[i + 1].scale::<f32>()
         }
     };
 
-    Some(
-        ( v[i].scale::<f32>() - step*np/d ).scale()
-    )
+    Some((v[i].scale::<f32>() - step * np / d).scale())
 }
 
-pub fn linear_gradient<P>(size: (u32, u32), colors: Vec<(P, f32)>, angle: f32) -> ImageBuffer<P, Vec<P::Subpixel>> 
-where 
+pub fn linear_gradient<P>(
+    size: (u32, u32),
+    colors: Vec<(P, f32)>,
+    angle: f32,
+) -> ImageBuffer<P, Vec<P::Subpixel>>
+where
     P: Pixel + 'static,
-    P::Subpixel: Scale + Debug
+    P::Subpixel: Scale + Debug,
 {
     let (width, height) = size;
 
@@ -68,19 +80,28 @@ where
     let angle = angle % 360.0;
 
     let flip = {
-        if 0.0 < angle && angle <= 90.0 { (false, false) }
-        else if 90.0 < angle && angle <= 180.0 { (true, false) }
-        else if 180.0 < angle && angle <= 270.0 { (true, true) }
-        else { (false, true) }
+        if 0.0 < angle && angle <= 90.0 {
+            (false, false)
+        } else if 90.0 < angle && angle <= 180.0 {
+            (true, false)
+        } else if 180.0 < angle && angle <= 270.0 {
+            (true, true)
+        } else {
+            (false, true)
+        }
     };
 
     let angle = angle % 90.0;
-    
+
     if angle == 0.0 {
         let steps: [f32; 4] = [
             {
                 if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
-                    if  <f32 as NumCast>::from(f[0]-t[0]).unwrap().abs() < <f32 as NumCast>::from(f[0] - t[0] + NumCast::from(360.0).unwrap()).unwrap().abs() {
+                    if <f32 as NumCast>::from(f[0] - t[0]).unwrap().abs()
+                        < <f32 as NumCast>::from(f[0] - t[0] + NumCast::from(360.0).unwrap())
+                            .unwrap()
+                            .abs()
+                    {
                         <f32 as NumCast>::from(f[0] - t[0]).unwrap()
                     } else {
                         // going backwards on the color wheel is smoother
@@ -89,40 +110,63 @@ where
                 } else {
                     NumCast::from(f[0] - t[0]).unwrap()
                 }
-            } / <f32 as NumCast>::from(width).unwrap(), 
-            (<f32 as NumCast>::from(f[1]).unwrap() - <f32 as NumCast>::from(t[1]).unwrap()) / <f32 as NumCast>::from(width).unwrap(),
-            (<f32 as NumCast>::from(f[2]).unwrap() - <f32 as NumCast>::from(t[2]).unwrap()) / <f32 as NumCast>::from(width).unwrap(),
-            (<f32 as NumCast>::from(f[3]).unwrap() - <f32 as NumCast>::from(t[3]).unwrap()) / <f32 as NumCast>::from(width).unwrap()
+            } / <f32 as NumCast>::from(width).unwrap(),
+            (<f32 as NumCast>::from(f[1]).unwrap() - <f32 as NumCast>::from(t[1]).unwrap())
+                / <f32 as NumCast>::from(width).unwrap(),
+            (<f32 as NumCast>::from(f[2]).unwrap() - <f32 as NumCast>::from(t[2]).unwrap())
+                / <f32 as NumCast>::from(width).unwrap(),
+            (<f32 as NumCast>::from(f[3]).unwrap() - <f32 as NumCast>::from(t[3]).unwrap())
+                / <f32 as NumCast>::from(width).unwrap(),
         ];
 
-        let row = vec![0f32; (width as usize)*4].into_iter().enumerate().map(|(i, _)| {
-            if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
-                NumCast::from(<f32 as NumCast>::from(f[i % 4]).unwrap() - steps[i % 4]*((i / 4) as f32).floor() % 360.0).unwrap()
-            } else {
-                NumCast::from(<f32 as NumCast>::from(f[i % 4]).unwrap() - steps[i % 4]*((i / 4) as f32).floor()).unwrap()
-            }
-        }).collect::<Vec<P::Subpixel>>();
+        let row = vec![0f32; (width as usize) * 4]
+            .into_iter()
+            .enumerate()
+            .map(|(i, _)| {
+                if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
+                    NumCast::from(
+                        <f32 as NumCast>::from(f[i % 4]).unwrap()
+                            - steps[i % 4] * ((i / 4) as f32).floor() % 360.0,
+                    )
+                    .unwrap()
+                } else {
+                    NumCast::from(
+                        <f32 as NumCast>::from(f[i % 4]).unwrap()
+                            - steps[i % 4] * ((i / 4) as f32).floor(),
+                    )
+                    .unwrap()
+                }
+            })
+            .collect::<Vec<P::Subpixel>>();
 
         let mut img: Vec<P::Subpixel> = Vec::new();
-        for _ in 0..height { img.append(&mut row.clone()) };
-        let mut image_buff = ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(width, height, img).unwrap();
+        for _ in 0..height {
+            img.append(&mut row.clone())
+        }
+        let mut image_buff =
+            ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(width, height, img).unwrap();
 
-        if flip.0 { image_buff = image::imageops::flip_horizontal(&image_buff); }
+        if flip.0 {
+            image_buff = image::imageops::flip_horizontal(&image_buff);
+        }
         image_buff
-    
     } else {
         let mut image_buff = ImageBuffer::<P, Vec<P::Subpixel>>::new(width, height);
         let r = [-angle.to_radians().tan(), 1.0];
 
-        let a = -1.0/r[0];
+        let a = -1.0 / r[0];
         let b = 1f32;
-        let c = -a*width as f32 - height as f32;
+        let c = -a * width as f32 - height as f32;
 
         let w = ((r[1] * c) / (r[0] * b - a * r[1])) / angle.to_radians().cos();
         let steps: [f32; 4] = [
             {
                 if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
-                    if  <f32 as NumCast>::from(f[0]-t[0]).unwrap().abs() < <f32 as NumCast>::from(f[0] - t[0] + NumCast::from(360.0).unwrap()).unwrap().abs() {
+                    if <f32 as NumCast>::from(f[0] - t[0]).unwrap().abs()
+                        < <f32 as NumCast>::from(f[0] - t[0] + NumCast::from(360.0).unwrap())
+                            .unwrap()
+                            .abs()
+                    {
                         <f32 as NumCast>::from(f[0] - t[0]).unwrap()
                     } else {
                         // going backwards on the color wheel is smoother
@@ -131,32 +175,37 @@ where
                 } else {
                     NumCast::from(f[0] - t[0]).unwrap()
                 }
-            }, 
+            },
             <f32 as NumCast>::from(f[1]).unwrap() - <f32 as NumCast>::from(t[1]).unwrap(),
             <f32 as NumCast>::from(f[2]).unwrap() - <f32 as NumCast>::from(t[2]).unwrap(),
-            <f32 as NumCast>::from(f[3]).unwrap() - <f32 as NumCast>::from(t[3]).unwrap()
+            <f32 as NumCast>::from(f[3]).unwrap() - <f32 as NumCast>::from(t[3]).unwrap(),
         ];
 
         for (x, y, pixel) in image_buff.enumerate_pixels_mut() {
-            let a = -1.0/r[0];
+            let a = -1.0 / r[0];
             let b = 1f32;
-            let c = -a*x as f32 - height as f32 + y as f32;
+            let c = -a * x as f32 - height as f32 + y as f32;
 
             let s = ((r[1] * c) / (r[0] * b - a * r[1])) / angle.to_radians().cos();
 
             let channels = [
                 {
                     if P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA" {
-                        NumCast::from((<f32 as NumCast>::from(f[0]).unwrap() - steps[0] * s/w + 360.0) % 360.0).unwrap()
+                        NumCast::from(
+                            (<f32 as NumCast>::from(f[0]).unwrap() - steps[0] * s / w + 360.0)
+                                % 360.0,
+                        )
+                        .unwrap()
                     } else {
-                        NumCast::from(<f32 as NumCast>::from(f[0]).unwrap() - steps[0] * s/w).unwrap()
+                        NumCast::from(<f32 as NumCast>::from(f[0]).unwrap() - steps[0] * s / w)
+                            .unwrap()
                     }
-                }, 
-                NumCast::from(<f32 as NumCast>::from(f[1]).unwrap() - steps[1] * s/w).unwrap(),
-                NumCast::from(<f32 as NumCast>::from(f[2]).unwrap() - steps[2] * s/w).unwrap(),
-                NumCast::from(<f32 as NumCast>::from(f[3]).unwrap() - steps[3] * s/w).unwrap()
+                },
+                NumCast::from(<f32 as NumCast>::from(f[1]).unwrap() - steps[1] * s / w).unwrap(),
+                NumCast::from(<f32 as NumCast>::from(f[2]).unwrap() - steps[2] * s / w).unwrap(),
+                NumCast::from(<f32 as NumCast>::from(f[3]).unwrap() - steps[3] * s / w).unwrap(),
             ];
-            
+
             *pixel = *P::from_slice(channels.as_slice());
         }
 
@@ -170,10 +219,14 @@ where
     }
 }
 
-pub fn linear_gradient_more_points<P>(size: (u32, u32), colors: Vec<(P, f32)>, angle: f32) -> ImageBuffer<P, Vec<P::Subpixel>> 
-where 
+pub fn linear_gradient_more_points<P>(
+    size: (u32, u32),
+    colors: Vec<(P, f32)>,
+    angle: f32,
+) -> ImageBuffer<P, Vec<P::Subpixel>>
+where
     P: Pixel + 'static,
-    P::Subpixel: Scale + Debug
+    P::Subpixel: Scale + Debug,
 {
     let (width, height) = size;
 
@@ -192,53 +245,81 @@ where
     let angle = angle % 360.0;
 
     let flip = {
-        if 0.0 < angle && angle <= 90.0 { (false, false) }
-        else if 90.0 < angle && angle <= 180.0 { (true, false) }
-        else if 180.0 < angle && angle <= 270.0 { (true, true) }
-        else { (false, true) }
+        if 0.0 < angle && angle <= 90.0 {
+            (false, false)
+        } else if 90.0 < angle && angle <= 180.0 {
+            (true, false)
+        } else if 180.0 < angle && angle <= 270.0 {
+            (true, true)
+        } else {
+            (false, true)
+        }
     };
 
     let angle = angle % 90.0;
-    
+
     if angle == 0.0 {
-        let row = vec![0f32; (width as usize)*4].into_iter().enumerate().map(|(i, _)| {
-           get_color_at(
-            &v[i % 4], &p, width as f32, i as f32 / 4.0, 
-            if i % 4 == 0 { P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA"} else { false }
-        ).unwrap()
-        }).collect::<Vec<P::Subpixel>>();
+        let row = vec![0f32; (width as usize) * 4]
+            .into_iter()
+            .enumerate()
+            .map(|(i, _)| {
+                get_color_at(
+                    &v[i % 4],
+                    &p,
+                    width as f32,
+                    i as f32 / 4.0,
+                    if i % 4 == 0 {
+                        P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA"
+                    } else {
+                        false
+                    },
+                )
+                .unwrap()
+            })
+            .collect::<Vec<P::Subpixel>>();
 
         let mut img: Vec<P::Subpixel> = Vec::new();
-        for _ in 0..height { img.append(&mut row.clone()) };
-        let mut image_buff = ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(width, height, img).unwrap();
+        for _ in 0..height {
+            img.append(&mut row.clone())
+        }
+        let mut image_buff =
+            ImageBuffer::<P, Vec<P::Subpixel>>::from_vec(width, height, img).unwrap();
 
-        if flip.0 { image_buff = image::imageops::flip_horizontal(&image_buff); }
+        if flip.0 {
+            image_buff = image::imageops::flip_horizontal(&image_buff);
+        }
         image_buff
-    
     } else {
         let mut image_buff = ImageBuffer::<P, Vec<P::Subpixel>>::new(width, height);
         let r = [-angle.to_radians().tan(), 1.0];
 
-        let a = -1.0/r[0];
+        let a = -1.0 / r[0];
         let b = 1f32;
-        let c = -a*width as f32 - height as f32;
+        let c = -a * width as f32 - height as f32;
 
         let w = ((r[1] * c) / (r[0] * b - a * r[1])) / angle.to_radians().cos();
 
         for (x, y, pixel) in image_buff.enumerate_pixels_mut() {
-            let a = -1.0/r[0];
+            let a = -1.0 / r[0];
             let b = 1f32;
-            let c = -a*x as f32 - height as f32 + y as f32;
+            let c = -a * x as f32 - height as f32 + y as f32;
 
             let s = ((r[1] * c) / (r[0] * b - a * r[1])) / angle.to_radians().cos();
 
             let channels = [
-                get_color_at(&v[0], &p, w, s, P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA").unwrap(),
+                get_color_at(
+                    &v[0],
+                    &p,
+                    w,
+                    s,
+                    P::COLOR_MODEL == "HSL" || P::COLOR_MODEL == "HSLA",
+                )
+                .unwrap(),
                 get_color_at(&v[1], &p, w, s, false).unwrap(),
                 get_color_at(&v[2], &p, w, s, false).unwrap(),
-                get_color_at(&v[3], &p, w, s, false).unwrap()
+                get_color_at(&v[3], &p, w, s, false).unwrap(),
             ];
-            
+
             *pixel = *P::from_slice(channels.as_slice());
         }
 
@@ -252,25 +333,25 @@ where
     }
 }
 
-pub fn bezier_cubic_curve(points: [[f32;2]; 4], steps: Option<usize>) -> Vec<[f32; 2]> {
+pub fn bezier_cubic_curve(points: [[f32; 2]; 4], steps: Option<usize>) -> Vec<[f32; 2]> {
     fn decasteljau(t: f32, c: &(f32, f32, f32, f32)) -> f32 {
         let t2 = t * t;
         let t3 = t2 * t;
         let mt = 1.0 - t;
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
-        return c.0*mt3 + 3.0*c.1*mt2*t + 3.0*c.2*mt*t2 + c.3*t3
+        return c.0 * mt3 + 3.0 * c.1 * mt2 * t + 3.0 * c.2 * mt * t2 + c.3 * t3;
     }
 
     fn compute_required_points(points: &[[f32; 2]; 4]) -> usize {
-        let endpoints_distance = ((points[3][0] - points[0][0]).powi(2) + (points[3][1] - points[0][1]).powi(2)).sqrt();
-        (
-            endpoints_distance * (
-                1.0 + (
-                    (points[1][0].powi(2) + points[1][1].powi(2)).sqrt() + (points[2][0].powi(2) + points[2][1].powi(2)).sqrt()
-                ) / (2.0 * endpoints_distance)
-            )
-        ).ceil() as usize
+        let endpoints_distance =
+            ((points[3][0] - points[0][0]).powi(2) + (points[3][1] - points[0][1]).powi(2)).sqrt();
+        (endpoints_distance
+            * (1.0
+                + ((points[1][0].powi(2) + points[1][1].powi(2)).sqrt()
+                    + (points[2][0].powi(2) + points[2][1].powi(2)).sqrt())
+                    / (2.0 * endpoints_distance)))
+            .ceil() as usize
     }
 
     let x = (points[0][0], points[1][0], points[2][0], points[3][0]);
@@ -283,7 +364,7 @@ pub fn bezier_cubic_curve(points: [[f32;2]; 4], steps: Option<usize>) -> Vec<[f3
     for k in 0..steps {
         out.push([
             decasteljau(k as f32 / steps as f32, &x),
-            decasteljau(k as f32 / steps as f32, &y)
+            decasteljau(k as f32 / steps as f32, &y),
         ]);
     }
 

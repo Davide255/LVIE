@@ -6,8 +6,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::utils::{norm_range, _max, _min};
 use crate::traits::AsFloat;
+use crate::utils::{_max, _min, norm_range};
 
 /// # HSL Color Space:
 ///
@@ -677,7 +677,6 @@ fn rgba16_to_hslaf32(r: u16, g: u16, b: u16, a: u16) -> Hsla {
     )
 }
 
-
 pub fn rgbaf32_to_hslaf32(r: f32, g: f32, b: f32, a: f32) -> Hsla {
     let mut cmp: [f32; 4] = [Zero::zero(), Zero::zero(), Zero::zero(), a];
 
@@ -734,7 +733,7 @@ pub fn hslaf32_to_rgba16(h: f32, s: f32, l: f32, a: f32) -> Rgba<u16> {
     ])
 }
 
-pub fn hslaf32_to_rgbaf32(h: f32, s: f32, l: f32, a:f32) -> Rgba<f32> {
+pub fn hslaf32_to_rgbaf32(h: f32, s: f32, l: f32, a: f32) -> Rgba<f32> {
     let h = ((h % 360.0) + 360.0) % 360.0;
 
     let c = s * (1f32 - ((2f32 * l) - 1f32).abs());
@@ -763,7 +762,12 @@ pub fn hslaf32_to_rgbaf32(h: f32, s: f32, l: f32, a:f32) -> Rgba<f32> {
 }
 
 fn rgba_to_hsla<T: Primitive + AsFloat>(rgb: &Rgba<T>) -> Hsla {
-    let mut cmp: [f32; 4] = [Zero::zero(), Zero::zero(), Zero::zero(), rgb.0[3].as_float()];
+    let mut cmp: [f32; 4] = [
+        Zero::zero(),
+        Zero::zero(),
+        Zero::zero(),
+        rgb.0[3].as_float(),
+    ];
 
     let c: [f32; 3] = [
         rgb.0[0].as_float(),

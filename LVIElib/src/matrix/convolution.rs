@@ -191,7 +191,10 @@ pub fn laplacian_of_gaussian(sigma: f32, width: usize, height: usize) -> Matrix<
     }
 
     let size = width * height;
-    content = content.into_par_iter().map(|x| x - (sum / size as f32)).collect();
+    content = content
+        .into_par_iter()
+        .map(|x| x - (sum / size as f32))
+        .collect();
 
     Matrix::new(content, height, width)
 }

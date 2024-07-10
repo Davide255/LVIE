@@ -3,14 +3,14 @@
 use std::fmt::Debug;
 
 use image::{Pixel, Rgb};
-use LVIElib::traits::{ToHsl, Scale};
+use LVIElib::traits::{Scale, ToHsl};
 
 #[derive(Debug)]
-struct Prova<P> 
+struct Prova<P>
 where
-    P: Pixel + ToHsl + Debug + Sized
+    P: Pixel + ToHsl + Debug + Sized,
 {
-    pixel: P
+    pixel: P,
 }
 
 impl<P: Pixel + ToHsl + Debug + Sized> Prova<P> {
@@ -21,12 +21,18 @@ impl<P: Pixel + ToHsl + Debug + Sized> Prova<P> {
             std::mem::transmute_copy::<Rgb<u8>, P>(&Rgb([
                 cmp[0].scale(),
                 cmp[1].scale(),
-                cmp[2].scale()
+                cmp[2].scale(),
             ]))
         }
     }
 }
 
 fn main() {
-    println!("{:?}", Prova {pixel: Rgb::<u8>([54, 33, 78])}.cast());
+    println!(
+        "{:?}",
+        Prova {
+            pixel: Rgb::<u8>([54, 33, 78])
+        }
+        .cast()
+    );
 }

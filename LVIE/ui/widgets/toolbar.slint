@@ -46,6 +46,8 @@ component Toolbar inherits Rectangle {
     background: transparent;
     height: 25px;
 
+    callback open-settings();
+
     tb := HorizontalBox {
         height: parent.height;
         width: parent.width;
@@ -135,11 +137,20 @@ component Toolbar inherits Rectangle {
         edit_menu := PopupMenu {
             x: edit-button.x;
             y: parent.height;
-            
+
+            MenuItem {
+                text: "Preferences";
+                item-callback => {
+                    root.open-settings();
+                }
+            }
         }
         
         edit_button := ToolbarButton {
             text:"Edit";
+            clicked => {
+                edit-menu.show();
+            }
         }
 
         if AlertBoxType != AlertType.Null: 

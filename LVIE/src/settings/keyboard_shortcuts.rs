@@ -20,7 +20,7 @@ pub enum MODIFIER {
     #[serde(rename = "ctrl")]
     CTRL,
     #[serde(rename = "shift")]
-    SHIFT
+    SHIFT,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -46,11 +46,11 @@ pub struct Key {
     #[serde(rename = "@value")]
     value: String,
     #[serde(rename = "binding")]
-    bindings: Vec<Binding>
+    bindings: Vec<Binding>,
 }
 
 impl Key {
-    pub fn is(&self, x: &String) -> bool{
+    pub fn is(&self, x: &String) -> bool {
         x == &self.value
     }
 
@@ -116,8 +116,9 @@ pub fn load_from_xml(content: String) -> Result<Keyboard, quick_xml::DeError> {
     quick_xml::de::from_str(&content)
 }
 
-pub fn prettify_keyboard_xml(content: String) -> String{
-    return content.replace("<key", "\n\t<key")
+pub fn prettify_keyboard_xml(content: String) -> String {
+    return content
+        .replace("<key", "\n\t<key")
         .replace("<binding", "\n\t\t<binding")
         .replace("</key>", "\n\t</key>\n");
 }
@@ -147,17 +148,26 @@ impl Default for Keyboard {
             keys: vec![
                 Key {
                     value: String::from("o"),
-                    bindings: vec![ Binding { action: "editor.file.open".into(), modifiers: vec![MODIFIER::CTRL]} ]
+                    bindings: vec![Binding {
+                        action: "editor.file.open".into(),
+                        modifiers: vec![MODIFIER::CTRL],
+                    }],
                 },
                 Key {
                     value: String::from("e"),
-                    bindings: vec![ Binding { action: "editor.file.close".into(), modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT]} ]
+                    bindings: vec![Binding {
+                        action: "editor.file.close".into(),
+                        modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT],
+                    }],
                 },
                 Key {
                     value: String::from("r"),
-                    bindings: vec![ Binding { action: "editor.image.rotate-90-deg".into(), modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT]} ]
-                }
-            ]
+                    bindings: vec![Binding {
+                        action: "editor.image.rotate-90-deg".into(),
+                        modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT],
+                    }],
+                },
+            ],
         }
     }
 }

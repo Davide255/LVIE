@@ -3,7 +3,7 @@ use std::fmt::Debug;
 #[derive(Debug, PartialEq)]
 pub enum CurveType {
     MONOTONE,
-    SMOOTH
+    SMOOTH,
 }
 
 #[derive(Debug)]
@@ -11,23 +11,22 @@ pub struct Curve {
     xs: Vec<f32>,
     ys: Vec<f32>,
     coefficients: Vec<[f32; 4]>,
-    curve_type: CurveType
+    curve_type: CurveType,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub enum CurveError {
-    OUT_OF_RANGE(String)
+    OUT_OF_RANGE(String),
 }
 
 impl Curve {
-
     pub fn new(curve_type: CurveType) -> Curve {
         let mut c = Curve {
             xs: vec![0.0, 100.0],
             ys: vec![0.0, 100.0],
             coefficients: vec![],
-            curve_type
+            curve_type,
         };
         c.build_curve();
         return c;
@@ -37,18 +36,25 @@ impl Curve {
         let mut buff = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
 
         LVIElib::spline::create_plot_view(
-            buff.make_mut_bytes(), 
-            size, &self.xs, &self.ys,
-            Some(0.0..1.0), Some(0.0..1.0),
-            (0, 0, 0, 0), Some(&self.coefficients))
-                .expect("Failed to create the plot");
+            buff.make_mut_bytes(),
+            size,
+            &self.xs,
+            &self.ys,
+            Some(0.0..1.0),
+            Some(0.0..1.0),
+            (0, 0, 0, 0),
+            Some(&self.coefficients),
+        )
+        .expect("Failed to create the plot");
 
         slint::Image::from_rgb8(buff)
     }
 
     pub fn add_point(&mut self, point: [f32; 2]) -> Result<usize, CurveError> {
         if point[0] < 0.0 || point[0] > 100.0 || point[1] < 0.0 || point[1] > 100.0 {
-            return Err(CurveError::OUT_OF_RANGE(String::from("Points coordinates out of range")));
+            return Err(CurveError::OUT_OF_RANGE(String::from(
+                "Points coordinates out of range",
+            )));
         }
         let mut ri = 0;
         for (i, x) in self.xs.clone().iter().enumerate() {
@@ -73,7 +79,7 @@ impl Curve {
             xs,
             ys,
             coefficients: vec![],
-            curve_type
+            curve_type,
         };
         c.build_curve();
         return c;
@@ -89,8 +95,11 @@ impl Curve {
         self.xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         self.coefficients = {
             if self.curve_type == CurveType::SMOOTH {
-                LVIElib::spline::spline_coefficients(&self.ys, &self.xs, 
-                    LVIElib::spline::SplineConstrains::FirstDerivatives(0.0, 0.0))
+                LVIElib::spline::spline_coefficients(
+                    &self.ys,
+                    &self.xs,
+                    LVIElib::spline::SplineConstrains::FirstDerivatives(0.0, 0.0),
+                )
             } else {
                 LVIElib::spline::monotone_spline_coefficients(&self.ys, &self.xs)
             }
@@ -101,7 +110,7 @@ impl Curve {
         let mut c: Vec<slint::ModelRc<f32>> = vec![];
         for i in 0..self.xs.len() {
             c.push(std::rc::Rc::new(slint::VecModel::from(vec![self.xs[i], self.ys[i]])).into())
-        };
+        }
         std::rc::Rc::new(slint::VecModel::from(c)).into()
     }
 
@@ -109,14 +118,17 @@ impl Curve {
         let mut c: Vec<[f32; 2]> = vec![];
         for i in 0..self.xs.len() {
             c.push([self.xs[i], self.ys[i]]);
-        };
+        }
         c
     }
 
     pub fn remove_point(&mut self, index: usize) -> Result<(), CurveError> {
         let x = self.xs.get(index);
         if index == 0 || index == self.xs.len() - 1 || x.is_none() {
-            return Err(CurveError::OUT_OF_RANGE(format!("{} is out of range", index)));
+            return Err(CurveError::OUT_OF_RANGE(format!(
+                "{} is out of range",
+                index
+            )));
         } else {
             self.xs.remove(index);
             self.ys.remove(index);
@@ -165,7 +177,7 @@ impl FilterType {
 // Struct to handle the application of filters
 // it has an order of application of the filters
 pub struct FilterArray {
-    filters: Vec<Filter>
+    filters: Vec<Filter>,
 }
 
 #[macro_export]
@@ -200,9 +212,7 @@ impl FilterArray {
             }
         }
 
-        FilterArray {
-            filters: fa
-        }
+        FilterArray { filters: fa }
     }
 
     pub fn update_filter(&mut self, filtertype: FilterType, parameters: Vec<f32>) {

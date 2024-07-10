@@ -51,7 +51,7 @@ fn main() {}
 //        height,
 //        depth_or_array_layers: 1,
 //    };
-//    
+//
 //    let input_texture = device.create_texture(&wgpu::TextureDescriptor {
 //        label: Some("input texture"),
 //        size: texture_size,
@@ -134,11 +134,11 @@ fn main() {}
 //
 //    //let mut pixels: Vec<f32> = vec![0.0; (padded_bytes_per_row / 4) * height as usize];
 //
-//    let out_buffer: wgpu::Buffer = device.create_buffer(&wgpu::BufferDescriptor { 
-//        label: Some("out buff"), 
+//    let out_buffer: wgpu::Buffer = device.create_buffer(&wgpu::BufferDescriptor {
+//        label: Some("out buff"),
 //        size: (pixels.len() * std::mem::size_of::<O>()) as u64,
 //        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-//        mapped_at_creation: false 
+//        mapped_at_creation: false
 //    });
 //
 //    encoder.copy_texture_to_buffer(
@@ -216,7 +216,7 @@ fn main() {}
 //        height,
 //        depth_or_array_layers: 1,
 //    };
-//    
+//
 //    let input_texture = device.create_texture(&wgpu::TextureDescriptor {
 //        label: Some("input texture"),
 //        size: texture_size,
@@ -308,11 +308,11 @@ fn main() {}
 //
 //    //let mut pixels: Vec<f32> = vec![0.0; (padded_bytes_per_row / 4) * height as usize];
 //
-//    let out_buffer: wgpu::Buffer = device.create_buffer(&wgpu::BufferDescriptor { 
-//        label: Some("out buff"), 
+//    let out_buffer: wgpu::Buffer = device.create_buffer(&wgpu::BufferDescriptor {
+//        label: Some("out buff"),
 //        size: (pixels.len() * std::mem::size_of::<Output>()) as u64,
 //        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-//        mapped_at_creation: false 
+//        mapped_at_creation: false
 //    });
 //
 //    encoder.copy_texture_to_buffer(

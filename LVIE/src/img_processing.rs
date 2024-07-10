@@ -1,16 +1,16 @@
 #![allow(dead_code)]
+use image::{ImageBuffer, Pixel, Primitive, Rgb, RgbImage, Rgba, RgbaImage};
 use rayon::prelude::*;
-use LVIElib::hsl::{Hsl, Hsla};
-use LVIElib::linear_srgb::{LinSrgb, LinSrgba};
-use LVIElib::white_balance::{xyz_wb_matrix, LINSRGB_TO_XYZ, XYZ_TO_LINSRGB};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
-use image::{ImageBuffer, Pixel, Primitive, Rgb, RgbImage, Rgba, RgbaImage};
+use LVIElib::hsl::{Hsl, Hsla};
+use LVIElib::linear_srgb::{LinSrgb, LinSrgba};
 use LVIElib::matrix::{
     convolution::laplacian_of_gaussian, convolution::multithreadded::apply_convolution, Matrix,
 };
 use LVIElib::utils::{convert_hsla_to_rgba, convert_rgba_to_hsla};
+use LVIElib::white_balance::{xyz_wb_matrix, LINSRGB_TO_XYZ, XYZ_TO_LINSRGB};
 
 use LVIElib::oklab::{Oklab, OklabImage, Oklaba, OklabaImage};
 
@@ -55,15 +55,16 @@ pub fn apply_filter(
     image::RgbImage::from_raw(width, height, convolved.get_content().clone()).unwrap()
 }
 
-pub fn build_low_res_preview<P>(img: &crate::core::CRgbaImage<P>, nwidth: u32, nheight: u32) -> crate::core::CRgbaImage<P> 
-where P: Pixel + 'static, <P as image::Pixel>::Subpixel: 'static 
+pub fn build_low_res_preview<P>(
+    img: &crate::core::CRgbaImage<P>,
+    nwidth: u32,
+    nheight: u32,
+) -> crate::core::CRgbaImage<P>
+where
+    P: Pixel + 'static,
+    <P as image::Pixel>::Subpixel: 'static,
 {
-    let resized = image::imageops::resize(
-        img,
-        nwidth,
-        nheight,
-        image::imageops::Nearest,
-    );
+    let resized = image::imageops::resize(img, nwidth, nheight, image::imageops::Nearest);
 
     resized
 }
@@ -73,22 +74,23 @@ pub trait Max {
 }
 
 impl Max for f32 {
-    const MAX: Self =  f32::MAX;
+    const MAX: Self = f32::MAX;
 }
 
 impl Max for u8 {
-    const MAX: Self =  u8::MAX;
+    const MAX: Self = u8::MAX;
 }
 
 impl Max for u16 {
-    const MAX: Self =  u16::MAX;
+    const MAX: Self = u16::MAX;
 }
 
-pub fn collect_histogram_data<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>) -> [Vec<u32>; 3] 
-where 
-    P: Pixel, P::Subpixel: Primitive + std::cmp::Eq + Hash + Max, 
+pub fn collect_histogram_data<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>) -> [Vec<u32>; 3]
+where
+    P: Pixel,
+    P::Subpixel: Primitive + std::cmp::Eq + Hash + Max,
     std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
-    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: ToPrimitive
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: ToPrimitive,
 {
     let mut r: Vec<u32> = vec![0; <usize as NumCast>::from(P::Subpixel::MAX).unwrap() + 1];
     let mut g = r.clone();
@@ -104,11 +106,14 @@ where
     [r, g, b]
 }
 
-pub fn _collect_histogram_data_old<P>(img: &ImageBuffer<P, Vec<P::Subpixel>>) -> [HashMap<P::Subpixel, u32>; 3] 
-where 
-    P: Pixel, P::Subpixel: Primitive + std::cmp::Eq + Hash + Max, 
+pub fn _collect_histogram_data_old<P>(
+    img: &ImageBuffer<P, Vec<P::Subpixel>>,
+) -> [HashMap<P::Subpixel, u32>; 3]
+where
+    P: Pixel,
+    P::Subpixel: Primitive + std::cmp::Eq + Hash + Max,
     std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
-    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: ToPrimitive
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: ToPrimitive,
 {
     let mut r: HashMap<P::Subpixel, u32> = HashMap::new();
 
@@ -142,7 +147,7 @@ pub fn saturate_rgba(img: &RgbaImage, value: f32) -> RgbaImage {
     for (_, _, pixel) in hsl_image.enumerate_pixels_mut() {
         *pixel.saturation_mut() = *pixel.saturation() + value / 2f32;
     }
-    unsafe{convert_hsla_to_rgba(&hsl_image).unwrap()}
+    unsafe { convert_hsla_to_rgba(&hsl_image).unwrap() }
 }
 
 #[allow(dead_code)]
@@ -186,7 +191,10 @@ pub fn sharpen(img: &RgbImage, value: f32, size: usize) -> RgbImage {
 
 pub fn sharpen_rgba(img: &RgbaImage, value: f32, size: usize) -> RgbaImage {
     let (mut vl, mut va, mut vb, mut valpha) = (
-        Vec::<f32>::new(), Vec::<f32>::new(), Vec::<f32>::new(), Vec::<f32>::new()
+        Vec::<f32>::new(),
+        Vec::<f32>::new(),
+        Vec::<f32>::new(),
+        Vec::<f32>::new(),
     );
     let mut oklab_image = OklabaImage::new(img.width(), img.height());
     for (x, y, pixel) in img.enumerate_pixels() {
@@ -226,20 +234,20 @@ pub fn sharpen_rgba(img: &RgbaImage, value: f32, size: usize) -> RgbaImage {
 }
 
 #[allow(dead_code)]
-pub fn exposition(img: &RgbImage, value: f32) -> RgbImage{
+pub fn exposition(img: &RgbImage, value: f32) -> RgbImage {
     let out = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
 
     let out_w = out.clone();
     (0..img.height()).into_par_iter().for_each(|y| {
         let mut row = Vec::<Rgb<u8>>::new();
-        for x in 0..img.width(){
+        for x in 0..img.width() {
             let mut hsl = Hsl::from(*img.get_pixel(x, y));
             *hsl.luma_mut() *= 2f32.powf(value);
             row.push(hsl.into());
         }
 
         let mut out = out_w.lock().unwrap();
-        for x in 0..img.width() { 
+        for x in 0..img.width() {
             out.put_pixel(x, y, row[x as usize]);
         }
     });
@@ -247,20 +255,20 @@ pub fn exposition(img: &RgbImage, value: f32) -> RgbImage{
     return out.lock().unwrap().clone();
 }
 
-pub fn exposition_rgba(img: &RgbaImage, value: f32) -> RgbaImage{
+pub fn exposition_rgba(img: &RgbaImage, value: f32) -> RgbaImage {
     let out = Arc::new(Mutex::new(RgbaImage::new(img.width(), img.height())));
 
     let out_w = out.clone();
     (0..img.height()).into_par_iter().for_each(|y| {
         let mut row = Vec::<Rgba<u8>>::new();
-        for x in 0..img.width(){
+        for x in 0..img.width() {
             let mut hsl = Hsla::from(*img.get_pixel(x, y));
             *hsl.luma_mut() *= 2f32.powf(value);
             row.push(hsl.into());
         }
 
         let mut out = out_w.lock().unwrap();
-        for x in 0..img.width() { 
+        for x in 0..img.width() {
             out.put_pixel(x, y, row[x as usize]);
         }
     });
@@ -269,10 +277,14 @@ pub fn exposition_rgba(img: &RgbaImage, value: f32) -> RgbaImage{
 }
 
 pub fn crop<P: Pixel>(
-    img: &ImageBuffer<P, Vec<P::Subpixel>>, 
-    x: u32, y:u32, 
-    new_width: u32, new_height:u32) -> ImageBuffer<P, Vec<P::Subpixel>>
-where <P as image::Pixel>::Subpixel: std::fmt::Debug
+    img: &ImageBuffer<P, Vec<P::Subpixel>>,
+    x: u32,
+    y: u32,
+    new_width: u32,
+    new_height: u32,
+) -> ImageBuffer<P, Vec<P::Subpixel>>
+where
+    <P as image::Pixel>::Subpixel: std::fmt::Debug,
 {
     let mut out: ImageBuffer<P, Vec<P::Subpixel>> = ImageBuffer::new(new_width, new_height);
 
@@ -286,7 +298,13 @@ where <P as image::Pixel>::Subpixel: std::fmt::Debug
 }
 
 #[allow(dead_code)]
-pub fn whitebalance(img: &RgbImage, fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> RgbImage {
+pub fn whitebalance(
+    img: &RgbImage,
+    fromtemp: f32,
+    fromtint: f32,
+    totemp: f32,
+    totint: f32,
+) -> RgbImage {
     let out = Arc::new(Mutex::new(RgbImage::new(img.width(), img.height())));
 
     let xyz_wb = xyz_wb_matrix(fromtemp, fromtint, totemp, totint);
@@ -296,17 +314,26 @@ pub fn whitebalance(img: &RgbImage, fromtemp: f32, fromtint: f32, totemp: f32, t
         let mut row = Vec::<Rgb<u8>>::new();
         for x in 0..img.width() {
             let linsrgb = LinSrgb::from(*img.get_pixel(x, y));
-            let xyz = (Matrix::new(LINSRGB_TO_XYZ.to_vec(), 3, 3)* linsrgb.to_vec().into()).unwrap().get_content().to_owned();
+            let xyz = (Matrix::new(LINSRGB_TO_XYZ.to_vec(), 3, 3) * linsrgb.to_vec().into())
+                .unwrap()
+                .get_content()
+                .to_owned();
             let scale = xyz[1];
 
             let downscaled = vec![xyz[0] / scale, 1.0, xyz[2] / scale];
-            let mut new_v = (xyz_wb.clone() * downscaled.into()).unwrap().get_content().to_owned();
+            let mut new_v = (xyz_wb.clone() * downscaled.into())
+                .unwrap()
+                .get_content()
+                .to_owned();
 
             new_v[0] *= scale;
             new_v[1] *= scale;
             new_v[2] *= scale;
 
-            let rgb = (Matrix::new(XYZ_TO_LINSRGB.to_vec(), 3, 3) * new_v.into()).unwrap().get_content().to_owned();
+            let rgb = (Matrix::new(XYZ_TO_LINSRGB.to_vec(), 3, 3) * new_v.into())
+                .unwrap()
+                .get_content()
+                .to_owned();
             row.push(Rgb::<u8>::from(LinSrgb::new(rgb[0], rgb[1], rgb[2])));
         }
 
@@ -317,10 +344,15 @@ pub fn whitebalance(img: &RgbImage, fromtemp: f32, fromtint: f32, totemp: f32, t
     });
 
     return out.lock().unwrap().clone();
-
 }
 
-pub fn whitebalance_rgba(img: &RgbaImage, fromtemp: f32, fromtint: f32, totemp: f32, totint: f32) -> RgbaImage {
+pub fn whitebalance_rgba(
+    img: &RgbaImage,
+    fromtemp: f32,
+    fromtint: f32,
+    totemp: f32,
+    totint: f32,
+) -> RgbaImage {
     let out = Arc::new(Mutex::new(RgbaImage::new(img.width(), img.height())));
 
     let xyz_wb = xyz_wb_matrix(fromtemp, fromtint, totemp, totint);
@@ -330,18 +362,33 @@ pub fn whitebalance_rgba(img: &RgbaImage, fromtemp: f32, fromtint: f32, totemp: 
         let mut row = Vec::<Rgba<u8>>::new();
         for x in 0..img.width() {
             let linsrgb = LinSrgba::from(*img.get_pixel(x, y));
-            let xyz = (Matrix::new(LINSRGB_TO_XYZ.to_vec(), 3, 3)* linsrgb.to_vec()[0..3].to_vec().into()).unwrap().get_content().to_owned();
+            let xyz = (Matrix::new(LINSRGB_TO_XYZ.to_vec(), 3, 3)
+                * linsrgb.to_vec()[0..3].to_vec().into())
+            .unwrap()
+            .get_content()
+            .to_owned();
             let scale = xyz[1];
 
             let downscaled = vec![xyz[0] / scale, 1.0, xyz[2] / scale];
-            let mut new_v = (xyz_wb.clone() * downscaled.into()).unwrap().get_content().to_owned();
+            let mut new_v = (xyz_wb.clone() * downscaled.into())
+                .unwrap()
+                .get_content()
+                .to_owned();
 
             new_v[0] *= scale;
             new_v[1] *= scale;
             new_v[2] *= scale;
 
-            let rgb = (Matrix::new(XYZ_TO_LINSRGB.to_vec(), 3, 3) * new_v.into()).unwrap().get_content().to_owned();
-            row.push(Rgba::<u8>::from(LinSrgba::new(rgb[0], rgb[1], rgb[2], *linsrgb.alpha())));
+            let rgb = (Matrix::new(XYZ_TO_LINSRGB.to_vec(), 3, 3) * new_v.into())
+                .unwrap()
+                .get_content()
+                .to_owned();
+            row.push(Rgba::<u8>::from(LinSrgba::new(
+                rgb[0],
+                rgb[1],
+                rgb[2],
+                *linsrgb.alpha(),
+            )));
         }
 
         let mut out = out_v.lock().unwrap();
@@ -351,7 +398,6 @@ pub fn whitebalance_rgba(img: &RgbaImage, fromtemp: f32, fromtint: f32, totemp: 
     });
 
     return out.lock().unwrap().clone();
-
 }
 
 pub fn apply_curve(img: &RgbaImage, curve: crate::core::Curve) -> RgbaImage {
@@ -360,11 +406,11 @@ pub fn apply_curve(img: &RgbaImage, curve: crate::core::Curve) -> RgbaImage {
     for (x, y, pixel) in img.enumerate_pixels() {
         let cmp = pixel.channels();
         let np: Rgba<u8> = Rgba([
-            (curve.apply_curve(cmp[0] as f32 / 255.0) * 255.0) as u8, 
-            (curve.apply_curve(cmp[1] as f32 / 255.0) * 255.0) as u8, 
-            (curve.apply_curve(cmp[2] as f32 / 255.0) * 255.0) as u8, 
-            cmp[3]]
-        );
+            (curve.apply_curve(cmp[0] as f32 / 255.0) * 255.0) as u8,
+            (curve.apply_curve(cmp[1] as f32 / 255.0) * 255.0) as u8,
+            (curve.apply_curve(cmp[2] as f32 / 255.0) * 255.0) as u8,
+            cmp[3],
+        ]);
         nb.put_pixel(x, y, np);
     }
 

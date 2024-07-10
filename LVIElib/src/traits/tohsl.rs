@@ -1,6 +1,6 @@
 use crate::hsl::{Hsl, Hsla, HslaImage};
 use crate::oklab::{Oklab, Oklaba};
-use image::{Rgb, Rgba, Pixel};
+use image::{Pixel, Rgb, Rgba};
 
 pub trait ToHsl {
     fn to_hsl(&self) -> Hsl;
@@ -10,8 +10,12 @@ pub trait ToHsl {
 macro_rules! impl_ToHsl_for_Rgb {
     ($t: ty) => {
         impl ToHsl for Rgb<$t> {
-            fn to_hsl(&self) -> Hsl { Hsl::from(*self) }
-            fn to_hsla(&self) -> Hsla { Hsla::from(self.to_rgba()) }
+            fn to_hsl(&self) -> Hsl {
+                Hsl::from(*self)
+            }
+            fn to_hsla(&self) -> Hsla {
+                Hsla::from(self.to_rgba())
+            }
         }
     };
 }
@@ -23,8 +27,12 @@ impl_ToHsl_for_Rgb!(f32);
 macro_rules! impl_ToHsl_for_Rgba {
     ($t: ty) => {
         impl ToHsl for Rgba<$t> {
-            fn to_hsl(&self) -> Hsl { Hsl::from(self.to_rgb()) }
-            fn to_hsla(&self) -> Hsla { Hsla::from(*self) }
+            fn to_hsl(&self) -> Hsl {
+                Hsl::from(self.to_rgb())
+            }
+            fn to_hsla(&self) -> Hsla {
+                Hsla::from(*self)
+            }
         }
     };
 }
@@ -60,7 +68,6 @@ impl ToHsl for Oklab {
     }
 }
 
-
 impl ToHsl for Oklaba {
     fn to_hsl(&self) -> Hsl {
         self.to_rgb().into()
@@ -77,32 +84,36 @@ pub trait ImageToHsla
 where
     Self: GenericImageView + Sized,
     <Self as GenericImageView>::Pixel: ToHsl,
-    <<Self as GenericImageView>::Pixel as image::Pixel>::Subpixel: ToPrimitive
+    <<Self as GenericImageView>::Pixel as image::Pixel>::Subpixel: ToPrimitive,
 {
     fn to_hsla(&self) -> HslaImage {
-        return HslaImage::from_vec(
-            self.width(), self.height(), 
-            {
+        return HslaImage::from_vec(self.width(), self.height(), {
             let mut out = Vec::<f32>::new();
-            for (_,_,p) in self.pixels() {
-                for v in p.to_hsla().channels(){ out.push(*v); }
+            for (_, _, p) in self.pixels() {
+                for v in p.to_hsla().channels() {
+                    out.push(*v);
+                }
             }
             out
-        }
-        ).unwrap();
+        })
+        .unwrap();
     }
 }
 
 pub trait ToOklab {
     fn to_oklab(&self) -> Oklab;
-    fn to_oklaba(&self) -> Oklaba; 
+    fn to_oklaba(&self) -> Oklaba;
 }
 
 macro_rules! impl_ToOklab_for_Rgb {
     ($t: ty) => {
         impl ToOklab for Rgb<$t> {
-            fn to_oklab(&self) -> Oklab { Oklab::from(*self) }
-            fn to_oklaba(&self) -> Oklaba { Oklaba::from(self.to_rgba()) }
+            fn to_oklab(&self) -> Oklab {
+                Oklab::from(*self)
+            }
+            fn to_oklaba(&self) -> Oklaba {
+                Oklaba::from(self.to_rgba())
+            }
         }
     };
 }
@@ -114,8 +125,12 @@ impl_ToOklab_for_Rgb!(f32);
 macro_rules! impl_ToOklab_for_Rgba {
     ($t: ty) => {
         impl ToOklab for Rgba<$t> {
-            fn to_oklab(&self) -> Oklab { Oklab::from(self.to_rgb()) }
-            fn to_oklaba(&self) -> Oklaba { Oklaba::from(*self) }
+            fn to_oklab(&self) -> Oklab {
+                Oklab::from(self.to_rgb())
+            }
+            fn to_oklaba(&self) -> Oklaba {
+                Oklaba::from(*self)
+            }
         }
     };
 }
@@ -129,13 +144,17 @@ impl ToOklab for Hsl {
         return self.to_rgb().into();
     }
     fn to_oklaba(&self) -> Oklaba {
-        return Hsla::new(*self.hue(), *self.saturation(), *self.luma(), 1.0).to_rgba().into();
+        return Hsla::new(*self.hue(), *self.saturation(), *self.luma(), 1.0)
+            .to_rgba()
+            .into();
     }
 }
 
 impl ToOklab for Hsla {
     fn to_oklab(&self) -> Oklab {
-        return Hsl::new(*self.hue(), *self.saturation(), *self.luma()).to_rgb().into();
+        return Hsl::new(*self.hue(), *self.saturation(), *self.luma())
+            .to_rgb()
+            .into();
     }
     fn to_oklaba(&self) -> Oklaba {
         return self.to_rgba().into();

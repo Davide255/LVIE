@@ -2,17 +2,23 @@ use std::ops::AddAssign;
 
 use image::Primitive;
 
-pub fn channelimage2window<T: Primitive + std::fmt::Debug>(img: Vec<T>, w: u32, h: u32, wf: u32, hf: u32) -> Vec<T> {
+pub fn channelimage2window<T: Primitive + std::fmt::Debug>(
+    img: Vec<T>,
+    w: u32,
+    h: u32,
+    wf: u32,
+    hf: u32,
+) -> Vec<T> {
     let mut out: Vec<T> = Vec::new(); //img[0..hf as usize].leto();
 
-    for ch in 0..=(h-hf) {
+    for ch in 0..=(h - hf) {
         for y in 0..hf {
-            out.push(img[((ch+y)*w) as usize]);
+            out.push(img[((ch + y) * w) as usize]);
         }
-        for cw in 0..=(w-wf) {
+        for cw in 0..=(w - wf) {
             for px in 1..wf {
-                for py in 0..hf { 
-                    out.push(img[((ch+py)*w+ cw+px) as usize]); 
+                for py in 0..hf {
+                    out.push(img[((ch + py) * w + cw + px) as usize]);
                 }
             }
         }
@@ -21,12 +27,23 @@ pub fn channelimage2window<T: Primitive + std::fmt::Debug>(img: Vec<T>, w: u32, 
     out
 }
 
-pub fn conv<T:Primitive + std::fmt::Debug + AddAssign>(img: Vec<T>, ind: (u32, u32, u32), filter: Vec<T>, filter_descriptor: (u32, u32, u32), stride: u32) -> Vec<T>{
-
+pub fn conv<T: Primitive + std::fmt::Debug + AddAssign>(
+    img: Vec<T>,
+    ind: (u32, u32, u32),
+    filter: Vec<T>,
+    filter_descriptor: (u32, u32, u32),
+    stride: u32,
+) -> Vec<T> {
     let mut out: Vec<T> = img.clone();
 
     let img = channelimage2window(img, ind.1, ind.2, stride, stride);
-    let filter = channelimage2window(filter, filter_descriptor.1, filter_descriptor.2, stride, stride);
+    let filter = channelimage2window(
+        filter,
+        filter_descriptor.1,
+        filter_descriptor.2,
+        stride,
+        stride,
+    );
 
     let input_channel = ind.0;
     let input_height = ind.2;
@@ -37,7 +54,7 @@ pub fn conv<T:Primitive + std::fmt::Debug + AddAssign>(img: Vec<T>, ind: (u32, u
     let filter_width = filter_descriptor.1;
 
     let output_height = input_height;
-    let output_width = input_width;    
+    let output_width = input_width;
 
     let stride_width = stride;
 
@@ -50,7 +67,6 @@ pub fn conv<T:Primitive + std::fmt::Debug + AddAssign>(img: Vec<T>, ind: (u32, u
     let sum_window_store = input_channel * c_window_store;
     let sum_filter_area = window_area;
 
-
     let bD = sum_window_store;
     let bY = sum_filter_area;
     for c in 0..input_channel {
@@ -62,21 +78,21 @@ pub fn conv<T:Primitive + std::fmt::Debug + AddAssign>(img: Vec<T>, ind: (u32, u
         for i in 0..output_height {
             let iD = i * window_store + cbD;
             let inbY = nbY + i * output_width;
-            for j in 0..output_width{
-                        let indexY = inbY + j;
-                        let headD = iD + j * gap_width;
-                        for w in 0..filter_width {
-                            let wcD = w * filter_height + headD;
-                            let wcW = w * filter_height + headW;
-                            for h in 0..filter_height {
-                                let indexD = wcD + h;
-                                let indexW = wcW + h; 
-                                out[indexY as usize] += img[indexD as usize] * filter[indexW as usize];
-                            }
-                        }
+            for j in 0..output_width {
+                let indexY = inbY + j;
+                let headD = iD + j * gap_width;
+                for w in 0..filter_width {
+                    let wcD = w * filter_height + headD;
+                    let wcW = w * filter_height + headW;
+                    for h in 0..filter_height {
+                        let indexD = wcD + h;
+                        let indexW = wcW + h;
+                        out[indexY as usize] += img[indexD as usize] * filter[indexW as usize];
                     }
                 }
+            }
         }
+    }
 
     out
 }

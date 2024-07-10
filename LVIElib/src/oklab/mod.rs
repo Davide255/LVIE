@@ -203,7 +203,7 @@ fn rgb_to_oklab_faster<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Oklab {
     let (r, g, b) = (
         rgb.0[0].as_float().powf(2.2),
         rgb.0[1].as_float().powf(2.2),
-        rgb.0[2].as_float().powf(2.2)
+        rgb.0[2].as_float().powf(2.2),
     );
 
     fn srgb_to_linear(c: f32) -> f32 {
@@ -248,7 +248,7 @@ fn rgb_to_oklab<T: Primitive + AsFloat>(rgb: &Rgb<T>) -> Oklab {
     let (r, g, b) = (
         rgb.0[0].as_float().powf(2.2),
         rgb.0[1].as_float().powf(2.2),
-        rgb.0[2].as_float().powf(2.2)
+        rgb.0[2].as_float().powf(2.2),
     );
 
     let m1 = Matrix::new(
@@ -427,7 +427,6 @@ impl From<LinSrgb> for Oklab {
 }
 
 pub type OklabImage = ImageBuffer<Oklab, Vec<f32>>;
-
 
 #[derive(PartialEq, Clone, Debug, Copy, Default)]
 #[repr(C)]

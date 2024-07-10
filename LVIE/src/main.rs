@@ -3,13 +3,13 @@ mod ui;
 use crate::ui::*;
 use i_slint_backend_winit::WinitWindowAccessor;
 
-use slint::ComponentHandle;
-use image::{ImageBuffer, Pixel, Primitive};
-use LVIElib::traits::ScaleImage;
 use crate::raw_decoder::{decode, supported_formats};
+use image::{ImageBuffer, Pixel, Primitive};
 use img_processing::{collect_histogram_data, Max, _collect_histogram_data_old};
-use slint::{Image, Model, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
 use num_traits::NumCast;
+use slint::ComponentHandle;
+use slint::{Image, Model, Rgba8Pixel, SharedPixelBuffer, SharedString, Weak};
+use LVIElib::traits::ScaleImage;
 
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
@@ -21,17 +21,21 @@ mod img_processing_generic;
 mod raw_decoder;
 
 mod core;
-use crate::core::{Rendering, Data, FilterType, CRgbaImage};
+use crate::core::{CRgbaImage, Data, FilterType, Rendering};
 
 mod settings;
-use crate::settings::{load_settings, keyboard_shortcuts};
+use crate::settings::{keyboard_shortcuts, load_settings};
+
+mod history;
 
 fn maximize_ui(ui: LVIE) {
     ui.window()
-        .with_winit_window(|winit_window: &i_slint_backend_winit::winit::window::Window| {
-            winit_window.set_maximized(true);
-            winit_window.set_title("LVIE");
-        })
+        .with_winit_window(
+            |winit_window: &i_slint_backend_winit::winit::window::Window| {
+                winit_window.set_maximized(true);
+                winit_window.set_title("LVIE");
+            },
+        )
         .expect("Failed to use winit!");
 }
 
@@ -48,9 +52,11 @@ use LVIElib::utils::{graph, GraphColor};
 
 fn _create_hist<P>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [slint::Image; 4]
 where
-    P: Pixel, P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash,
+    P: Pixel,
+    P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash,
     std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
-    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: num_traits::ToPrimitive
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item:
+        num_traits::ToPrimitive,
 {
     let hist = collect_histogram_data(&buff);
 
@@ -62,61 +68,84 @@ where
 
     let max = max([
         r.1.iter()
-        .max_by(|x, y| x.partial_cmp(&y).unwrap())
-        .unwrap(),
+            .max_by(|x, y| x.partial_cmp(&y).unwrap())
+            .unwrap(),
         g.1.iter()
-        .max_by(|x, y| x.partial_cmp(&y).unwrap())
-        .unwrap(),
+            .max_by(|x, y| x.partial_cmp(&y).unwrap())
+            .unwrap(),
         b.1.iter()
-        .max_by(|x, y| x.partial_cmp(&y).unwrap())
-        .unwrap(),
-    ]).unwrap();
+            .max_by(|x, y| x.partial_cmp(&y).unwrap())
+            .unwrap(),
+    ])
+    .unwrap();
 
     let mut r_b = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
     graph(
-        r_b.make_mut_bytes(), 
-        size, &vec![&r.0], &vec![&r.1],
-        &255, max,
+        r_b.make_mut_bytes(),
+        size,
+        &vec![&r.0],
+        &vec![&r.1],
+        &255,
+        max,
         &vec![GraphColor::RED],
-        (0, 0, 0, 0)
-    ).expect("Failed to build the graph (R)");
+        (0, 0, 0, 0),
+    )
+    .expect("Failed to build the graph (R)");
 
     let mut g_b = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
     graph(
-        g_b.make_mut_bytes(), 
-        size, &vec![&g.0], &vec![&g.1],
-        &255, max,
+        g_b.make_mut_bytes(),
+        size,
+        &vec![&g.0],
+        &vec![&g.1],
+        &255,
+        max,
         &vec![GraphColor::GREEN],
-        (0, 0, 0, 0)
-    ).expect("Failed to build the graph (G)");
+        (0, 0, 0, 0),
+    )
+    .expect("Failed to build the graph (G)");
 
     let mut b_b = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
     graph(
-        b_b.make_mut_bytes(), 
-        size, &vec![&b.0], &vec![&b.1], 
-        &255, max,
+        b_b.make_mut_bytes(),
+        size,
+        &vec![&b.0],
+        &vec![&b.1],
+        &255,
+        max,
         &vec![GraphColor::BLUE],
-        (0, 0, 0, 0)
-    ).expect("Failed to build the graph (B)");
+        (0, 0, 0, 0),
+    )
+    .expect("Failed to build the graph (B)");
 
     let mut all3 = slint::SharedPixelBuffer::<slint::Rgb8Pixel>::new(size.0, size.1);
     graph(
-        all3.make_mut_bytes(), size, 
-        &vec![&r.0, &g.0, &b.0], &vec![&r.1, &g.1, &b.1], 
-        &255, max,
-        &vec![GraphColor::RED, GraphColor::GREEN, GraphColor::BLUE], 
-        (0, 0, 0, 0)
-    ).expect("Failed to build the graph (RGB)");
+        all3.make_mut_bytes(),
+        size,
+        &vec![&r.0, &g.0, &b.0],
+        &vec![&r.1, &g.1, &b.1],
+        &255,
+        max,
+        &vec![GraphColor::RED, GraphColor::GREEN, GraphColor::BLUE],
+        (0, 0, 0, 0),
+    )
+    .expect("Failed to build the graph (RGB)");
 
-    [slint::Image::from_rgb8(r_b), slint::Image::from_rgb8(g_b), 
-    slint::Image::from_rgb8(b_b), slint::Image::from_rgb8(all3)]
+    [
+        slint::Image::from_rgb8(r_b),
+        slint::Image::from_rgb8(g_b),
+        slint::Image::from_rgb8(b_b),
+        slint::Image::from_rgb8(all3),
+    ]
 }
 
-fn _create_svg_path<P: Pixel>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3] 
-where 
-    P: Pixel, P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash + std::cmp::Ord,
+fn _create_svg_path<P: Pixel>(buff: &ImageBuffer<P, Vec<P::Subpixel>>) -> [SharedString; 3]
+where
+    P: Pixel,
+    P::Subpixel: Primitive + Max + std::cmp::Eq + std::hash::Hash + std::cmp::Ord,
     std::ops::RangeInclusive<P::Subpixel>: IntoIterator,
-    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item: num_traits::ToPrimitive
+    <std::ops::RangeInclusive<<P as Pixel>::Subpixel> as IntoIterator>::Item:
+        num_traits::ToPrimitive,
 {
     let hist = _collect_histogram_data_old(&buff);
     let mut _v: Vec<SharedString> = Vec::new();
@@ -133,7 +162,8 @@ where
                     if k == &NumCast::from(0).unwrap() {
                         0u32
                     } else {
-                        (<f32 as NumCast>::from(*k).unwrap() * (*max_value as f32 / 255f32)).round() as u32
+                        (<f32 as NumCast>::from(*k).unwrap() * (*max_value as f32 / 255f32)).round()
+                            as u32
                     }
                 },
                 max_value - (cmp.get(k).unwrap() / scale_factor)
@@ -170,7 +200,7 @@ fn main() {
     let Window: LVIE = LVIE::new().unwrap();
 
     let d = Data::new(CORE, None, None);
-    
+
     let curves = &d.curve;
     Window.set_curve(curves.to_image((300, 300)));
     Window.set_curve_points(curves.into_rc_model());
@@ -184,62 +214,79 @@ fn main() {
     let data_weak = DATA.clone();
     //let prev_w = preview.clone();
     let Window_weak = Window.as_weak();
-    Window
-        .global::<ToolbarCallbacks>()
-        .on_open_file(move || {
-            // get the file with native file dialog
-            let fd = rfd::FileDialog::new()
-                .add_filter("all image formats", 
-                &[supported_formats().as_slice(), ["jpg", "jpeg", "png"].as_slice()].concat())
-                .pick_file();
-            if fd.is_none() { return; }
-            let binding = fd.unwrap();
+    Window.global::<ToolbarCallbacks>().on_open_file(move || {
+        // get the file with native file dialog
+        let fd = rfd::FileDialog::new()
+            .add_filter(
+                "all image formats",
+                &[
+                    supported_formats().as_slice(),
+                    ["jpg", "jpeg", "png"].as_slice(),
+                ]
+                .concat(),
+            )
+            .pick_file();
+        if fd.is_none() {
+            return;
+        }
+        let binding = fd.unwrap();
 
-            let img: CRgbaImage<image::Rgba<u8>>;
+        let img: CRgbaImage<image::Rgba<u8>>;
 
-            if supported_formats().contains(&binding.as_path().extension().unwrap().to_str().unwrap().to_uppercase().as_str()) {
-                let buff = decode(binding.as_path());
-                if buff.is_none() { 
-                    println!("Cannot decode file {}", binding.as_path().display());
-                    return; 
-                }
-                img = buff.unwrap().scale_image::<image::Rgba<u16>, image::Rgba<u8>>();
-            } else {
-                let buff = image::open(binding.as_path().to_str().unwrap());
-                if buff.is_err() {
-                    println!("Cannot decode file {}", binding.as_path().display());
-                    return;
-                }
-                img = buff.unwrap().to_rgba8();
+        if supported_formats().contains(
+            &binding
+                .as_path()
+                .extension()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_uppercase()
+                .as_str(),
+        ) {
+            let buff = decode(binding.as_path());
+            if buff.is_none() {
+                println!("Cannot decode file {}", binding.as_path().display());
+                return;
             }
+            img = buff
+                .unwrap()
+                .scale_image::<image::Rgba<u16>, image::Rgba<u8>>();
+        } else {
+            let buff = image::open(binding.as_path().to_str().unwrap());
+            if buff.is_err() {
+                println!("Cannot decode file {}", binding.as_path().display());
+                return;
+            }
+            img = buff.unwrap().to_rgba8();
+        }
 
-            let mut data = data_weak.lock().unwrap();
+        let mut data = data_weak.lock().unwrap();
 
-            // load the image
-            data.load_image(img.clone());
+        // load the image
+        data.load_image(img.clone());
 
-            Window_weak
-                .upgrade_in_event_loop(move |Window| {
-                    // loading the image into the UI
-                    let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                        &img,
-                        img.width(),
-                        img.height(),
-                    );
+        Window_weak
+            .upgrade_in_event_loop(move |Window| {
+                // loading the image into the UI
+                let pix_buf = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                    &img,
+                    img.width(),
+                    img.height(),
+                );
 
-                    // create the histogram and update the UI
-                    let ww = Window.as_weak();
-                    thread::spawn(move || {
-                        ww.upgrade_in_event_loop(move |window| {
-                            let path = _create_hist(&img);
-                            window.set_new_histogram(path.into());
-                        })
-                        .expect("Failed to run in event loop");
-                    });
-                    Window.set_image(Image::from_rgba8(pix_buf));
-                })
-                .expect("Failed to call from event loop");
-        });
+                // create the histogram and update the UI
+                let ww = Window.as_weak();
+                thread::spawn(move || {
+                    ww.upgrade_in_event_loop(move |window| {
+                        let path = _create_hist(&img);
+                        window.set_new_histogram(path.into());
+                    })
+                    .expect("Failed to run in event loop");
+                });
+                Window.set_image(Image::from_rgba8(pix_buf));
+            })
+            .expect("Failed to call from event loop");
+    });
 
     let data_weak = DATA.clone();
     let Window_weak = Window.as_weak();
@@ -267,35 +314,52 @@ fn main() {
         });
 
     // close window: (quit the slint event loop)
-    Window
-        .global::<ToolbarCallbacks>()
-        .on_close_window(|| {
-            slint::quit_event_loop().expect("Failed to stop the event loop");
-        });
+    Window.global::<ToolbarCallbacks>().on_close_window(|| {
+        slint::quit_event_loop().expect("Failed to stop the event loop");
+    });
 
     let ww = Window.as_weak();
-    let sw =  SETTINGS.clone();
-    Window.on_handle_shortcut(move |kvalue: SharedString, alt: bool, ctrl: bool, shift: bool| {
-        let settings = sw.lock().unwrap();
+    let sw = SETTINGS.clone();
+    Window.on_handle_shortcut(
+        move |kvalue: SharedString, alt: bool, ctrl: bool, shift: bool| {
+            let settings = sw.lock().unwrap();
 
-        let kvalue: String = kvalue.to_lowercase();
+            let kvalue: String = kvalue.to_lowercase();
 
-        let mut modifiers: Vec<keyboard_shortcuts::MODIFIER> = Vec::new();
-        if alt { modifiers.push(keyboard_shortcuts::MODIFIER::ALT); }
-        if ctrl { modifiers.push(keyboard_shortcuts::MODIFIER::CTRL); }
-        if shift { modifiers.push(keyboard_shortcuts::MODIFIER::SHIFT); }
+            let mut modifiers: Vec<keyboard_shortcuts::MODIFIER> = Vec::new();
+            if alt {
+                modifiers.push(keyboard_shortcuts::MODIFIER::ALT);
+            }
+            if ctrl {
+                modifiers.push(keyboard_shortcuts::MODIFIER::CTRL);
+            }
+            if shift {
+                modifiers.push(keyboard_shortcuts::MODIFIER::SHIFT);
+            }
 
-        for key in &settings.keyboard_shortcuts {
-            if key.is(&kvalue) {
-                if let Some(b) = key.get_binding_by_modifiers(&modifiers) {
-                    // the pattern is 'editor.*.*'
-                    let _ts = b.action().clone();
-                    let action: Vec<&str> = _ts.split(".").collect_vec();
-                    handle_shortcut_action(ww.clone(), action);
+            for key in &settings.keyboard_shortcuts {
+                if key.is(&kvalue) {
+                    if let Some(b) = key.get_binding_by_modifiers(&modifiers) {
+                        // the pattern is 'editor.*.*'
+                        let _ts = b.action().clone();
+                        let action: Vec<&str> = _ts.split(".").collect_vec();
+                        handle_shortcut_action(ww.clone(), action);
+                    }
                 }
             }
-        }
-    });
+        },
+    );
+
+    let sw = SETTINGS.clone();
+    Window
+        .global::<SettingsCallbacks>()
+        .on_load_settings(move || {
+            let settings = sw.lock().unwrap();
+            ((
+                SharedString::from(settings.backend.name()),
+                settings.start_maximized,
+            ),)
+        });
 
     //reset
     let data_weak = DATA.clone();
@@ -309,248 +373,312 @@ fn main() {
         // restore all the previews to the original image
         let img = data.full_res_preview.clone();
 
-        Window_weak.upgrade_in_event_loop(move |Window: LVIE| {
-            Window.set_image(
-                Image::from_rgba8(
-            SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&img, img.width(), img.height())));
+        Window_weak
+            .upgrade_in_event_loop(move |Window: LVIE| {
+                Window.set_image(Image::from_rgba8(
+                    SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                        &img,
+                        img.width(),
+                        img.height(),
+                    ),
+                ));
 
-            let ww = Window.as_weak();
-            thread::spawn(move || {
-                let path = _create_svg_path(&img);
-                ww.upgrade_in_event_loop(move |window| {
-                    window.set_svg_path(path.into());
-                })
-                .expect("Failed to run in event loop");
-            });
-        }).expect("Failed to call event loop");
+                let ww = Window.as_weak();
+                thread::spawn(move || {
+                    let path = _create_svg_path(&img);
+                    ww.upgrade_in_event_loop(move |window| {
+                        window.set_svg_path(path.into());
+                    })
+                    .expect("Failed to run in event loop");
+                });
+            })
+            .expect("Failed to call event loop");
     });
 
     let ww = Window.as_weak();
     let dw = DATA.clone();
-    Window.global::<CurveCallbacks>().on_update_curve(move |points: slint::ModelRc<slint::ModelRc<f32>>| {
-        let mut xs: Vec<f32> = Vec::new();
-        let mut ys: Vec<f32> = Vec::new();
+    Window.global::<CurveCallbacks>().on_update_curve(
+        move |points: slint::ModelRc<slint::ModelRc<f32>>| {
+            let mut xs: Vec<f32> = Vec::new();
+            let mut ys: Vec<f32> = Vec::new();
 
-        for point in points.iter() {
-            let p: Vec<f32> = point.iter().collect();
-            xs.push(p[0]);
-            ys.push(p[1]);
-        }
-
-        let mut data = dw.lock().unwrap();
-        data.curve.update_curve(xs, ys);
-
-        let W = ww.unwrap();
-
-        W.set_curve(data.curve.to_image((300, 300)));
-        W.set_curve_points(data.curve.into_rc_model()); 
-    });
-
-    let dw = DATA.clone();
-    let ww = Window.as_weak();
-    Window.global::<CurveCallbacks>().on_add_curve_point(move |x: f32, y: f32| {
-        let mut d = dw.lock().unwrap();
-        let i = d.curve.add_point([x, y]).expect("Failed to add a point");
-        let Window = ww.unwrap();
-        Window.set_curve(d.curve.to_image((300, 300)));
-        Window.set_curve_points(d.curve.into_rc_model());
-
-        return i.try_into().unwrap();
-    });
-
-    let d_w = DATA.clone();
-    Window.global::<CurveCallbacks>().on_there_is_a_curve_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {
-        let mut p_number = -1;
-
-        let data = d_w.try_lock().unwrap();
-
-        let cps = data.curve.get_points();
-
-        for (i, coords) in cps.iter().enumerate() {
-            let xr = width * coords[0] / 100.0 - size / 2.0;
-            let yr = height * (100.0 - coords[1]) / 100.0 - size / 2.0;
-
-            if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
-                p_number = i as i32;
-                break;
+            for point in points.iter() {
+                let p: Vec<f32> = point.iter().collect();
+                xs.push(p[0]);
+                ys.push(p[1]);
             }
-        }
 
-        return p_number;
-    });
+            let mut data = dw.lock().unwrap();
+            data.curve.update_curve(xs, ys);
 
-    let d_w = DATA.clone();
+            let W = ww.unwrap();
+
+            W.set_curve(data.curve.to_image((300, 300)));
+            W.set_curve_points(data.curve.into_rc_model());
+        },
+    );
+
+    let dw = DATA.clone();
     let ww = Window.as_weak();
-    Window.global::<CurveCallbacks>().on_remove_curve_point(move |index: i32| {
-        let mut d = d_w.lock().unwrap();
-        if d.curve.remove_point(index as usize).is_ok() {
+    Window
+        .global::<CurveCallbacks>()
+        .on_add_curve_point(move |x: f32, y: f32| {
+            let mut d = dw.lock().unwrap();
+            let i = d.curve.add_point([x, y]).expect("Failed to add a point");
             let Window = ww.unwrap();
             Window.set_curve(d.curve.to_image((300, 300)));
             Window.set_curve_points(d.curve.into_rc_model());
-        }
-    });
+
+            return i.try_into().unwrap();
+        });
+
+    let d_w = DATA.clone();
+    Window.global::<CurveCallbacks>().on_there_is_a_curve_point(
+        move |x: f32, y: f32, width: f32, height: f32, size: f32| {
+            let mut p_number = -1;
+
+            let data = d_w.try_lock().unwrap();
+
+            let cps = data.curve.get_points();
+
+            for (i, coords) in cps.iter().enumerate() {
+                let xr = width * coords[0] / 100.0 - size / 2.0;
+                let yr = height * (100.0 - coords[1]) / 100.0 - size / 2.0;
+
+                if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
+                    p_number = i as i32;
+                    break;
+                }
+            }
+
+            return p_number;
+        },
+    );
 
     let d_w = DATA.clone();
     let ww = Window.as_weak();
-    Window.global::<CurveCallbacks>().on_set_curve_type(move |curve_type: i32| {
-        let mut d = d_w.lock().unwrap();
-        d.curve.set_curve_type({
-            match curve_type {
-                0 => core::CurveType::MONOTONE,
-                1 => core::CurveType::SMOOTH,
-                _ => unimplemented!(),
+    Window
+        .global::<CurveCallbacks>()
+        .on_remove_curve_point(move |index: i32| {
+            let mut d = d_w.lock().unwrap();
+            if d.curve.remove_point(index as usize).is_ok() {
+                let Window = ww.unwrap();
+                Window.set_curve(d.curve.to_image((300, 300)));
+                Window.set_curve_points(d.curve.into_rc_model());
             }
         });
-        ww.unwrap().set_curve(d.curve.to_image((300,300)));
-    });
+
+    let d_w = DATA.clone();
+    let ww = Window.as_weak();
+    Window
+        .global::<CurveCallbacks>()
+        .on_set_curve_type(move |curve_type: i32| {
+            let mut d = d_w.lock().unwrap();
+            d.curve.set_curve_type({
+                match curve_type {
+                    0 => core::CurveType::MONOTONE,
+                    1 => core::CurveType::SMOOTH,
+                    _ => unimplemented!(),
+                }
+            });
+            ww.unwrap().set_curve(d.curve.to_image((300, 300)));
+        });
 
     let d_w = DATA.clone();
     Window.global::<MaskCallbacks>().on_apply_mask(move || {
         let d = d_w.lock().unwrap();
-        d.masks[0].apply_to_image(&d.full_res_preview).expect("Mask not closed").save("applyed_mask.png").expect("Failed to save");
+        d.masks[0]
+            .apply_to_image(&d.full_res_preview)
+            .expect("Mask not closed")
+            .save("applyed_mask.png")
+            .expect("Failed to save");
     });
 
     let dw = DATA.clone();
     let ww = Window.as_weak();
-    Window.global::<MaskCallbacks>().on_add_mask_point(move |x: f32, y: f32, width: f32, height: f32| {
-        let mut d = dw.lock().unwrap();
-        let i = d.masks[0].add_point([x, y]);
-        let Window = ww.unwrap();
-        Window.set_mask_points(d.masks[0].into_rc_model());
-        Window.set_connection_line_points(d.masks[0].generate_line_for_slint(width, height));
-        Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
-        Window.set_control_point_connection_line(d.masks[0].generate_control_point_connection_lines_for_slint());
-        return i.try_into().unwrap();
-    });
+    Window.global::<MaskCallbacks>().on_add_mask_point(
+        move |x: f32, y: f32, width: f32, height: f32| {
+            let mut d = dw.lock().unwrap();
+            let i = d.masks[0].add_point([x, y]);
+            let Window = ww.unwrap();
+            Window.set_mask_points(d.masks[0].into_rc_model());
+            Window.set_connection_line_points(d.masks[0].generate_line_for_slint(width, height));
+            Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
+            Window.set_control_point_connection_line(
+                d.masks[0].generate_control_point_connection_lines_for_slint(),
+            );
+            return i.try_into().unwrap();
+        },
+    );
 
     let d_w = DATA.clone();
-    Window.global::<MaskCallbacks>().on_there_is_a_mask_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {        
-        let mut p_number = -1;
+    Window.global::<MaskCallbacks>().on_there_is_a_mask_point(
+        move |x: f32, y: f32, width: f32, height: f32, size: f32| {
+            let mut p_number = -1;
 
-        let data = d_w.try_lock().unwrap();
+            let data = d_w.try_lock().unwrap();
 
-        let cps = data.masks[0].get_points();
+            let cps = data.masks[0].get_points();
 
-        for (i, coords) in cps.iter().enumerate() {
-            let xr = width * coords[0] / 100.0 - size / 2.0;
-            let yr = height * (100.0 - coords[1]) / 100.0 - size / 2.0;
-
-            if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
-                p_number = i as i32;
-                break;
-            }
-        }
-
-        return p_number;
-    });
-
-    let d_w = DATA.clone();
-    Window.global::<MaskCallbacks>().on_there_is_a_control_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {        
-        let mut p_number = -1;
-
-        let data = d_w.try_lock().unwrap();
-
-        let cps = data.masks[0].get_control_points();
-
-        for (k, coords) in cps.iter().enumerate() {
-            for (i, coord) in coords.iter().enumerate() {
-                let xr = width * coord[0] / 100.0 - size / 2.0;
-                let yr = height * (100.0 - coord[1]) / 100.0 - size / 2.0;
+            for (i, coords) in cps.iter().enumerate() {
+                let xr = width * coords[0] / 100.0 - size / 2.0;
+                let yr = height * (100.0 - coords[1]) / 100.0 - size / 2.0;
 
                 if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
-                    p_number = (k*10 + i) as i32;
+                    p_number = i as i32;
                     break;
                 }
             }
-        }
 
-        return p_number;
-    });
+            return p_number;
+        },
+    );
+
+    let d_w = DATA.clone();
+    Window
+        .global::<MaskCallbacks>()
+        .on_there_is_a_control_point(move |x: f32, y: f32, width: f32, height: f32, size: f32| {
+            let mut p_number = -1;
+
+            let data = d_w.try_lock().unwrap();
+
+            let cps = data.masks[0].get_control_points();
+
+            for (k, coords) in cps.iter().enumerate() {
+                for (i, coord) in coords.iter().enumerate() {
+                    let xr = width * coord[0] / 100.0 - size / 2.0;
+                    let yr = height * (100.0 - coord[1]) / 100.0 - size / 2.0;
+
+                    if xr <= x && x <= xr + size && yr <= y && y <= yr + size {
+                        p_number = (k * 10 + i) as i32;
+                        break;
+                    }
+                }
+            }
+
+            return p_number;
+        });
 
     let ww = Window.as_weak();
     let dw = DATA.clone();
-    Window.global::<MaskCallbacks>().on_update_mask(move |width: f32, height: f32| {
-        let data = dw.lock().unwrap();
+    Window
+        .global::<MaskCallbacks>()
+        .on_update_mask(move |width: f32, height: f32| {
+            let data = dw.lock().unwrap();
 
-        if data.masks[0].is_empty() {
-            return;
-        }
+            if data.masks[0].is_empty() {
+                return;
+            }
 
-        let W = ww.unwrap();
-        W.set_mask_points(data.masks[0].into_rc_model());
-        W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
-        W.set_connection_line_points(data.masks[0].generate_line_for_slint(width, height));
-        W.set_control_point_connection_line(data.masks[0].generate_control_point_connection_lines_for_slint());
-    });
-
-    let ww = Window.as_weak();
-    let dw = DATA.clone();
-    Window.global::<MaskCallbacks>().on_update_mask_point(move |index: i32, x: f32, y:f32, width: f32, height: f32| {
-        let mut data = dw.lock().unwrap();
-        if data.masks[0].update_point(index as usize, [x, y]).is_ok() {
             let W = ww.unwrap();
             W.set_mask_points(data.masks[0].into_rc_model());
             W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
             W.set_connection_line_points(data.masks[0].generate_line_for_slint(width, height));
-            W.set_control_point_connection_line(data.masks[0].generate_control_point_connection_lines_for_slint());
-        }
-    });
+            W.set_control_point_connection_line(
+                data.masks[0].generate_control_point_connection_lines_for_slint(),
+            );
+        });
 
     let ww = Window.as_weak();
     let dw = DATA.clone();
-    Window.global::<MaskCallbacks>().on_update_control_point(move |index: i32, x: f32, y:f32, width:f32, height: f32| {
-        let mut data = dw.lock().unwrap();
-        if data.masks[0].update_control_point([index as usize / 10, index as usize % 10], [x, y]).is_ok() {
-            let W = ww.unwrap();
-            W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
-            W.set_connection_line_points(data.masks[0].generate_line_for_slint(width, height));
-            W.set_control_point_connection_line(data.masks[0].generate_control_point_connection_lines_for_slint());
-        }
-    });
+    Window.global::<MaskCallbacks>().on_update_mask_point(
+        move |index: i32, x: f32, y: f32, width: f32, height: f32| {
+            let mut data = dw.lock().unwrap();
+            if data.masks[0].update_point(index as usize, [x, y]).is_ok() {
+                let W = ww.unwrap();
+                W.set_mask_points(data.masks[0].into_rc_model());
+                W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
+                W.set_connection_line_points(data.masks[0].generate_line_for_slint(width, height));
+                W.set_control_point_connection_line(
+                    data.masks[0].generate_control_point_connection_lines_for_slint(),
+                );
+            }
+        },
+    );
+
+    let ww = Window.as_weak();
+    let dw = DATA.clone();
+    Window.global::<MaskCallbacks>().on_update_control_point(
+        move |index: i32, x: f32, y: f32, width: f32, height: f32| {
+            let mut data = dw.lock().unwrap();
+            if data.masks[0]
+                .update_control_point([index as usize / 10, index as usize % 10], [x, y])
+                .is_ok()
+            {
+                let W = ww.unwrap();
+                W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
+                W.set_connection_line_points(data.masks[0].generate_line_for_slint(width, height));
+                W.set_control_point_connection_line(
+                    data.masks[0].generate_control_point_connection_lines_for_slint(),
+                );
+            }
+        },
+    );
 
     let d_w = DATA.clone();
     let ww = Window.as_weak();
-    Window.global::<MaskCallbacks>().on_remove_mask_point(move |index: i32, width: f32, height: f32| {
-        let mut d = d_w.lock().unwrap();
-        if d.masks[0].remove_point(index as usize).is_ok() {
-            let Window = ww.unwrap();
-            Window.set_mask_points(d.masks[0].into_rc_model());
-            Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
-            Window.set_connection_line_points(d.masks[0].generate_line_for_slint(width, height));
-            Window.set_control_point_connection_line(d.masks[0].generate_control_point_connection_lines_for_slint());
-        }
-    });
+    Window.global::<MaskCallbacks>().on_remove_mask_point(
+        move |index: i32, width: f32, height: f32| {
+            let mut d = d_w.lock().unwrap();
+            if d.masks[0].remove_point(index as usize).is_ok() {
+                let Window = ww.unwrap();
+                Window.set_mask_points(d.masks[0].into_rc_model());
+                Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
+                Window
+                    .set_connection_line_points(d.masks[0].generate_line_for_slint(width, height));
+                Window.set_control_point_connection_line(
+                    d.masks[0].generate_control_point_connection_lines_for_slint(),
+                );
+            }
+        },
+    );
 
     let d_w = DATA.clone();
     let ww = Window.as_weak();
-    Window.global::<MaskCallbacks>().on_close_mask_path(move |width: f32, height: f32| {
-        let mut d = d_w.lock().unwrap();
-        if !d.masks[0].is_closed() {
-            d.masks[0].close();
-            let Window = ww.unwrap();
-            Window.set_mask_points(d.masks[0].into_rc_model());
-            Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
-            Window.set_connection_line_points(d.masks[0].generate_line_for_slint(width, height));
-            Window.set_control_point_connection_line(d.masks[0].generate_control_point_connection_lines_for_slint());
-        }
-    });
+    Window
+        .global::<MaskCallbacks>()
+        .on_close_mask_path(move |width: f32, height: f32| {
+            let mut d = d_w.lock().unwrap();
+            if !d.masks[0].is_closed() {
+                d.masks[0].close();
+                let Window = ww.unwrap();
+                Window.set_mask_points(d.masks[0].into_rc_model());
+                Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
+                Window
+                    .set_connection_line_points(d.masks[0].generate_line_for_slint(width, height));
+                Window.set_control_point_connection_line(
+                    d.masks[0].generate_control_point_connection_lines_for_slint(),
+                );
+            }
+        });
 
     // apply filters
     let data_weak = DATA.clone();
     let Window_weak = Window.as_weak();
     let clock_w = CLOCK.clone();
     Window.global::<ScreenCallbacks>().on_apply_filters(
-        move |exposition:f32, box_blur: f32, gaussian_blur: f32, sharpening: f32, temp: f32, tint: f32, saturation: f32| {
+        move |exposition: f32,
+              box_blur: f32,
+              gaussian_blur: f32,
+              sharpening: f32,
+              temp: f32,
+              tint: f32,
+              saturation: f32| {
             let mut data = data_weak.lock().expect("Failed to lock");
 
-            if data.image_dimensions() == (0,0) { return; }
+            if data.image_dimensions() == (0, 0) {
+                return;
+            }
 
             data.update_filter(FilterType::Exposition, vec![exposition]);
             data.update_filter(FilterType::Saturation, vec![saturation]);
             data.update_filter(FilterType::Sharpening, vec![sharpening, 5.0]);
             data.update_filter(FilterType::Boxblur, vec![box_blur, 5.0]);
             data.update_filter(FilterType::GaussianBlur, vec![gaussian_blur, 5.0]);
-            data.update_filter(FilterType::WhiteBalance, vec![2000f32*temp + 6000f32, tint*50.0]);
+            data.update_filter(
+                FilterType::WhiteBalance,
+                vec![2000f32 * temp + 6000f32, tint * 50.0],
+            );
 
             let processed = data.update_image();
 
@@ -560,14 +688,16 @@ fn main() {
                 data.image_dimensions().1,
             );
 
-            Window_weak.upgrade_in_event_loop(move |Window: LVIE| {
-                Window.set_image(Image::from_rgba8(pix_buf));
-            }).expect("Failed to call event loop");
+            Window_weak
+                .upgrade_in_event_loop(move |Window: LVIE| {
+                    Window.set_image(Image::from_rgba8(pix_buf));
+                })
+                .expect("Failed to call event loop");
 
             let ww = Window_weak.clone();
             thread::spawn(move || {
                 let path = _create_svg_path(&processed);
-                ww.upgrade_in_event_loop(|Window| Window.set_svg_path(path.into()) )
+                ww.upgrade_in_event_loop(|Window| Window.set_svg_path(path.into()))
                     .expect("Cannot update the histogram");
             });
 
@@ -577,27 +707,37 @@ fn main() {
                     clock.restart();
                 } else {
                     let dw = data_weak.clone();
-                    clock.start(slint::TimerMode::SingleShot, std::time::Duration::from_secs(INTERNAL_CLOCK_TIME), move || {
-                        dw.lock().unwrap().update_all_color_spaces();
-                    });
+                    clock.start(
+                        slint::TimerMode::SingleShot,
+                        std::time::Duration::from_secs(INTERNAL_CLOCK_TIME),
+                        move || {
+                            dw.lock().unwrap().update_all_color_spaces();
+                        },
+                    );
                 }
             }
-    });
+        },
+    );
 
-    Window.global::<Linespace>().on_create_line(move |from_x: f32, from_y: f32, to_x: f32, to_y: f32, steps: i32| {
-        let mut out: Vec<slint::ModelRc<f32>> = Vec::new();
+    Window.global::<Linespace>().on_create_line(
+        move |from_x: f32, from_y: f32, to_x: f32, to_y: f32, steps: i32| {
+            let mut out: Vec<slint::ModelRc<f32>> = Vec::new();
 
-        let s = (
-            (to_x - from_x) / steps as f32,
-            (to_y - from_y) / steps as f32
-        );
+            let s = (
+                (to_x - from_x) / steps as f32,
+                (to_y - from_y) / steps as f32,
+            );
 
-        for k in 0..steps {
-            out.push(slint::ModelRc::new(slint::VecModel::from(vec![from_x + s.0*k as f32, from_y + s.1*k as f32])));
-        }
+            for k in 0..steps {
+                out.push(slint::ModelRc::new(slint::VecModel::from(vec![
+                    from_x + s.0 * k as f32,
+                    from_y + s.1 * k as f32,
+                ])));
+            }
 
-        slint::ModelRc::new(slint::VecModel::from(out))
-    });
+            slint::ModelRc::new(slint::VecModel::from(out))
+        },
+    );
 
     //set_Alert_Message
     let Window_weak = Window.as_weak();

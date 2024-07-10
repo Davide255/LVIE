@@ -4,6 +4,7 @@ import { VerticalBox, Button , HorizontalBox } from "std-widgets.slint";
 import { Screen, ScreenCallbacks, Linespace, MaskCallbacks, CurveCallbacks } from "widgets/screen.slint";
 import { Palette } from "color/palette.slint";
 import { Toolbar, ToolbarCallbacks, Spacer, AlertType } from "widgets/toolbar.slint";
+import { SettingsScreen, SettingsCallbacks } from "widgets/settings.slint";
 
 component LVIE inherits Window {
     title: "LVIE";
@@ -43,6 +44,10 @@ component LVIE inherits Window {
             width: root.width;
             x: 0px;
             y: 0px;
+            open-settings => {
+                black-screen.visible = true;
+                settings.visible = true;
+            }
         }
 
         Spacer {
@@ -52,8 +57,6 @@ component LVIE inherits Window {
             width: root.width - 20px;
         }
 
-        
-
         content := Screen {
             histogram: svg-path;
             new_histogram: new_histogram;
@@ -61,6 +64,31 @@ component LVIE inherits Window {
             width: root.width;
             x: 0px;
             y: tb.height;
+        }
+
+        black_screen := Rectangle {
+            x: 0;
+            y: 0;
+            width: root.width;
+            height: root.height;
+            background: Colors.black.transparentize(0.4);
+            visible: false;
+        }
+
+        settings := SettingsScreen {
+            x: parent.width / 5;
+            y: parent.height / 5;
+            width: parent.width * 3 / 5;
+            height: parent.height * 3 / 5;
+            visible: false;
+            on-validate => {
+                black-screen.visible = false;
+                settings.visible = false;
+            }
+            on-cancel => {
+                black-screen.visible = false;
+                settings.visible = false;
+            }
         }
 
 
@@ -75,4 +103,4 @@ component LVIE inherits Window {
     }
 }
 
-export { LVIE, ToolbarCallbacks, ScreenCallbacks, Linespace, MaskCallbacks, CurveCallbacks }
+export { LVIE, ToolbarCallbacks, ScreenCallbacks, Linespace, MaskCallbacks, CurveCallbacks, SettingsCallbacks }

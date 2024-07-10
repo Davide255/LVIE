@@ -390,7 +390,7 @@ impl Pixel for LinSrgba {
         (channels[0], channels[1], channels[2], channels[3])
     }
 
-    fn from_channels(r:f32, g:f32, b:f32, a:f32) -> LinSrgba {
+    fn from_channels(r: f32, g: f32, b: f32, a: f32) -> LinSrgba {
         const CHANNELS: usize = 3;
         *<LinSrgba as Pixel>::from_slice(&[r, g, b, a][..CHANNELS])
     }
@@ -513,7 +513,7 @@ impl DerefMut for LinSrgba {
     }
 }
 
-fn rgba8_to_srgbaf32(r: u8, g: u8, b: u8, a:u8) -> LinSrgba {
+fn rgba8_to_srgbaf32(r: u8, g: u8, b: u8, a: u8) -> LinSrgba {
     let rgb: (f32, f32, f32, f32) = (
         NumCast::from(r).unwrap(),
         NumCast::from(g).unwrap(),
@@ -546,7 +546,7 @@ pub fn rgbaf32_to_srgbaf32(r: f32, g: f32, b: f32, a: f32) -> LinSrgba {
     LinSrgba::from_components([r.powf(2.2), g.powf(2.2), b.powf(2.2), a])
 }
 
-pub fn srgbaf32_to_rgba8(r: f32, g: f32, b: f32, a:f32) -> Rgba<u8> {
+pub fn srgbaf32_to_rgba8(r: f32, g: f32, b: f32, a: f32) -> Rgba<u8> {
     let c = srgbaf32_to_rgbaf32(r, g, b, a).0;
     Rgba::<u8>([
         NumCast::from((c[0] * u8::MAX as f32).round()).unwrap(),
@@ -555,7 +555,7 @@ pub fn srgbaf32_to_rgba8(r: f32, g: f32, b: f32, a:f32) -> Rgba<u8> {
         NumCast::from((c[3] * u8::MAX as f32).round()).unwrap(),
     ])
 }
-pub fn srgbaf32_to_rgba16(r:f32, g:f32, b:f32, a:f32) -> Rgba<u16> {
+pub fn srgbaf32_to_rgba16(r: f32, g: f32, b: f32, a: f32) -> Rgba<u16> {
     let c = srgbaf32_to_rgbaf32(r, g, b, a).0;
     Rgba::<u16>([
         NumCast::from((c[0] * u16::MAX as f32).round()).unwrap(),
@@ -565,7 +565,7 @@ pub fn srgbaf32_to_rgba16(r:f32, g:f32, b:f32, a:f32) -> Rgba<u16> {
     ])
 }
 
-pub fn srgbaf32_to_rgbaf32(r: f32, g: f32, b: f32, a:f32) -> Rgba<f32> {
+pub fn srgbaf32_to_rgbaf32(r: f32, g: f32, b: f32, a: f32) -> Rgba<f32> {
     Rgba::<f32>([
         {
             if r.powf(1.0 / 2.2).is_nan() {
@@ -594,7 +594,7 @@ pub fn srgbaf32_to_rgbaf32(r: f32, g: f32, b: f32, a:f32) -> Rgba<f32> {
                 b.powf(1.0 / 2.2)
             }
         },
-        a
+        a,
     ])
 }
 
@@ -603,7 +603,7 @@ fn rgba_to_srgba<T: Primitive + AsFloat>(rgb: &Rgba<T>) -> LinSrgba {
         rgb.0[0].as_float().powf(2.2),
         rgb.0[1].as_float().powf(2.2),
         rgb.0[2].as_float().powf(2.2),
-        rgb.0[3].as_float()
+        rgb.0[3].as_float(),
     ];
 
     LinSrgba::from_components(c)

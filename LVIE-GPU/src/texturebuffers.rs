@@ -1,11 +1,11 @@
 use half::f16;
 use wgpu::Features;
-use LVIElib::{oklab::OklabImage, utils::f32_vec_to_f16_vec};
-use LVIElib::traits::Scale;
 use LVIElib::hsl::HslaImage;
+use LVIElib::traits::Scale;
+use LVIElib::{oklab::OklabImage, utils::f32_vec_to_f16_vec};
 
-use image::{Primitive, Pixel};
 use super::errors::GPUError;
+use image::{Pixel, Primitive};
 
 #[allow(type_alias_bounds)]
 pub type CRgbaImage<P: Pixel> = image::ImageBuffer<P, Vec<P::Subpixel>>;
@@ -17,12 +17,15 @@ pub struct TexturesBuffer {
     oklab: wgpu::Texture,
     pub texture_size: wgpu::Extent3d,
     pub type_size: usize,
-    _F32Support: bool
+    _F32Support: bool,
 }
 
 impl TexturesBuffer {
-    pub fn create_texture(device: &wgpu::Device, size: (u32, u32), type_size: usize) -> Result<TexturesBuffer, GPUError> 
-    {   
+    pub fn create_texture(
+        device: &wgpu::Device,
+        size: (u32, u32),
+        type_size: usize,
+    ) -> Result<TexturesBuffer, GPUError> {
         let texture_size = wgpu::Extent3d {
             width: size.0,
             height: size.1,
@@ -73,7 +76,7 @@ impl TexturesBuffer {
             format: wgpu::TextureFormat::Rgba16Float,
             view_formats: &[wgpu::TextureFormat::Rgba16Float],
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        }); 
+        });
         let oklab = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("oklab texture"),
             size: texture_size,
@@ -86,14 +89,23 @@ impl TexturesBuffer {
         });
 
         Ok(TexturesBuffer {
-            rgb, hsl, oklab, texture_size, type_size, _F32Support: device.features().contains(Features::FLOAT32_FILTERABLE)
+            rgb,
+            hsl,
+            oklab,
+            texture_size,
+            type_size,
+            _F32Support: device.features().contains(Features::FLOAT32_FILTERABLE),
         })
     }
 
-    pub fn allocate_rgb_texture<P>(&mut self, queue: &wgpu::Queue, img: &CRgbaImage<P>) -> Result<(), GPUError>
-    where 
+    pub fn allocate_rgb_texture<P>(
+        &mut self,
+        queue: &wgpu::Queue,
+        img: &CRgbaImage<P>,
+    ) -> Result<(), GPUError>
+    where
         P: Pixel + Send + Sync + 'static,
-        P::Subpixel: Scale + Primitive + std::fmt::Debug + bytemuck::Pod
+        P::Subpixel: Scale + Primitive + std::fmt::Debug + bytemuck::Pod,
     {
         if self.texture_size.width == img.width() && self.texture_size.height == img.height() {
             queue.write_texture(
@@ -101,50 +113,69 @@ impl TexturesBuffer {
                 bytemuck::cast_slice(img.as_raw()),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(4* (std::mem::size_of::<P::Subpixel>() as u32) * img.width()),
+                    bytes_per_row: Some(
+                        4 * (std::mem::size_of::<P::Subpixel>() as u32) * img.width(),
+                    ),
                     rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
                 },
                 self.texture_size,
-            );  
+            );
             Ok(())
-        } else  {
-            Err(GPUError::UNCOMPATIBLEIMAGESIZE((self.texture_size.width, self.texture_size.height), img.dimensions()))
+        } else {
+            Err(GPUError::UNCOMPATIBLEIMAGESIZE(
+                (self.texture_size.width, self.texture_size.height),
+                img.dimensions(),
+            ))
         }
     }
 
-    pub fn allocate_hsl_texture(&mut self, queue: &wgpu::Queue, img: &HslaImage) -> Result<(), GPUError> {   
+    pub fn allocate_hsl_texture(
+        &mut self,
+        queue: &wgpu::Queue,
+        img: &HslaImage,
+    ) -> Result<(), GPUError> {
         if self.texture_size.width == img.width() && self.texture_size.height == img.height() {
             queue.write_texture(
                 self.hsl.as_image_copy(),
                 bytemuck::cast_slice(&f32_vec_to_f16_vec(img.as_raw(), img.dimensions())),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(4* (std::mem::size_of::<f16>() as u32) * img.width()),
+                    bytes_per_row: Some(4 * (std::mem::size_of::<f16>() as u32) * img.width()),
                     rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
                 },
                 self.texture_size,
             );
             Ok(())
-        } else  {
-            Err(GPUError::UNCOMPATIBLEIMAGESIZE((self.texture_size.width, self.texture_size.height), img.dimensions()))
+        } else {
+            Err(GPUError::UNCOMPATIBLEIMAGESIZE(
+                (self.texture_size.width, self.texture_size.height),
+                img.dimensions(),
+            ))
         }
     }
 
-    pub fn allocate_oklab_texture(&mut self, queue: &wgpu::Queue, img: &OklabImage) -> Result<(), GPUError> {   
+    pub fn allocate_oklab_texture(
+        &mut self,
+        queue: &wgpu::Queue,
+        img: &OklabImage,
+    ) -> Result<(), GPUError> {
         if self.texture_size.width == img.width() && self.texture_size.height == img.height() {
             queue.write_texture(
                 self.hsl.as_image_copy(),
                 bytemuck::cast_slice(&f32_vec_to_f16_vec(img.as_raw(), img.dimensions())),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(4* (std::mem::size_of::<f16>() as u32) * img.width()),
+                    bytes_per_row: Some(4 * (std::mem::size_of::<f16>() as u32) * img.width()),
                     rows_per_image: None, // Doesn't need to be specified as we are writing a single image.
                 },
                 self.texture_size,
             );
             Ok(())
-        } else  {
-            Err(GPUError::UNCOMPATIBLEIMAGESIZE((self.texture_size.width, self.texture_size.height), img.dimensions()))
+        } else {
+            Err(GPUError::UNCOMPATIBLEIMAGESIZE(
+                (self.texture_size.width, self.texture_size.height),
+                img.dimensions(),
+            ))
         }
     }
 
