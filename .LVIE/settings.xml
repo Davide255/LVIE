@@ -1,7 +1,0 @@
-<Settings>
-	<backend>GPU</backend>
-	<start_maximized>false</start_maximized>
-	<temp_file_directory>.LVIE\temp</temp_file_directory>
-	<use_temp_file>true</use_temp_file>
-	<max_mem_size>3221225472</max_mem_size>
-</Settings>
