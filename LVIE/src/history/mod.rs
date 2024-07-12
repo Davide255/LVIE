@@ -1,32 +1,56 @@
 #![allow(dead_code)]
 use std::{
+    fmt::Debug,
     fs::File,
     io::{Read, Write},
     path::PathBuf,
     vec::Vec,
 };
 
-use super::core::FilterType;
+mod operations;
+#[macro_use]
+mod builder;
+
+pub use operations::*;
+
+use crate::core::FilterArray;
 
 use image::Primitive;
 use num_traits::NumCast;
 
-#[derive(Clone)]
-pub struct Operation {
-    optype: FilterType,
-    parameters: Vec<f32>,
+use downcast_rs::DowncastSync;
+
+build_operation!(
+    (Filter, FilterArray),
+    (Logic, LogicOperationType),
+    (Geometric, GeometricOperationType),
+    (Mask, (usize, MaskOperationType)),
+    (Curve, CurveOperationType),
+);
+
+pub trait Operation: DowncastSync {
+    fn get_type(&self) -> &OperationType;
+}
+downcast_rs::impl_downcast!(sync Operation);
+
+impl Debug for dyn Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Operation: {:?}", self)
+    }
 }
 
+#[derive(Debug)]
 pub struct History {
-    history: Vec<Operation>,
-    create_temp_files: bool,
+    history: Vec<(bool, Box<dyn Operation>)>,
+    use_temp_files: bool,
     file_handler: FileHandler,
+    current_index: usize,
 }
 
 impl History {
     pub fn init(
         temp_file_directory: Option<PathBuf>,
-        create_temp_files: bool,
+        use_temp_files: bool,
         max_mem_size: Option<impl FileSize>,
     ) -> History {
         let fh = FileHandler::new(
@@ -42,40 +66,63 @@ impl History {
 
         History {
             history: Vec::new(),
-            create_temp_files,
+            use_temp_files,
             file_handler: fh,
+            current_index: 0,
         }
     }
 
-    pub fn register_without_saving(&mut self, optype: FilterType, parameters: Vec<f32>) {
-        self.history.push(Operation { optype, parameters });
+    pub fn next_undo_type(&self) -> Option<&OperationType> {
+        if self.can_undo() {
+            Some(
+                self.history[self.history.len() - self.current_index - 1]
+                    .1
+                    .get_type(),
+            )
+        } else {
+            None
+        }
     }
 
-    pub fn register_and_save<P>(
+    pub fn can_undo(&self) -> bool {
+        self.current_index < self.history.len()
+    }
+
+    pub fn undo(&mut self) -> Option<&Box<dyn Operation>> {
+        if self.current_index < self.history.len() {
+            self.current_index += 1;
+            Some(&self.history[self.history.len() - self.current_index].1)
+        } else {
+            None
+        }
+    }
+
+    pub fn can_redo(&self) -> bool {
+        self.current_index > 0
+    }
+
+    pub fn redo(&mut self) -> Option<&Box<dyn Operation>> {
+        if self.current_index > 0 {
+            self.current_index -= 1;
+            Some(&self.history[self.history.len() - 1 - self.current_index].1)
+        } else {
+            None
+        }
+    }
+
+    pub fn preview_aviable(&self) -> bool {
+        self.use_temp_files && self.history[self.history.len() - self.current_index].0
+    }
+
+    pub fn get_precomputed_preview<P>(
         &mut self,
-        optype: FilterType,
-        parameters: Vec<f32>,
-        buffer: &image::ImageBuffer<P, Vec<P::Subpixel>>,
-    ) -> std::io::Result<()>
+    ) -> Option<std::io::Result<image::ImageBuffer<P, Vec<P::Subpixel>>>>
     where
         P: image::Pixel + std::fmt::Debug,
         P::Subpixel: image::Primitive + std::fmt::Debug + num_traits::ToBytes + bytemuck::Pod,
     {
-        self.history.push(Operation { optype, parameters });
-        self.file_handler.write(buffer)?;
-        Ok(())
-    }
-
-    pub fn get_by_type(&self, optype: FilterType) -> Option<Vec<&Operation>> {
-        let mut out: Vec<&Operation> = Vec::new();
-        for x in &self.history {
-            if x.optype == optype {
-                out.push(x);
-            }
-        }
-
-        if out.len() > 0 {
-            Some(out)
+        if self.history[self.history.len() - self.current_index].0 && self.use_temp_files {
+            Some(self.file_handler.read())
         } else {
             None
         }
@@ -107,6 +154,7 @@ impl<T: Primitive> FileSize for T {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FileHandler {
     root_path: PathBuf,
     max_mem_size: usize,
@@ -122,6 +170,8 @@ impl FileHandler {
                 if max_mem_size.size_as_bytes() > FileSizes::GB(10).size_as_bytes() {
                     println!("required max memory size exceeds the limit of 10GB! Using 10GB as max memory size.");
                     FileSizes::GB(10).size_as_bytes()
+                } else if max_mem_size.size_as_bytes() == 0 {
+                    FileSizes::GB(3).size_as_bytes()
                 } else {
                     max_mem_size.size_as_bytes()
                 }

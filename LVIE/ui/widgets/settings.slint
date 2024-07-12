@@ -6,6 +6,9 @@ global SettingsCallbacks {
         General: {
             backend: string,
             start_maximized: bool,
+            use_temp_file: bool,
+            temp_files_dir: string,
+            max_mem_size: int
         }
     };
 }
@@ -29,6 +32,9 @@ component SettingsScreen inherits Rectangle {
     in-out property <{General: {
         backend: string,
         start_maximized: bool,
+        use_temp_file: bool,
+        temp_files_dir: string,
+        max_mem_size: int
     }}> settings : SettingsCallbacks.load-settings();
 
     padding: 5px;
@@ -51,7 +57,7 @@ component SettingsScreen inherits Rectangle {
                 width: parent.width / 5;
                 ListView {
                     width: parent.width;
-                    for p[i] in ["General", "Memory"]:
+                    for p[i] in ["General"]:
                     Rectangle {
                         property <int> id: i;
                         height: 25px;
@@ -106,6 +112,27 @@ component SettingsScreen inherits Rectangle {
                             }
                             CheckBox {
                                 checked: settings.General.start-maximized;
+                            }
+                        }
+                        HorizontalBox {
+                            height: 30px;
+                            padding: 0px;
+                            Text {
+                                text: "Cache file path: ";
+                                font-size: 10px;
+                                vertical-alignment: center;
+                                width: self.min-width;
+                            }
+                            Text {
+                                text: settings.General.temp-files-dir;
+                                font-size: 10px;
+                                vertical-alignment: center;
+                                width: self.min-width;
+                            }
+                            Button {
+                                icon: @image-url("..\\media\\open-folder.png");
+                                width: 30px;
+                                height: 30px;
                             }
                         }
                     }

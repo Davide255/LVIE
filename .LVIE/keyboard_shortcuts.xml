@@ -10,4 +10,12 @@
 	<key value="r">
 		<binding action="editor.image.rotate-90-deg"><ctrl/><shift/></binding>
 	</key>
+
+	<key value="z">
+		<binding action="editor.preview.undo"><ctrl/></binding>
+	</key>
+
+	<key value="y">
+		<binding action="editor.preview.redo"><ctrl/></binding>
+	</key>
 </Keyboard>

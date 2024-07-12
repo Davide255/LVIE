@@ -1,3 +1,5 @@
+use std::usize;
+
 use LVIElib::{traits::Scale, utils::boundary_fill};
 
 #[derive(Debug)]
@@ -13,6 +15,7 @@ pub struct Mask {
     // represent the control points of the curves between two main points
     bezier_control_points: Vec<[[f32; 2]; 2]>,
     closed: bool,
+    __size_copy: (f32, f32),
 }
 
 impl Mask {
@@ -21,7 +24,13 @@ impl Mask {
             mask_points: Vec::new(),
             bezier_control_points: Vec::new(),
             closed: false,
+            __size_copy: (100.0, 100.0),
         }
+    }
+
+    pub fn undo_close(&mut self) {
+        self.closed = false;
+        self.bezier_control_points.pop();
     }
 
     pub fn close(&mut self) {
@@ -43,6 +52,12 @@ impl Mask {
         self.mask_points.len() - 1
     }
 
+    pub fn add_point_at_index(&mut self, coords: [f32; 2], index: usize) -> usize {
+        self.mask_points.insert(index, coords);
+        self.bezier_control_points.insert(index, [[-1.0; 2]; 2]);
+        index
+    }
+
     pub fn into_rc_model(&self) -> slint::ModelRc<slint::ModelRc<f32>> {
         let mut c: Vec<slint::ModelRc<f32>> = vec![];
         for i in &self.mask_points {
@@ -52,10 +67,19 @@ impl Mask {
     }
 
     pub fn generate_line_for_slint(
-        &self,
-        width: f32,
-        height: f32,
+        &mut self,
+        width: Option<f32>,
+        height: Option<f32>,
     ) -> slint::ModelRc<slint::ModelRc<f32>> {
+        if width.is_some() {
+            self.__size_copy.0 = width.unwrap();
+        }
+        if height.is_some() {
+            self.__size_copy.1 = height.unwrap();
+        }
+
+        let (width, height) = self.__size_copy;
+
         let mut line: Vec<slint::ModelRc<f32>> = Vec::new();
 
         let mp: Vec<[f32; 2]> = (&self.mask_points)
@@ -452,7 +476,7 @@ impl Mask {
         &mut self,
         index: [usize; 2],
         point: [f32; 2],
-    ) -> Result<(), MaskError> {
+    ) -> Result<(f32, f32), MaskError> {
         let p = self.bezier_control_points.get_mut(index[0]);
         if p.is_none() {
             return Err(MaskError::PointNotFound);
@@ -461,19 +485,22 @@ impl Mask {
         if k.is_none() {
             return Err(MaskError::PointNotFound);
         }
-        *k.unwrap() = point;
-        Ok(())
+        let k = k.unwrap();
+        let xy = k.clone();
+        *k = point;
+        Ok((xy[0], xy[1]))
     }
 
     pub fn is_closed(&self) -> bool {
         self.closed
     }
 
+    #[allow(dead_code)]
     pub fn update_points(&mut self, points: Vec<[f32; 2]>) {
         self.mask_points = points;
     }
 
-    pub fn update_point(&mut self, index: usize, point: [f32; 2]) -> Result<(), MaskError> {
+    pub fn update_point(&mut self, index: usize, point: [f32; 2]) -> Result<(f32, f32), MaskError> {
         if index >= self.mask_points.len() {
             Err(MaskError::PointNotFound)
         } else {
@@ -500,17 +527,19 @@ impl Mask {
                     self.bezier_control_points[ni][1][1] + dxy[1],
                 ];
             }
-            Ok(())
+            Ok((old[0], old[1]))
         }
     }
 
-    pub fn remove_point(&mut self, index: usize) -> Result<(), MaskError> {
+    pub fn remove_point(&mut self, index: usize) -> Result<(f32, f32), MaskError> {
         if index >= self.mask_points.len() {
             Err(MaskError::PointNotFound)
         } else {
-            self.mask_points.remove(index);
-            self.bezier_control_points.remove(index - 1);
-            Ok(())
+            let r = self.mask_points.remove(index);
+            if self.bezier_control_points.len() > 0 {
+                self.bezier_control_points.remove(index - 1);
+            }
+            Ok((r[0], r[1]))
         }
     }
 

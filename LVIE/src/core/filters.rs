@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CurveType {
     MONOTONE,
     SMOOTH,
@@ -91,6 +91,10 @@ impl Curve {
         self.build_curve();
     }
 
+    pub fn get_raw_data(&self) -> (Vec<f32>, Vec<f32>) {
+        (self.xs.clone(), self.ys.clone())
+    }
+
     fn build_curve(&mut self) {
         self.xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         self.coefficients = {
@@ -122,7 +126,7 @@ impl Curve {
         c
     }
 
-    pub fn remove_point(&mut self, index: usize) -> Result<(), CurveError> {
+    pub fn remove_point(&mut self, index: usize) -> Result<(f32, f32), CurveError> {
         let x = self.xs.get(index);
         if index == 0 || index == self.xs.len() - 1 || x.is_none() {
             return Err(CurveError::OUT_OF_RANGE(format!(
@@ -130,16 +134,20 @@ impl Curve {
                 index
             )));
         } else {
-            self.xs.remove(index);
-            self.ys.remove(index);
+            let x = self.xs.remove(index);
+            let y = self.ys.remove(index);
             self.build_curve();
-            return Ok(());
+            return Ok((x, y));
         }
     }
 
     pub fn set_curve_type(&mut self, curve_type: CurveType) {
         self.curve_type = curve_type;
         self.build_curve();
+    }
+
+    pub fn get_curve_type(&self) -> &CurveType {
+        &self.curve_type
     }
 }
 

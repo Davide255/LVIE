@@ -24,8 +24,8 @@ where
     loaded_filters: FilterArray,
     loaded_image: CRgbaImage<P>,
     pub curve: Curve,
-    pub zoom: (u32, u32, f32),
     pub masks: Vec<Mask>,
+    pub rotation: f32,
 }
 
 impl<P> Data<P>
@@ -54,14 +54,22 @@ where
             filters: FilterArray::new(filters_to_load),
             loaded_filters: FilterArray::new(None),
             loaded_image: img,
-            zoom: (0, 0, 1.0),
             curve: Curve::new(CurveType::MONOTONE),
             masks: vec![Mask::new()],
+            rotation: 0.0,
         };
 
         data.rendering.attach_image_buffers(imagebuffers);
 
         data
+    }
+
+    pub fn get_loaded_filters(&self) -> &FilterArray {
+        &self.loaded_filters
+    }
+
+    pub fn manual_reset_rendering(&mut self) {
+        self.rendering.imagebuffers.set_updated(true, false, false);
     }
 
     pub fn update_all_color_spaces(&mut self) {
@@ -78,6 +86,29 @@ where
         self.rendering.imagebuffers.update();
         self.full_res_preview = img;
         self.loaded_filters = FilterArray::new(None);
+    }
+
+    pub fn update_filters(&mut self, filters: FilterArray) {
+        self.filters = filters;
+    }
+
+    pub fn norm_filters(&mut self) {
+        let mut filters = &self.filters - &self.loaded_filters;
+        filters.update_filter(
+            FilterType::WhiteBalance,
+            self.loaded_filters
+                .get_filter(FilterType::WhiteBalance)
+                .clone()
+                .into_iter()
+                .chain(
+                    filters
+                        .get_filter(FilterType::WhiteBalance)
+                        .clone()
+                        .into_iter(),
+                )
+                .collect(),
+        );
+        self.loaded_filters = &self.loaded_filters + &filters;
     }
 
     pub fn update_image(&mut self) -> CRgbaImage<P> {

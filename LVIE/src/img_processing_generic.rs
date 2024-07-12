@@ -264,3 +264,5 @@ pub fn apply_curve(img: &RgbaImage, curve: crate::core::Curve) -> RgbaImage {
 
     nb
 }
+
+pub fn rotate_image() {}

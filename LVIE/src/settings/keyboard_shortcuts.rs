@@ -1,18 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-pub const DEFAULT: &str = r#"<Keyboard>
-    <key value="o">
-        <binding action="openfile">
-            <ctrl/>
-        </binding>
-    </key>
-    <key value="r">
-        <binding action="rotate-90-deg">
-            <ctrl/><shift/>
-        </binding>
-    </key>
-</Keyboard>"#;
-
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub enum MODIFIER {
     #[serde(rename = "alt")]
@@ -142,32 +129,46 @@ macro_rules! build_shortcuts {
     };
 }
 
-impl Default for Keyboard {
-    fn default() -> Self {
-        Keyboard {
-            keys: vec![
-                Key {
-                    value: String::from("o"),
-                    bindings: vec![Binding {
-                        action: "editor.file.open".into(),
-                        modifiers: vec![MODIFIER::CTRL],
-                    }],
-                },
-                Key {
-                    value: String::from("e"),
-                    bindings: vec![Binding {
-                        action: "editor.file.close".into(),
-                        modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT],
-                    }],
-                },
-                Key {
-                    value: String::from("r"),
-                    bindings: vec![Binding {
-                        action: "editor.image.rotate-90-deg".into(),
-                        modifiers: vec![MODIFIER::CTRL, MODIFIER::SHIFT],
-                    }],
-                },
-            ],
+macro_rules! build_default {
+    ($($letter:expr, { $($modifiers:expr => $action:expr)* } )*) => {
+        impl Default for Keyboard {
+            fn default() -> Self {
+                Keyboard {
+                    keys: vec![
+                        $(
+                            Key {
+                                value: String::from($letter),
+                                bindings: vec![
+                                    $(
+                                        Binding {
+                                            action: String::from($action),
+                                            modifiers: $modifiers
+                                        }
+                                    )*
+                                ]
+                            },
+                        )*
+                    ],
+                }
+            }
         }
-    }
+    };
 }
+
+build_default!(
+"o", {
+    vec![MODIFIER::CTRL] => "editor.file.open"
+}
+"z", {
+    vec![MODIFIER::CTRL] => "editor.preview.undo"
+}
+"y", {
+    vec![MODIFIER::CTRL] => "editor.preview.redo"
+}
+"e", {
+    vec![MODIFIER::CTRL] => "editor.file.close"
+}
+"r", {
+    vec![MODIFIER::CTRL, MODIFIER::SHIFT] => "editor.image.rotate-90-deg"
+}
+);
