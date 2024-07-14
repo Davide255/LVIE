@@ -1,7 +1,7 @@
 //standard widgets
 import { VerticalBox, Button , HorizontalBox } from "std-widgets.slint";
 //custom widget and theme colors
-import { Screen, ScreenCallbacks, Linespace, MaskCallbacks, CurveCallbacks } from "widgets/screen.slint";
+import { Screen, ScreenCallbacks, MaskCallbacks, CurveCallbacks } from "widgets/screen.slint";
 import { Palette } from "color/palette.slint";
 import { Toolbar, ToolbarCallbacks, Spacer, AlertType } from "widgets/toolbar.slint";
 import { SettingsScreen, SettingsCallbacks } from "widgets/settings.slint";
@@ -103,4 +103,4 @@ component LVIE inherits Window {
     }
 }
 
-export { LVIE, ToolbarCallbacks, ScreenCallbacks, Linespace, MaskCallbacks, CurveCallbacks, SettingsCallbacks }
+export { LVIE, ToolbarCallbacks, ScreenCallbacks, MaskCallbacks, CurveCallbacks, SettingsCallbacks }

@@ -80,10 +80,12 @@ where
         self.loaded_image.dimensions()
     }
 
-    pub fn load_image(&mut self, img: CRgbaImage<P>) {
+    pub fn load_image(&mut self, img: CRgbaImage<P>, update: bool) {
         self.loaded_image = img.clone();
         self.rendering.imagebuffers.replace_rgb(img.clone());
-        self.rendering.imagebuffers.update();
+        if update {
+            self.rendering.imagebuffers.update();
+        }
         self.full_res_preview = img;
         self.loaded_filters = FilterArray::new(None);
     }
@@ -150,7 +152,7 @@ where
         self.rendering.imagebuffers.update();
     }
 
-    pub fn export(&mut self) -> CRgbaImage<P> {
+    pub fn export(&mut self) -> CRgbaImage<image::Rgba<u8>> {
         let mut filters = self.filters.clone();
         filters.update_filter(
             FilterType::WhiteBalance,
@@ -168,6 +170,7 @@ where
         return self
             .rendering
             .render_data(&self.full_res_preview, &filters)
-            .unwrap();
+            .unwrap()
+            .scale_image::<P, image::Rgba<u8>>();
     }
 }

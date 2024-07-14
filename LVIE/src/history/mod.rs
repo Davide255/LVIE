@@ -10,6 +10,8 @@ use std::{
 mod operations;
 #[macro_use]
 mod builder;
+mod callbacks;
+pub use callbacks::init_history_callbacks;
 
 pub use operations::*;
 
@@ -54,15 +56,12 @@ impl History {
         max_mem_size: Option<impl FileSize>,
     ) -> History {
         let fh = FileHandler::new(
-            temp_file_directory.unwrap_or_else(|| {
-                let d = std::env::current_dir().unwrap().join(".LVIE").join("temp");
-                if d.is_dir() {
-                    std::fs::create_dir(&d).expect("Failed to create directory");
-                }
-                d
-            }),
+            temp_file_directory
+                .unwrap_or_else(|| std::env::current_dir().unwrap().join(".LVIE").join("temp")),
             max_mem_size,
         );
+
+        println!("{}", fh.root_path.display());
 
         History {
             history: Vec::new(),
@@ -178,6 +177,10 @@ impl FileHandler {
             }
             None => FileSizes::GB(3).size_as_bytes(),
         };
+
+        if !root.is_dir() {
+            std::fs::create_dir(&root).expect("Failed to create directory");
+        }
 
         FileHandler {
             root_path: root,
