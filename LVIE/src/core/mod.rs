@@ -9,4 +9,5 @@ mod rendering;
 pub use data::Data;
 pub use filters::*;
 pub use imagebuffers::ImageBuffers;
+pub use masks::*;
 pub use rendering::*;

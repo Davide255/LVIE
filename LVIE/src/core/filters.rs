@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CurveType {
     MONOTONE,
     SMOOTH,
@@ -91,6 +91,17 @@ impl Curve {
         self.build_curve();
     }
 
+    pub fn update_curve_point(&mut self, index: usize, point: [f32; 2]) -> Result<(), CurveError> {
+        if index < self.xs.len() {
+            self.xs[index] = point[0];
+            self.ys[index] = point[1];
+            self.build_curve();
+            Ok(())
+        } else {
+            Err(CurveError::OUT_OF_RANGE("this point does not exist".into()))
+        }
+    }
+
     pub fn get_raw_data(&self) -> (Vec<f32>, Vec<f32>) {
         (self.xs.clone(), self.ys.clone())
     }
@@ -116,6 +127,10 @@ impl Curve {
             c.push(std::rc::Rc::new(slint::VecModel::from(vec![self.xs[i], self.ys[i]])).into())
         }
         std::rc::Rc::new(slint::VecModel::from(c)).into()
+    }
+
+    pub fn get_point(&self, index: usize) -> [f32; 2] {
+        [self.xs[index], self.ys[index]]
     }
 
     pub fn get_points(&self) -> Vec<[f32; 2]> {
@@ -200,18 +215,24 @@ macro_rules! filter {
             parameters
         }}
     };
+    ($ty: expr) => {
+        crate::core::Filter {
+            filtertype: $ty,
+            parameters: $ty.default()
+        }
+    }
 }
 
 impl FilterArray {
     pub fn new(filters: Option<Vec<Filter>>) -> FilterArray {
         let mut fa = vec![
             filter!(FilterType::Exposition, 0.0),
-            filter!(FilterType::Sharpening, 0.0, 0.0),
-            filter!(FilterType::WhiteBalance, 6000.0, 0.0),
+            filter!(FilterType::Sharpening),
+            filter!(FilterType::WhiteBalance),
             filter!(FilterType::Contrast, 0.0),
             filter!(FilterType::Saturation, 0.0),
-            filter!(FilterType::GaussianBlur, 0.0, 0.0),
-            filter!(FilterType::Boxblur, 0.0, 0.0),
+            filter!(FilterType::GaussianBlur),
+            filter!(FilterType::Boxblur),
         ];
 
         if filters.is_some() {

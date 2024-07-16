@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use image::{ImageBuffer, Pixel};
 use num_traits::NumCast;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::traits::Scale;
 
@@ -343,23 +344,13 @@ pub fn bezier_cubic_curve(points: [[f32; 2]; 4], steps: Option<usize>) -> Vec<[f
         return c.0 * mt3 + 3.0 * c.1 * mt2 * t + 3.0 * c.2 * mt * t2 + c.3 * t3;
     }
 
-    fn compute_required_points(points: &[[f32; 2]; 4]) -> usize {
-        let endpoints_distance =
-            ((points[3][0] - points[0][0]).powi(2) + (points[3][1] - points[0][1]).powi(2)).sqrt();
-        (endpoints_distance
-            * (1.0
-                + ((points[1][0].powi(2) + points[1][1].powi(2)).sqrt()
-                    + (points[2][0].powi(2) + points[2][1].powi(2)).sqrt())
-                    / (2.0 * endpoints_distance)))
-            .ceil() as usize
-    }
-
     let x = (points[0][0], points[1][0], points[2][0], points[3][0]);
     let y = (points[0][1], points[1][1], points[2][1], points[3][1]);
 
     let mut out = Vec::new();
 
-    let steps = steps.unwrap_or_else(|| compute_required_points(&points));
+    let steps =
+        steps.unwrap_or_else(|| (curve_lenght_approximation(&points) / 1.5).ceil() as usize);
 
     for k in 0..steps {
         out.push([
@@ -369,6 +360,41 @@ pub fn bezier_cubic_curve(points: [[f32; 2]; 4], steps: Option<usize>) -> Vec<[f
     }
 
     out
+}
+
+fn curve_lenght_approximation(points: &[[f32; 2]; 4]) -> f32 {
+    fn CubicN(t: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
+        let t2 = t * t;
+        let t3 = t2 * t;
+        return a
+            + (-a * 3.0 + t * (3.0 * a - a * t)) * t
+            + (3.0 * b + t * (-6.0 * b + b * 3.0 * t)) * t
+            + (c * 3.0 - c * 3.0 * t) * t2
+            + d * t3;
+    }
+
+    let x: Vec<f32> = points.into_iter().map(|p| p[0]).collect();
+    let y: Vec<f32> = points.into_iter().map(|p| p[1]).collect();
+
+    let steps: usize = 1000000;
+
+    let mut polyx = Vec::new();
+    let mut polyy = Vec::new();
+
+    for k in 0..=steps {
+        polyx.push(CubicN(k as f32 / steps as f32, x[0], x[1], x[2], x[3]));
+        polyy.push(CubicN(k as f32 / steps as f32, y[0], y[1], y[2], y[3]));
+    }
+
+    (0..steps - 1)
+        .into_par_iter()
+        .map(|k| {
+            let (x, y) = (polyx[k], polyy[k]);
+            let (x1, y1) = (polyx[k + 1], polyy[k + 1]);
+
+            ((x1 - x).powi(2) + (y1 - y).powi(2)).sqrt()
+        })
+        .sum()
 }
 
 #[cfg(test)]

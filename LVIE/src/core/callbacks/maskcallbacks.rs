@@ -9,6 +9,7 @@ use super::super::{
     Data,
 };
 
+#[allow(unused_variables, unused_mut)]
 pub fn init_mask_callbacks<P>(
     Window: Weak<LVIE>,
     DATA: Arc<Mutex<Data<P>>>,
@@ -49,18 +50,21 @@ pub fn init_mask_callbacks<P>(
             let i = d.masks[0].add_point([x, y]);
 
             hw.lock().unwrap().register_Mask_Operation_without_saving(
-                &((0, MaskOperationType::MainPointAdded(i))),
+                &((0, MaskOperationType::MainPointAdded(i, x, y))),
             );
 
             let Window = ww.unwrap();
             Window.set_mask_points(d.masks[0].into_rc_model());
-            Window.set_connection_line_points(
-                d.masks[0].generate_line_for_slint(Some(width), Some(height)),
-            );
             Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
-            Window.set_control_point_connection_line(
-                d.masks[0].generate_control_point_connection_lines_for_slint(),
-            );
+            #[cfg(not(debug_assertions))]
+            {
+                Window.set_connection_line_points(
+                    d.masks[0].generate_line_for_slint(Some(width), Some(height)),
+                );
+                Window.set_control_point_connection_line(
+                    d.masks[0].generate_control_point_connection_lines_for_slint(),
+                );
+            }
             return i.try_into().unwrap();
         },
     );
@@ -127,12 +131,15 @@ pub fn init_mask_callbacks<P>(
             let W = ww.unwrap();
             W.set_mask_points(data.masks[0].into_rc_model());
             W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
-            W.set_connection_line_points(
-                data.masks[0].generate_line_for_slint(Some(width), Some(height)),
-            );
-            W.set_control_point_connection_line(
-                data.masks[0].generate_control_point_connection_lines_for_slint(),
-            );
+            #[cfg(not(debug_assertions))]
+            {
+                W.set_connection_line_points(
+                    data.masks[0].generate_line_for_slint(Some(width), Some(height)),
+                );
+                W.set_control_point_connection_line(
+                    data.masks[0].generate_control_point_connection_lines_for_slint(),
+                );
+            }
         });
 
     let ww = Window.as_weak();
@@ -143,20 +150,18 @@ pub fn init_mask_callbacks<P>(
             let mut data = dw.lock().unwrap();
             match data.masks[0].update_point(index as usize, [x, y]) {
                 Ok((x, y)) => {
-                    hw.lock().unwrap().register_Mask_Operation_without_saving(&(
-                        0,
-                        MaskOperationType::MainPointMoved(index as usize, x, y),
-                    ));
-
                     let W = ww.unwrap();
                     W.set_mask_points(data.masks[0].into_rc_model());
                     W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
-                    W.set_connection_line_points(
-                        data.masks[0].generate_line_for_slint(Some(width), Some(height)),
-                    );
-                    W.set_control_point_connection_line(
-                        data.masks[0].generate_control_point_connection_lines_for_slint(),
-                    );
+                    #[cfg(not(debug_assertions))]
+                    {
+                        W.set_connection_line_points(
+                            data.masks[0].generate_line_for_slint(Some(width), Some(height)),
+                        );
+                        W.set_control_point_connection_line(
+                            data.masks[0].generate_control_point_connection_lines_for_slint(),
+                        );
+                    }
                 }
                 Err(err) => {
                     println!("{:?}", err);
@@ -174,12 +179,14 @@ pub fn init_mask_callbacks<P>(
             match data.masks[0]
                 .update_control_point([index as usize / 10, index as usize % 10], [x, y])
             {
-                Ok((x, y)) => {
+                Ok((ox, oy)) => {
                     hw.lock().unwrap().register_Mask_Operation_without_saving(&(
                         0,
                         MaskOperationType::ControlPointMoved(
                             index as usize / 10,
                             index as usize % 10,
+                            ox,
+                            oy,
                             x,
                             y,
                         ),
@@ -187,12 +194,15 @@ pub fn init_mask_callbacks<P>(
 
                     let W = ww.unwrap();
                     W.set_bezier_control_points(data.masks[0].get_control_points_model_rc());
-                    W.set_connection_line_points(
-                        data.masks[0].generate_line_for_slint(Some(width), Some(height)),
-                    );
-                    W.set_control_point_connection_line(
-                        data.masks[0].generate_control_point_connection_lines_for_slint(),
-                    );
+                    #[cfg(not(debug_assertions))]
+                    {
+                        W.set_connection_line_points(
+                            data.masks[0].generate_line_for_slint(Some(width), Some(height)),
+                        );
+                        W.set_control_point_connection_line(
+                            data.masks[0].generate_control_point_connection_lines_for_slint(),
+                        );
+                    }
                 }
                 Err(err) => {
                     println!("{:?}", err);
@@ -217,12 +227,15 @@ pub fn init_mask_callbacks<P>(
                     let Window = ww.unwrap();
                     Window.set_mask_points(d.masks[0].into_rc_model());
                     Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
-                    Window.set_connection_line_points(
-                        d.masks[0].generate_line_for_slint(Some(width), Some(height)),
-                    );
-                    Window.set_control_point_connection_line(
-                        d.masks[0].generate_control_point_connection_lines_for_slint(),
-                    );
+                    #[cfg(not(debug_assertions))]
+                    {
+                        Window.set_connection_line_points(
+                            d.masks[0].generate_line_for_slint(Some(width), Some(height)),
+                        );
+                        Window.set_control_point_connection_line(
+                            d.masks[0].generate_control_point_connection_lines_for_slint(),
+                        );
+                    }
                 }
                 Err(err) => {
                     println!("{:?}", err);
@@ -248,12 +261,29 @@ pub fn init_mask_callbacks<P>(
                 let Window = ww.unwrap();
                 Window.set_mask_points(d.masks[0].into_rc_model());
                 Window.set_bezier_control_points(d.masks[0].get_control_points_model_rc());
-                Window.set_connection_line_points(
-                    d.masks[0].generate_line_for_slint(Some(width), Some(height)),
-                );
-                Window.set_control_point_connection_line(
-                    d.masks[0].generate_control_point_connection_lines_for_slint(),
-                );
+                #[cfg(not(debug_assertions))]
+                {
+                    Window.set_connection_line_points(
+                        d.masks[0].generate_line_for_slint(Some(width), Some(height)),
+                    );
+                    Window.set_control_point_connection_line(
+                        d.masks[0].generate_control_point_connection_lines_for_slint(),
+                    );
+                }
             }
+        });
+
+    let dw = DATA.clone();
+    let hw = HISTORY.clone();
+    Window
+        .global::<MaskCallbacks>()
+        .on_update_history(move |index, x, y| {
+            let data = dw.lock().unwrap();
+            let p = data.masks[0].get_point(index as usize);
+
+            hw.lock().unwrap().register_Mask_Operation_without_saving(&(
+                0,
+                MaskOperationType::MainPointMoved(index as usize, x, y, p[0], p[1]),
+            ))
         });
 }

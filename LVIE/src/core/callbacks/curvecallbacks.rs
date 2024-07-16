@@ -33,7 +33,6 @@ pub fn init_curve_callbacks<P>(
 
     let ww = Window.as_weak();
     let dw = DATA.clone();
-    let hw = HISTORY.clone();
     Window.global::<CurveCallbacks>().on_update_curve(
         move |points: slint::ModelRc<slint::ModelRc<f32>>| {
             let mut data = dw.lock().unwrap();
@@ -43,12 +42,8 @@ pub fn init_curve_callbacks<P>(
             for (i, point) in points.iter().enumerate() {
                 let p: Vec<f32> = point.iter().collect();
                 if !(xs[i] == p[0] && ys[i] == p[1]) {
-                    hw.lock().unwrap().register_Curve_Operation_without_saving(
-                        &CurveOperationType::CurvePointMoved(i, xs.remove(i), ys.remove(i)),
-                    );
-
-                    xs.insert(i, p[0]);
-                    ys.insert(i, p[1]);
+                    xs[i] = p[0];
+                    ys[i] = p[1];
                 }
             }
 
@@ -70,9 +65,9 @@ pub fn init_curve_callbacks<P>(
             let mut d = dw.lock().unwrap();
             let i = d.curve.add_point([x, y]).expect("Failed to add a point");
 
-            hw.lock()
-                .unwrap()
-                .register_Curve_Operation_without_saving(&CurveOperationType::CurvePointAdded(i));
+            hw.lock().unwrap().register_Curve_Operation_without_saving(
+                &CurveOperationType::CurvePointAdded(i, x, y),
+            );
 
             let Window = ww.unwrap();
             Window.set_curve(d.curve.to_image((300, 300)));
@@ -148,5 +143,18 @@ pub fn init_curve_callbacks<P>(
                 d.curve.set_curve_type(new_c_type);
                 ww.unwrap().set_curve(d.curve.to_image((300, 300)));
             }
+        });
+
+    let dw = DATA.clone();
+    let hw = HISTORY.clone();
+    Window
+        .global::<CurveCallbacks>()
+        .on_update_history(move |index, x, y| {
+            let data = dw.lock().unwrap();
+            let p = data.curve.get_point(index as usize);
+            println!("[{}, {}], {:?}", x, y, p);
+            hw.lock().unwrap().register_Curve_Operation_without_saving(
+                &CurveOperationType::CurvePointMoved(index as usize, x, y, p[0], p[1]),
+            )
         });
 }

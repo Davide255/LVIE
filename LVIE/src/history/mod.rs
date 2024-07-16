@@ -13,6 +13,7 @@ mod builder;
 mod callbacks;
 pub use callbacks::init_history_callbacks;
 
+use itertools::Itertools;
 pub use operations::*;
 
 use crate::core::FilterArray;
@@ -30,6 +31,14 @@ build_operation!(
     (Curve, CurveOperationType),
 );
 
+struct EmptyOperation {}
+
+impl Operation for EmptyOperation {
+    fn get_type(&self) -> &OperationType {
+        &OperationType::Logic
+    }
+}
+
 pub trait Operation: DowncastSync {
     fn get_type(&self) -> &OperationType;
 }
@@ -37,7 +46,7 @@ downcast_rs::impl_downcast!(sync Operation);
 
 impl Debug for dyn Operation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Operation: {:?}", self)
+        write!(f, "Operation: {:?}", self.get_type())
     }
 }
 
@@ -60,8 +69,6 @@ impl History {
                 .unwrap_or_else(|| std::env::current_dir().unwrap().join(".LVIE").join("temp")),
             max_mem_size,
         );
-
-        println!("{}", fh.root_path.display());
 
         History {
             history: Vec::new(),
@@ -125,6 +132,36 @@ impl History {
         } else {
             None
         }
+    }
+
+    fn start_from_now(&mut self) {
+        if self.current_index == 0 {
+            return;
+        }
+        let old = self
+            .history
+            .split_at(self.history.len() - self.current_index)
+            .1;
+
+        let ni = old
+            .into_iter()
+            .map(|(k, _)| *k)
+            .counts_by(|v| v)
+            .to_owned()
+            .get(&true)
+            .unwrap_or_else(|| &0)
+            .to_owned();
+
+        self.file_handler
+            .start_from(ni)
+            .expect("Failed to restart file handler");
+
+        self.history
+            .resize_with(self.history.len() - self.current_index, || {
+                (false, Box::new(EmptyOperation {}))
+            });
+
+        self.current_index = 0;
     }
 }
 
@@ -304,5 +341,29 @@ impl FileHandler {
                 "cannot decode data",
             ))
         }
+    }
+
+    fn start_from(&mut self, index: usize) -> std::io::Result<()> {
+        let (new, old) = self
+            .current_files
+            .split_at(self.current_files.len() - index);
+        for f in old {
+            if f.is_file() {
+                std::fs::remove_file(f)?;
+            }
+        }
+        self.current_mem_size
+            .resize(self.current_files.len() - self.current_index, 0);
+        self.current_files = new.to_vec();
+        self.current_index = 0;
+        Ok(())
+    }
+}
+
+impl Drop for FileHandler {
+    #[allow(unused_must_use)]
+    fn drop(&mut self) {
+        std::fs::remove_dir_all(&self.root_path);
+        std::fs::create_dir(&self.root_path);
     }
 }

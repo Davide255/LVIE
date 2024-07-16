@@ -9,6 +9,7 @@ global MaskCallbacks {
     callback update-control-point(int, float, float, length, length);
     callback update-mask(length, length);
     callback close-mask-path(length, length);
+    callback update-history(int, float, float);
     callback apply-mask();
 }
 
@@ -227,6 +228,9 @@ component ImageSpace {
                         sv.viewport-width, sv.viewport-height
                         );
                     } else if (event.kind == PointerEventKind.up) {
+                        if (self.ox != mask_points[self.cid][0] || self.oy != mask_points[self.cid][1]) {
+                            MaskCallbacks.update-history(self.cid, self.ox, self.oy);
+                        }
                         self.cid = -1;
                         self.pt = PointType.None;
                     }

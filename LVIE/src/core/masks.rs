@@ -53,8 +53,13 @@ impl Mask {
     }
 
     pub fn add_point_at_index(&mut self, coords: [f32; 2], index: usize) -> usize {
-        self.mask_points.insert(index, coords);
-        self.bezier_control_points.insert(index, [[-1.0; 2]; 2]);
+        if index < self.mask_points.len() {
+            self.mask_points.insert(index, coords);
+            self.bezier_control_points.insert(index, [[-1.0; 2]; 2]);
+        } else {
+            self.mask_points.push(coords);
+            self.bezier_control_points.push([[-1.0; 2]; 2]);
+        }
         index
     }
 
@@ -66,6 +71,7 @@ impl Mask {
         std::rc::Rc::new(slint::VecModel::from(c)).into()
     }
 
+    #[allow(dead_code)]
     pub fn generate_line_for_slint(
         &mut self,
         width: Option<f32>,
@@ -183,6 +189,7 @@ impl Mask {
         std::rc::Rc::new(slint::VecModel::from(line)).into()
     }
 
+    #[allow(dead_code)]
     pub fn generate_control_point_connection_lines_for_slint(
         &self,
     ) -> slint::ModelRc<slint::ModelRc<f32>> {
@@ -423,6 +430,10 @@ impl Mask {
 
     pub fn get_points(&self) -> &Vec<[f32; 2]> {
         &self.mask_points
+    }
+
+    pub fn get_point(&self, index: usize) -> &[f32; 2] {
+        &self.mask_points[index]
     }
 
     pub fn get_control_points(&self) -> Vec<[[f32; 2]; 2]> {

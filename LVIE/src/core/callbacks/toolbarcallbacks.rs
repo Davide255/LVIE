@@ -131,11 +131,10 @@ pub fn init_toolbar_callbacks<P>(
 {
     let Window = Window.unwrap();
 
-    // CALLBACKS:
     // open image:
     let data_weak = DATA.clone();
-    //let prev_w = preview.clone();
     let Window_weak = Window.as_weak();
+    let hw = HISTORY.clone();
     Window.global::<ToolbarCallbacks>().on_open_file(move || {
         // get the file with native file dialog
         let fd = rfd::FileDialog::new()
@@ -183,6 +182,10 @@ pub fn init_toolbar_callbacks<P>(
         }
 
         let mut data = data_weak.lock().unwrap();
+
+        hw.lock().unwrap().register_Logic_Operation_without_saving(
+            &crate::history::LogicOperationType::FileLoaded(),
+        );
 
         // load the image
         data.load_image(img.scale_image::<image::Rgba<u8>, P>(), true);

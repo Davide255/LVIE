@@ -128,47 +128,6 @@ pub fn init_screen_callbacks<P>(
             .expect("Failed to call event loop");
     });
 
-    //reset
-    let data_weak = DATA.clone();
-    let Window_weak = Window.as_weak();
-    let hw = HISTORY.clone();
-    Window.global::<ScreenCallbacks>().on_reset(move || {
-        let mut data = data_weak.lock().expect("Failed to lock data");
-
-        hw.lock()
-            .unwrap()
-            .register_Logic_Operation_without_saving(&LogicOperationType::Reset(
-                data.get_loaded_filters().clone(),
-            ));
-
-        // restore filters
-        data.reset();
-
-        // restore all the previews to the original image
-        let img = data.full_res_preview.scale_image::<P, image::Rgba<u8>>();
-
-        Window_weak
-            .upgrade_in_event_loop(move |Window: LVIE| {
-                Window.set_image(slint::Image::from_rgba8(
-                    SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                        &img,
-                        img.width(),
-                        img.height(),
-                    ),
-                ));
-
-                let ww = Window.as_weak();
-                thread::spawn(move || {
-                    let path = create_svg_path(&img);
-                    ww.upgrade_in_event_loop(move |window| {
-                        window.set_svg_path(path.into());
-                    })
-                    .expect("Failed to run in event loop");
-                });
-            })
-            .expect("Failed to call event loop");
-    });
-
     // apply filters
     let data_weak = DATA.clone();
     let Window_weak = Window.as_weak();
