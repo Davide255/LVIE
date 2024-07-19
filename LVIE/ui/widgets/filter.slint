@@ -1,6 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Palette } from "../color/palette.slint";
 import { CustomSlider } from "slider/slider.slint";
+
 export component Filter inherits VerticalBox {
     in-out property <string> name;
     in-out property <float> minimum: -1.0;
@@ -14,6 +15,8 @@ export component Filter inherits VerticalBox {
     property <int> s_factor: Math.pow(10, decimals);
 
     callback on_move();
+    callback on-press <=> s.on-press;
+    callback on-release <=> s.on-release;
     property <length> text_height: root.height *35%;
 
     height: self.width * 30% >= 40px ? self.width * 30% : 40px;

@@ -24,7 +24,7 @@ use num_traits::NumCast;
 use downcast_rs::DowncastSync;
 
 build_operation!(
-    (Filter, FilterArray),
+    (Filter, (FilterArray, FilterArray)),
     (Logic, LogicOperationType),
     (Geometric, GeometricOperationType),
     (Mask, (usize, MaskOperationType)),
@@ -97,6 +97,7 @@ impl History {
     pub fn undo(&mut self) -> Option<&Box<dyn Operation>> {
         if self.current_index < self.history.len() {
             self.current_index += 1;
+            self.file_handler.shift = 1;
             Some(&self.history[self.history.len() - self.current_index].1)
         } else {
             None
@@ -110,6 +111,7 @@ impl History {
     pub fn redo(&mut self) -> Option<&Box<dyn Operation>> {
         if self.current_index > 0 {
             self.current_index -= 1;
+            self.file_handler.shift = 0;
             Some(&self.history[self.history.len() - 1 - self.current_index].1)
         } else {
             None
@@ -117,7 +119,7 @@ impl History {
     }
 
     pub fn preview_aviable(&self) -> bool {
-        self.use_temp_files && self.history[self.history.len() - self.current_index].0
+        self.use_temp_files && self.history[self.history.len() - 1 - self.current_index].0
     }
 
     pub fn get_precomputed_preview<P>(
@@ -127,8 +129,16 @@ impl History {
         P: image::Pixel + std::fmt::Debug,
         P::Subpixel: image::Primitive + std::fmt::Debug + num_traits::ToBytes + bytemuck::Pod,
     {
-        if self.history[self.history.len() - self.current_index].0 && self.use_temp_files {
-            Some(self.file_handler.read())
+        if self.history
+            [self.history.len() - (1 - self.file_handler.shift) as usize - self.current_index]
+            .0
+            && self.use_temp_files
+        {
+            if self.file_handler.shift == 0 {
+                Some(self.file_handler.redo())
+            } else {
+                Some(self.file_handler.undo())
+            }
         } else {
             None
         }
@@ -197,6 +207,7 @@ pub struct FileHandler {
     current_mem_size: Vec<usize>,
     current_files: Vec<PathBuf>,
     current_index: usize,
+    pub shift: usize,
 }
 
 impl FileHandler {
@@ -225,6 +236,7 @@ impl FileHandler {
             current_mem_size: Vec::new(),
             current_files: Vec::new(),
             current_index: 0,
+            shift: 0,
         }
     }
 
@@ -286,7 +298,7 @@ impl FileHandler {
         Ok(())
     }
 
-    pub fn read<P>(&mut self) -> std::io::Result<image::ImageBuffer<P, Vec<P::Subpixel>>>
+    fn read<P>(&mut self) -> std::io::Result<image::ImageBuffer<P, Vec<P::Subpixel>>>
     where
         P: image::Pixel + std::fmt::Debug,
         P::Subpixel: image::Primitive + std::fmt::Debug + num_traits::ToBytes + bytemuck::Pod,
@@ -296,10 +308,10 @@ impl FileHandler {
         }
         let mut fs = File::open(
             &self.current_files[self.current_files.len() - {
-                if self.current_index == self.current_files.len() {
+                if self.current_index + self.shift == self.current_files.len() {
                     self.current_files.len()
                 } else {
-                    self.current_index + 1
+                    self.current_index + self.shift + 1
                 }
             }],
         )?;
@@ -328,9 +340,6 @@ impl FileHandler {
             let mut buf = vec![0u8; buffer_size];
             fs.read(&mut buf)?;
 
-            self.current_index =
-                num_traits::clamp(self.current_index + 1, 0, self.current_files.len());
-
             Ok(
                 image::ImageBuffer::from_vec(width, height, bytemuck::cast_slice(&buf).to_vec())
                     .unwrap(),
@@ -356,7 +365,26 @@ impl FileHandler {
             .resize(self.current_files.len() - self.current_index, 0);
         self.current_files = new.to_vec();
         self.current_index = 0;
+        self.shift = 0;
         Ok(())
+    }
+
+    pub fn undo<P>(&mut self) -> std::io::Result<image::ImageBuffer<P, Vec<P::Subpixel>>>
+    where
+        P: image::Pixel + std::fmt::Debug,
+        P::Subpixel: image::Primitive + std::fmt::Debug + num_traits::ToBytes + bytemuck::Pod,
+    {
+        self.current_index += 1;
+        self.read()
+    }
+
+    pub fn redo<P>(&mut self) -> std::io::Result<image::ImageBuffer<P, Vec<P::Subpixel>>>
+    where
+        P: image::Pixel + std::fmt::Debug,
+        P::Subpixel: image::Primitive + std::fmt::Debug + num_traits::ToBytes + bytemuck::Pod,
+    {
+        self.current_index -= 1;
+        self.read()
     }
 }
 

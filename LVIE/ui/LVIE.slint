@@ -19,7 +19,7 @@ component LVIE inherits Window {
     in-out property <AlertType> AlertBoxType: AlertType.Null;
     in-out property <string> AlertText: "";
 
-    in-out property <[string]> svg_path;
+    callback update-values <=> content.update-values;
     in-out property <[image]> new_histogram;
 
     in-out property <image> image <=> content.image;
@@ -58,7 +58,6 @@ component LVIE inherits Window {
         }
 
         content := Screen {
-            histogram: svg-path;
             new_histogram: new_histogram;
             height: root.height - tb.height;
             width: root.width;

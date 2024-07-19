@@ -13,6 +13,7 @@ global ScreenCallbacks {
     callback reset();
     callback undo();
     callback redo();
+    callback update-history(float, float, float, float, float, float, float);
     callback set-Warning-Message(string);
     callback save-file(string);
 
@@ -23,7 +24,8 @@ global ScreenCallbacks {
 component Screen inherits HorizontalBox {
     in-out property <image> image <=> img.source;
     in-out property <length> image-space-size-width <=> img.width;
-    in-out property <[string]> histogram: ["","",""];
+    //in-out property <[string]> histogram: ["","",""];
+
     in property <[image]> new_histogram;
 
     in-out property <image> curve <=> curve.source;
@@ -34,6 +36,10 @@ component Screen inherits HorizontalBox {
     in-out property <[[float]]> connection_line <=> img.connection_line;
     in-out property <[[float]]> control_point_connection_line <=> img.control_point_connection_line;
 
+    property <[float]> _last_filter: [
+        exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, temp.value, tint.value, saturation.value
+    ];
+
     spacing: 10px;
 
     function send-applyfilters() {
@@ -41,6 +47,23 @@ component Screen inherits HorizontalBox {
             exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, 
             temp.value, tint.value, saturation.value
             );
+    }
+
+    function update-history() {
+        ScreenCallbacks.update-history(
+            _last_filter[0], _last_filter[1], _last_filter[2], _last_filter[3], _last_filter[4], _last_filter[5], _last_filter[6]
+            );
+    }
+
+    callback update-values([float]);
+    update-values(values) => {
+        exposition.value = values[0];
+        box-blur.value = values[1];
+        gaussian-blur.value = values[2];
+        sharpening.value = values[3];
+        temp.value = values[4];
+        tint.value = values[5];
+        saturation.value = values[6];
     }
 
     left_area := Rectangle {
@@ -86,13 +109,25 @@ component Screen inherits HorizontalBox {
                 temp := Filter {
                     name: "Temperature";
                     background: @linear-gradient(90deg, #0011ff 0%, #ffffff 50%, #f9ff56 100%);
+                    on-press => {
+                        _last_filter = [exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, temp.value, tint.value, saturation.value];
+                    }
                     on_move => { send-applyfilters(); }
+                    on-release => {
+                        update-history()
+                    }
                 }
             
                 tint := Filter {
                     name: "Tint";
                     background: @linear-gradient(90deg, #f660f9 0%, #66ff00 100%);
+                    on-press => {
+                        _last_filter = [exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, temp.value, tint.value, saturation.value];
+                    }
                     on_move => { send-applyfilters(); }
+                    on-release => {
+                        update-history()
+                    }
                 }
                 
                 HorizontalBox {
@@ -134,17 +169,33 @@ component Screen inherits HorizontalBox {
                     spacing: 2px;
                     saturation := Filter {
                         name: "Saturation";
+                        value: 0;
                         background: @linear-gradient(90deg, #515050 0%, #ff0000 100%);
-                        on_move => { send-applyfilters(); }
+                        on-press => {
+                            _last_filter = [exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, temp.value, tint.value, saturation.value];
+                        }
+                        on_move => {
+                            send-applyfilters(); 
+                        }
+                        on-release => {
+                            update-history()
+                        }
                     }
 
                     sharpening := Filter {
                         name: "Sharpening";
+                        value: 0;
                         minimum: 0.0;
                         maximum: 100.0;
                         percent: true;
                         decimals: 0;
+                        on-press => {
+                            _last_filter = [exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, temp.value, tint.value, saturation.value];
+                        }
                         on_move => { send-applyfilters(); }
+                        on-release => {
+                            update-history()
+                        }
                     }
 
                     gaussian_blur := Filter {
@@ -165,8 +216,15 @@ component Screen inherits HorizontalBox {
 
                     exposition := Filter {
                         name: "Exposition";
+                        value: 0;
                         background: @linear-gradient(90deg, #000000 0%, #ffffff 100%);
+                        on-press => {
+                            _last_filter = [exposition.value, box-blur.value, gaussian-blur.value, sharpening.value, temp.value, tint.value, saturation.value];
+                        }
                         on_move => { send-applyfilters(); }
+                        on-release => {
+                            update-history()
+                        }
                     }
 
                     Button {

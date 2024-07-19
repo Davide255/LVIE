@@ -27,7 +27,8 @@ pub fn init_curve_callbacks<P>(
         + bytemuck::Pod
         + Send
         + Sync
-        + LVIElib::traits::AsFloat,
+        + LVIElib::traits::AsFloat
+        + num_traits::ToBytes,
 {
     let Window = Window.unwrap();
 
@@ -152,7 +153,7 @@ pub fn init_curve_callbacks<P>(
         .on_update_history(move |index, x, y| {
             let data = dw.lock().unwrap();
             let p = data.curve.get_point(index as usize);
-            println!("[{}, {}], {:?}", x, y, p);
+
             hw.lock().unwrap().register_Curve_Operation_without_saving(
                 &CurveOperationType::CurvePointMoved(index as usize, x, y, p[0], p[1]),
             )

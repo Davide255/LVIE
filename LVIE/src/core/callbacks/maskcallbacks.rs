@@ -29,7 +29,8 @@ pub fn init_mask_callbacks<P>(
         + Send
         + Sync
         + Default
-        + LVIElib::traits::AsFloat,
+        + LVIElib::traits::AsFloat
+        + num_traits::ToBytes,
 {
     let Window = Window.unwrap();
 

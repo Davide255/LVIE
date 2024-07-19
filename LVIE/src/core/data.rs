@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use image::{Pixel, Primitive};
+use num_traits::ToBytes;
 use LVIE_GPU::Pod;
 
 use LVIElib::traits::*;
@@ -16,7 +17,7 @@ use super::masks::Mask;
 pub struct Data<P>
 where
     P: Pixel + Send + Sync + Debug + ToHsl + ToOklab + 'static,
-    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat,
+    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat + ToBytes,
 {
     rendering: Rendering<P>,
     pub full_res_preview: CRgbaImage<P>,
@@ -31,7 +32,7 @@ where
 impl<P> Data<P>
 where
     P: Pixel + Send + Sync + 'static + Debug + ToOklab + ToHsl,
-    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat,
+    P::Subpixel: Scale + Primitive + Debug + Pod + Send + Sync + AsFloat + ToBytes,
 {
     pub fn new(
         rendering: Rendering<P>,

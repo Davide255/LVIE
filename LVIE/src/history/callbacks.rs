@@ -43,12 +43,24 @@ pub fn init_history_callbacks<P>(
         let mut history = hw.lock().unwrap();
         let mut data = dw.lock().unwrap();
 
+        let mut parameters: Vec<f32> = Vec::new();
+
         if history.can_undo() {
             let op = history.undo().unwrap();
             let img = match op.get_type() {
                 &OperationType::Filter => {
                     let nop = op.as_ref().downcast_ref::<FilterOperation>().unwrap();
-                    data.update_filters(nop.get_content().clone());
+                    let (from, _) = nop.get_content();
+                    data.update_filters(from.clone());
+
+                    let exp = from.get_filter(crate::core::FilterType::Exposition)[0];
+                    let bb = from.get_filter(crate::core::FilterType::Boxblur)[0];
+                    let gb = from.get_filter(crate::core::FilterType::GaussianBlur)[0];
+                    let sh = from.get_filter(crate::core::FilterType::Sharpening)[0];
+                    let temp_and_tint = from.get_filter(crate::core::FilterType::WhiteBalance);
+                    let sat = from.get_filter(crate::core::FilterType::Saturation)[0];
+
+                    parameters = vec![exp, bb, gb, sh, temp_and_tint[0], temp_and_tint[1], sat];
 
                     if history.preview_aviable() {
                         data.norm_filters();
@@ -174,6 +186,12 @@ pub fn init_history_callbacks<P>(
                     img.height(),
                 );
 
+                if parameters != Vec::new() {
+                    Window.invoke_update_values(slint::ModelRc::new(slint::VecModel::from(
+                        parameters,
+                    )));
+                }
+
                 Window.set_image(slint::Image::from_rgba8(pix_buf));
             })
             .expect("Failed to call from event loop");
@@ -187,12 +205,32 @@ pub fn init_history_callbacks<P>(
         let mut history = hw.lock().unwrap();
         let mut data = dw.lock().unwrap();
 
+        let mut parameters = Vec::new();
+
         if history.can_redo() {
             let op = history.redo().unwrap();
             let img = match op.get_type() {
                 &OperationType::Filter => {
                     let nop = op.as_ref().downcast_ref::<FilterOperation>().unwrap();
-                    data.update_filters(nop.get_content().clone());
+                    let (_, to) = nop.get_content();
+                    data.update_filters(to.clone());
+
+                    let exp = to.get_filter(crate::core::FilterType::Exposition)[0];
+                    let bb: f32 = to.get_filter(crate::core::FilterType::Boxblur)[0];
+                    let gb = to.get_filter(crate::core::FilterType::GaussianBlur)[0];
+                    let sh = to.get_filter(crate::core::FilterType::Sharpening)[0];
+                    let temp_and_tint = to.get_filter(crate::core::FilterType::WhiteBalance);
+                    let sat = to.get_filter(crate::core::FilterType::Saturation)[0];
+
+                    parameters = vec![
+                        exp,
+                        bb,
+                        gb,
+                        sh,
+                        temp_and_tint[0] / 2000f32 - 6000f32,
+                        temp_and_tint[1] / 50f32,
+                        sat,
+                    ];
 
                     if history.preview_aviable() {
                         data.norm_filters();
@@ -319,6 +357,12 @@ pub fn init_history_callbacks<P>(
                     img.width(),
                     img.height(),
                 );
+
+                if parameters != Vec::new() {
+                    Window.invoke_update_values(slint::ModelRc::new(slint::VecModel::from(
+                        parameters,
+                    )));
+                }
 
                 Window.set_image(slint::Image::from_rgba8(pix_buf));
             })

@@ -127,7 +127,8 @@ pub fn init_toolbar_callbacks<P>(
         + bytemuck::Pod
         + Send
         + Sync
-        + LVIElib::traits::AsFloat,
+        + LVIElib::traits::AsFloat
+        + num_traits::ToBytes,
 {
     let Window = Window.unwrap();
 
@@ -183,12 +184,16 @@ pub fn init_toolbar_callbacks<P>(
 
         let mut data = data_weak.lock().unwrap();
 
-        hw.lock().unwrap().register_Logic_Operation_without_saving(
-            &crate::history::LogicOperationType::FileLoaded(),
-        );
-
         // load the image
         data.load_image(img.scale_image::<image::Rgba<u8>, P>(), true);
+
+        hw.lock()
+            .unwrap()
+            .register_Logic_Operation_and_save(
+                &crate::history::LogicOperationType::FileLoaded(),
+                &data.full_res_preview,
+            )
+            .expect("Failed to load the image into history");
 
         Window_weak
             .upgrade_in_event_loop(move |Window| {

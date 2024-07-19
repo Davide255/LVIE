@@ -11,6 +11,8 @@ export component CustomSlider inherits Rectangle {
 
     callback on-click <=> touch.clicked;
     callback on-move();
+    callback on-press();
+    callback on-release();
 
     min-height: 4px;
     min-width: 100px;
@@ -39,6 +41,9 @@ export component CustomSlider inherits Rectangle {
         pointer-event(event) => {
             if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
                 self.pressed-value = root.value;
+                root.on-press();
+            } else if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up) {
+                root.on-release();
             }
         }
         moved => {
